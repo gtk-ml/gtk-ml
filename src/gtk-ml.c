@@ -167,6 +167,12 @@ GTKML_PRIVATE gboolean lex(GtkMl_Token **tokenv, size_t *tokenc, const char **er
             ++col;
             ++src;
             continue;
+        case ';':
+            while (*src && *src != '\n') {
+                ++col;
+                ++src;
+            }
+            continue;
         case '.':
             if (*(src + 1) == '.' && *(src + 2) == '.') {
                 (*tokenv)[*tokenc].kind = GTKML_TOK_ELLIPSIS;

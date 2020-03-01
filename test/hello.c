@@ -1,13 +1,15 @@
 #include <gtk/gtk.h>
 #include "gtk-ml.h"
 
-static char *GUI = " \
-  (define-macro (Window title width height ...body)\
-    (lambda (app) \
-      (new-window app title width height) \
-      ...body)) \
-  (Application \"de.walterpi.example\" flags-none { \
-    :activate (Window \"gtk-ml example\" 640 480)})";
+static char *GUI =
+    "  ; define a Window macro\n"
+    "  (define-macro (Window title width height ...body)\n"
+    "    (lambda (app)\n"
+    "      (new-window app title width height)\n"
+    "      ...body))\n"
+    "  ; run the application\n"
+    "  (Application \"de.walterpi.example\" flags-none {\n"
+    "    :activate (Window \"gtk-ml example\" 640 480)})\n";
 
 int main() {
     const char *err;
