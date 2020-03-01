@@ -27,6 +27,7 @@
 #define GTKML_ERR_NULL_ERROR ":error \"null dereference\""
 #define GTKML_ERR_INVALID_SEXPR ":error \"invalid s-expression\""
 #define GTKML_ERR_ARGUMENT_ERROR ":error \"invalid arguments\""
+#define GTKML_ERR_TYPE_ERROR ":error \"invalid type for expression\""
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
 #define GTKML_ERR_UNIMPLEMENTED ":error \"unimplemented\""
@@ -92,6 +93,7 @@ typedef enum GtkMl_SKind {
     GTKML_S_LIST,
     GTKML_S_MAP,
     GTKML_S_LAMBDA,
+    GTKML_S_MACRO,
     GTKML_S_LIGHTDATA,
     GTKML_S_USERDATA,
 } GtkMl_SKind;
@@ -139,10 +141,19 @@ typedef struct GtkMl_SMap {
     GtkMl_S *cdr;
 } GtkMl_SMap;
 
+// a closure that evaluates its arguments
 typedef struct GtkMl_SLambda {
     GtkMl_S *args;
     GtkMl_S *body;
+    GtkMl_S *capture;
 } GtkMl_SLambda;
+
+// a closure that doesn't evaluate its arguments
+typedef struct GtkMl_SMacro {
+    GtkMl_S *args;
+    GtkMl_S *body;
+    GtkMl_S *capture;
+} GtkMl_SMacro;
 
 typedef struct GtkMl_SLightdata {
     void *userdata; // reference
@@ -163,6 +174,7 @@ typedef union GtkMl_SUnion {
     GtkMl_SList s_list;
     GtkMl_SMap s_map;
     GtkMl_SLambda s_lambda;
+    GtkMl_SMacro s_macro;
     GtkMl_SLightdata s_lightdata;
     GtkMl_SUserdata s_userdata;
 } GtkMl_SUnion;
@@ -215,10 +227,13 @@ GTKML_PUBLIC char *gtk_ml_dumpsn(char *ptr, size_t n, const char **err, GtkMl_S 
 GTKML_PUBLIC char *gtk_ml_dumpsnr(char *ptr, size_t n, const char **err, GtkMl_S *expr);
 // evaluates an expression
 GTKML_PUBLIC GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
-// calls a lambda expression with arguments
-GTKML_PUBLIC GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *lambda, GtkMl_S *args);
+// calls a lambda or macro expression with arguments
+GTKML_PUBLIC GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *function, GtkMl_S *args);
 // compares two values for equality
 GTKML_PUBLIC gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs);
+
+GTKML_PUBLIC GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx);
+
 GTKML_PUBLIC void gtk_ml_delete_reference(GtkMl_Context *ctx, void *);
 GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
 

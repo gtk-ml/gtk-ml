@@ -2,9 +2,11 @@
 #include "gtk-ml.h"
 
 static char *GUI = " \
+  (define-macro (Window title width height)\
+    (lambda (app) \
+      (new-window app title width height))) \
   (Application \"de.walterpi.example\" flags-none { \
-    :activate (lambda (app) \
-      (new-window app \"gtk-ml example\" 640 480))})";
+    :activate (Window \"gtk-ml example\" 640 480)})";
 
 int main() {
     const char *err;
@@ -21,7 +23,7 @@ int main() {
     gtk_ml_push(ctx, gui);
 
     GtkMl_S *app;
-    if (!(app = gtk_ml_exec(ctx, &err, gui))) {
+    if (!(app = gtk_ml_call(ctx, &err, gui, gtk_ml_nil(ctx)))) {
         gtk_ml_del_context(ctx);
         fprintf(stderr, "%s\n", err);
         return 1;

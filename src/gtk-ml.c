@@ -28,7 +28,8 @@ GTKML_PRIVATE GtkMl_S *new_symbol(GtkMl_Context *ctx, GtkMl_Span *span, const ch
 GTKML_PRIVATE GtkMl_S *new_keyword(GtkMl_Context *ctx, GtkMl_Span *span, const char *ptr, size_t len);
 GTKML_PRIVATE GtkMl_S *new_list(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *car, GtkMl_S *cdr);
 GTKML_PRIVATE GtkMl_S *new_map(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *car, GtkMl_S *cdr);
-GTKML_PRIVATE GtkMl_S *new_lambda(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *args, GtkMl_S *body);
+GTKML_PRIVATE GtkMl_S *new_lambda(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *args, GtkMl_S *body, GtkMl_S *capture);
+GTKML_PRIVATE GtkMl_S *new_macro(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *args, GtkMl_S *body, GtkMl_S *capture);
 GTKML_PRIVATE GtkMl_S *new_lightdata(GtkMl_Context *ctx, GtkMl_Span *span, void *data);
 GTKML_PRIVATE GtkMl_S *new_userdata(GtkMl_Context *ctx, GtkMl_Span *span, void *data, void (*del)(GtkMl_Context *ctx, void *));
 GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s);
@@ -393,10 +394,19 @@ GTKML_PRIVATE GtkMl_S *new_map(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *ca
     return s;
 }
 
-GTKML_PRIVATE GtkMl_S *new_lambda(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *args, GtkMl_S *body) {
+GTKML_PRIVATE GtkMl_S *new_lambda(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *args, GtkMl_S *body, GtkMl_S *capture) {
     GtkMl_S *s = new_value(ctx, span, GTKML_S_LAMBDA);
     s->value.s_lambda.args = args;
     s->value.s_lambda.body = body;
+    s->value.s_lambda.capture = capture;
+    return s;
+}
+
+GTKML_PRIVATE GtkMl_S *new_macro(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *args, GtkMl_S *body, GtkMl_S *capture) {
+    GtkMl_S *s = new_value(ctx, span, GTKML_S_MACRO);
+    s->value.s_macro.args = args;
+    s->value.s_macro.body = body;
+    s->value.s_macro.capture = capture;
     return s;
 }
 
@@ -621,7 +631,19 @@ GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, const char **err, const char *src) {
     }
     GtkMl_Token *_tokenv = tokenv;
     gboolean enabled = gtk_ml_disable_gc(ctx);
-    GtkMl_S *result = parse(ctx, err, &_tokenv, &tokenc);
+
+    GtkMl_S *body = new_nil(ctx, NULL);
+    GtkMl_S **last = &body;
+
+    while (tokenc) {
+        GtkMl_S *line = parse(ctx, err, &_tokenv, &tokenc);
+        GtkMl_S *new = new_list(ctx, NULL, line, *last);
+        *last = new;
+        last = &gtk_ml_cdr(new);
+    }
+
+    GtkMl_S *result = new_lambda(ctx, NULL, new_nil(ctx, NULL), body, new_nil(ctx, NULL));
+
     gtk_ml_enable_gc(ctx, enabled);
     free(tokenv);
     return result;
@@ -696,6 +718,26 @@ GtkMl_S *gtk_ml_get(GtkMl_Context *ctx, GtkMl_S *key) {
     return get_inner(ctx->bindings, key);
 }
 
+GTKML_PRIVATE GtkMl_S *local_scope(GtkMl_Context *ctx) {
+    GtkMl_S *local = new_nil(ctx, NULL);
+    GtkMl_S **last = &local;
+
+    GtkMl_S *bindings = ctx->bindings;
+    while (bindings->kind != GTKML_S_NIL) {
+        GtkMl_S *scope = gtk_ml_car(bindings);
+        while (scope->kind != GTKML_S_NIL) {
+            GtkMl_S *value = gtk_ml_car(scope);
+            GtkMl_S *new = new_map(ctx, NULL, value, *last);
+            *last = new;
+            last = &gtk_ml_cdr(new);
+            scope = gtk_ml_cdr(scope);
+        }
+        bindings = gtk_ml_cdr(bindings);
+    }
+
+    return local;
+}
+
 GTKML_PRIVATE void mark_value(GtkMl_S *s) {
     if (s->flags & GTKML_FLAG_REACHABLE) {
         return;
@@ -724,6 +766,12 @@ GTKML_PRIVATE void mark_value(GtkMl_S *s) {
     case GTKML_S_LAMBDA:
         mark_value(s->value.s_lambda.args);
         mark_value(s->value.s_lambda.body);
+        mark_value(s->value.s_lambda.capture);
+        break;
+    case GTKML_S_MACRO:
+        mark_value(s->value.s_macro.args);
+        mark_value(s->value.s_macro.body);
+        mark_value(s->value.s_macro.capture);
         break;
     }
 }
@@ -767,6 +815,12 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_LAMBDA:
         delete(ctx, s->value.s_lambda.args);
         delete(ctx, s->value.s_lambda.body);
+        delete(ctx, s->value.s_lambda.capture);
+        break;
+    case GTKML_S_MACRO:
+        delete(ctx, s->value.s_macro.args);
+        delete(ctx, s->value.s_macro.body);
+        delete(ctx, s->value.s_macro.capture);
         break;
     }
     free(s);
@@ -786,6 +840,7 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_LIST:
     case GTKML_S_MAP:
     case GTKML_S_LAMBDA:
+    case GTKML_S_MACRO:
         break;
     case GTKML_S_STRING:
         // const cast required
@@ -885,7 +940,7 @@ gboolean gtk_ml_dumpf(FILE *stream, const char **err, GtkMl_S *expr) {
         }
         fprintf(stream, "}");
         return 1;
-    case GTKML_S_LAMBDA:
+    case GTKML_S_LAMBDA: {
         fprintf(stream, "(lambda ");
         gtk_ml_dumpf(stream, err, expr->value.s_lambda.args);
         fprintf(stream, " ");
@@ -899,6 +954,22 @@ gboolean gtk_ml_dumpf(FILE *stream, const char **err, GtkMl_S *expr) {
         }
         fprintf(stream, ")");
         return 1;
+    }
+    case GTKML_S_MACRO: {
+        fprintf(stream, "(macro ");
+        gtk_ml_dumpf(stream, err, expr->value.s_macro.args);
+        fprintf(stream, " ");
+        GtkMl_S *body = expr->value.s_macro.body;
+        while (body->kind != GTKML_S_NIL) {
+            gtk_ml_dumpf(stream, err, gtk_ml_car(body));
+            body = gtk_ml_cdr(body);
+            if (body->kind != GTKML_S_NIL) {
+                fprintf(stream, " ");
+            }
+        }
+        fprintf(stream, ")");
+        return 1;
+    }
     case GTKML_S_LIGHTDATA:
         fprintf(stream, "%p", expr->value.s_lightdata.userdata);
         return 1;
@@ -977,7 +1048,22 @@ GTKML_PRIVATE GtkMl_S *builtin_lambda(GtkMl_Context *ctx, const char **err, GtkM
     GtkMl_S *lambda_args = gtk_ml_car(args);
     GtkMl_S *lambda_body = gtk_ml_cdr(args);
 
-    return new_lambda(ctx, &expr->span, lambda_args, lambda_body);
+    return new_lambda(ctx, &expr->span, lambda_args, lambda_body, local_scope(ctx));
+}
+
+GTKML_PRIVATE GtkMl_S *builtin_macro(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
+    GtkMl_S *args = gtk_ml_cdr(expr);
+
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return NULL;
+    }
+
+    GtkMl_S *macro_args = gtk_ml_car(args);
+    GtkMl_S *macro_body = gtk_ml_cdr(args);
+
+    return new_macro(ctx, &expr->span, macro_args, macro_body, local_scope(ctx));
 }
 
 GTKML_PRIVATE GtkMl_S *builtin_define(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
@@ -990,9 +1076,41 @@ GTKML_PRIVATE GtkMl_S *builtin_define(GtkMl_Context *ctx, const char **err, GtkM
     }
 
     GtkMl_S *key = gtk_ml_car(args);
-    GtkMl_S *value = gtk_ml_cdar(args);
+    if (key->kind == GTKML_S_SYMBOL) {
+        GtkMl_S *value = gtk_ml_cdar(args);
 
-    gtk_ml_define(ctx, key, value);
+        gtk_ml_define(ctx, key, value);
+    } else if (key->kind == GTKML_S_LIST) {
+        GtkMl_S *lambda_name = gtk_ml_car(key);
+        GtkMl_S *lambda_args = gtk_ml_cdr(key);
+        GtkMl_S *lambda_body = gtk_ml_cdr(args);
+        GtkMl_S *value = new_lambda(ctx, &expr->span, lambda_args, lambda_body, new_nil(ctx, NULL));
+
+        gtk_ml_define(ctx, lambda_name, value);
+    } else {
+        *err = GTKML_ERR_TYPE_ERROR;
+        return NULL;
+    }
+    return new_nil(ctx, &expr->span);
+}
+
+GTKML_PRIVATE GtkMl_S *builtin_define_macro(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
+
+    GtkMl_S *args = gtk_ml_cdr(expr);
+
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return NULL;
+    }
+
+    GtkMl_S *key = gtk_ml_car(args);
+    GtkMl_S *macro_name = gtk_ml_car(key);
+    GtkMl_S *macro_args = gtk_ml_cdr(key);
+    GtkMl_S *macro_body = gtk_ml_cdr(args);
+    GtkMl_S *value = new_macro(ctx, &expr->span, macro_args, macro_body, new_nil(ctx, NULL));
+
+    gtk_ml_define(ctx, macro_name, value);
     return new_nil(ctx, &expr->span);
 }
 
@@ -1090,6 +1208,7 @@ GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
     case GTKML_S_LAMBDA:
+    case GTKML_S_MACRO:
         return expr;
     case GTKML_S_SYMBOL: {
         GtkMl_S *result = gtk_ml_get(ctx, expr);
@@ -1104,16 +1223,24 @@ GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
         if (car->kind == GTKML_S_SYMBOL) {
             if (strncmp(car->value.s_symbol.ptr, "lambda", car->value.s_symbol.len) == 0) {
                 return builtin_lambda(ctx, err, expr);
+            } else if (strncmp(car->value.s_symbol.ptr, "macro", car->value.s_symbol.len) == 0) {
+                return builtin_macro(ctx, err, expr);
             } else if (strncmp(car->value.s_symbol.ptr, "define", car->value.s_symbol.len) == 0) {
                 return builtin_define(ctx, err, expr);
+            } else if (strncmp(car->value.s_symbol.ptr, "define-macro", car->value.s_symbol.len) == 0) {
+                return builtin_define_macro(ctx, err, expr);
             } else if (strncmp(car->value.s_symbol.ptr, "Application", car->value.s_symbol.len) == 0) {
                 return builtin_application(ctx, err, expr);
             } else if (strncmp(car->value.s_symbol.ptr, "new-window", car->value.s_symbol.len) == 0) {
                 return builtin_new_window(ctx, err, expr);
             }
         }
-        *err = GTKML_ERR_UNIMPLEMENTED;
-        return NULL;
+        GtkMl_S *function = gtk_ml_exec(ctx, err, car);
+        if (!function) {
+            return NULL;
+        }
+
+        return gtk_ml_call(ctx, err, function, gtk_ml_cdr(expr));
     }
     case GTKML_S_MAP: {
         GtkMl_S *car = gtk_ml_exec(ctx, err, gtk_ml_car(expr));
@@ -1132,13 +1259,20 @@ GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
     }
 }
 
-GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *lambda, GtkMl_S *args) {
+GTKML_PRIVATE GtkMl_S *call_lambda(GtkMl_Context *ctx, const char **err, GtkMl_S *lambda, GtkMl_S *args) {
+    GtkMl_S *capture = lambda->value.s_lambda.capture;
+    ctx->bindings = new_list(ctx, NULL, capture, ctx->bindings);
+
     gtk_ml_enter(ctx);
 
     GtkMl_S *params = lambda->value.s_lambda.args;
 
     while (params->kind != GTKML_S_NIL && args->kind != GTKML_S_NIL) {
-        gtk_ml_bind(ctx, gtk_ml_car(params), gtk_ml_car(args));
+        GtkMl_S *arg = gtk_ml_exec(ctx, err, gtk_ml_car(args));
+        if (!arg) {
+            break;
+        }
+        gtk_ml_bind(ctx, gtk_ml_car(params), arg);
         params = gtk_ml_cdr(params);
         args = gtk_ml_cdr(args);
     }
@@ -1160,8 +1294,56 @@ GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *lambda, GtkM
     }
 
     gtk_ml_leave(ctx);
+    gtk_ml_leave(ctx);
 
     return result;
+}
+
+GTKML_PRIVATE GtkMl_S *call_macro(GtkMl_Context *ctx, const char **err, GtkMl_S *macro, GtkMl_S *args) {
+    GtkMl_S *capture = macro->value.s_macro.capture;
+    ctx->bindings = new_list(ctx, NULL, capture, ctx->bindings);
+
+    gtk_ml_enter(ctx);
+
+    GtkMl_S *params = macro->value.s_macro.args;
+
+    while (params->kind != GTKML_S_NIL && args->kind != GTKML_S_NIL) {
+        gtk_ml_bind(ctx, gtk_ml_car(params), gtk_ml_car(args));
+        params = gtk_ml_cdr(params);
+        args = gtk_ml_cdr(args);
+    }
+
+    if (params->kind != args->kind) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return NULL;
+    }
+
+    GtkMl_S *result = new_nil(ctx, NULL);
+    GtkMl_S *body = macro->value.s_macro.body;
+    while (body->kind != GTKML_S_NIL) {
+        result = gtk_ml_exec(ctx, err, gtk_ml_car(body));
+        if (!result) {
+            gtk_ml_leave(ctx);
+            return NULL;
+        }
+        body = gtk_ml_cdr(body);
+    }
+
+    gtk_ml_leave(ctx);
+    gtk_ml_leave(ctx);
+
+    return result;
+}
+
+GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *function, GtkMl_S *args) {
+    if (function->kind == GTKML_S_LAMBDA) {
+        return call_lambda(ctx, err, function, args);
+    } else if (function->kind == GTKML_S_MACRO) {
+        return call_macro(ctx, err, function, args);
+    } else {
+        *err = GTKML_ERR_TYPE_ERROR;
+        return NULL;
+    }
 }
 
 gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs) {
@@ -1198,6 +1380,10 @@ gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs) {
         if (gtk_ml_equal(lhs->value.s_lambda.args, rhs->value.s_lambda.args)) {
             return gtk_ml_equal(lhs->value.s_lambda.body, rhs->value.s_lambda.body);
         }
+    case GTKML_S_MACRO:
+        if (gtk_ml_equal(lhs->value.s_macro.args, rhs->value.s_macro.args)) {
+            return gtk_ml_equal(lhs->value.s_macro.body, rhs->value.s_macro.body);
+        }
     case GTKML_S_LIST:
     case GTKML_S_MAP:
         if (gtk_ml_equal(gtk_ml_car(lhs), gtk_ml_car(rhs))) {
@@ -1206,6 +1392,10 @@ gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs) {
     }
 
     return 0;
+}
+
+GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx) {
+    return new_nil(ctx, NULL);
 }
 
 void gtk_ml_delete_reference(GtkMl_Context *ctx, void *reference) {
