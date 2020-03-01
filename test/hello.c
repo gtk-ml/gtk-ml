@@ -2,9 +2,10 @@
 #include "gtk-ml.h"
 
 static char *GUI = " \
-  (define-macro (Window title width height)\
+  (define-macro (Window title width height ...body)\
     (lambda (app) \
-      (new-window app title width height))) \
+      (new-window app title width height) \
+      ...body)) \
   (Application \"de.walterpi.example\" flags-none { \
     :activate (Window \"gtk-ml example\" 640 480)})";
 

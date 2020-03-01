@@ -30,6 +30,7 @@
 #define GTKML_ERR_TYPE_ERROR ":error \"invalid type for expression\""
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
+#define GTKML_ERR_VARIADIC_ERROR ":error \"free-standing variadic expression\""
 #define GTKML_ERR_UNIMPLEMENTED ":error \"unimplemented\""
 
 #define gtk_ml_car(x) (x->value.s_list.car)
@@ -49,6 +50,8 @@ typedef struct GtkMl_Context GtkMl_Context;
 
 // a lexical analysis level token tag
 typedef enum GtkMl_TokenKind {
+    GTKML_TOK_DOT,
+    GTKML_TOK_ELLIPSIS,
     GTKML_TOK_PARENL,
     GTKML_TOK_PARENR,
     GTKML_TOK_CURLYL,
@@ -92,8 +95,10 @@ typedef enum GtkMl_SKind {
     GTKML_S_KEYWORD,
     GTKML_S_LIST,
     GTKML_S_MAP,
+    GTKML_S_VARIADIC,
     GTKML_S_LAMBDA,
     GTKML_S_MACRO,
+    GTKML_S_FFI,
     GTKML_S_LIGHTDATA,
     GTKML_S_USERDATA,
 } GtkMl_SKind;
@@ -141,6 +146,10 @@ typedef struct GtkMl_SMap {
     GtkMl_S *cdr;
 } GtkMl_SMap;
 
+typedef struct GtkMl_SVariadic {
+    GtkMl_S *expr;
+} GtkMl_SVariadic;
+
 // a closure that evaluates its arguments
 typedef struct GtkMl_SLambda {
     GtkMl_S *args;
@@ -154,6 +163,10 @@ typedef struct GtkMl_SMacro {
     GtkMl_S *body;
     GtkMl_S *capture;
 } GtkMl_SMacro;
+
+typedef struct GtkMl_SFfi {
+    GtkMl_S *(*function)(GtkMl_Context *, const char **, GtkMl_S *);
+} GtkMl_SFfi;
 
 typedef struct GtkMl_SLightdata {
     void *userdata; // reference
@@ -173,8 +186,10 @@ typedef union GtkMl_SUnion {
     GtkMl_SKeyword s_keyword;
     GtkMl_SList s_list;
     GtkMl_SMap s_map;
+    GtkMl_SVariadic s_var;
     GtkMl_SLambda s_lambda;
     GtkMl_SMacro s_macro;
+    GtkMl_SFfi s_ffi;
     GtkMl_SLightdata s_lightdata;
     GtkMl_SUserdata s_userdata;
 } GtkMl_SUnion;
@@ -227,8 +242,8 @@ GTKML_PUBLIC char *gtk_ml_dumpsn(char *ptr, size_t n, const char **err, GtkMl_S 
 GTKML_PUBLIC char *gtk_ml_dumpsnr(char *ptr, size_t n, const char **err, GtkMl_S *expr);
 // evaluates an expression
 GTKML_PUBLIC GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
-// calls a lambda or macro expression with arguments
-GTKML_PUBLIC GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *function, GtkMl_S *args);
+// calls a lambda, a macro or an ffi expression with arguments
+GTKML_PUBLIC GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *function, GtkMl_S *expr);
 // compares two values for equality
 GTKML_PUBLIC gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs);
 
