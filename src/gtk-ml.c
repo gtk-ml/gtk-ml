@@ -688,9 +688,9 @@ GtkMl_S *gtk_ml_load(GtkMl_Context *ctx, char **src, const char **err, const cha
 }
 
 GtkMl_S *gtk_ml_loadf(GtkMl_Context *ctx, char **src, const char **err, FILE *stream) {
-    fseek(stream, SEEK_END, 0l);
+    fseek(stream, 0l, SEEK_END);
     size_t size = ftell(stream);
-    fseek(stream, SEEK_SET, 0l);
+    fseek(stream, 0l, SEEK_SET);
     *src = malloc(size + 1);
     size_t read = fread(*src, 1, size, stream);
     if (read != size) {
