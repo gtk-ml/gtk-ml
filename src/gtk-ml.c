@@ -14,6 +14,7 @@ struct GtkMl_Context {
     size_t stack_cap;
 
     GtkMl_S *bindings;
+    GtkMl_S **top_scope;
 };
 
 GTKML_PRIVATE GtkMl_S *new_value(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKind kind);
@@ -49,13 +50,12 @@ GtkMl_Context *gtk_ml_new_context() {
     // the root doesn't get sweeped by gc, so it doesn't need to be pushed to stack
     new_nil(ctx, NULL);
     // ({'#nil #nil '#t #t '#f #f 'flags-none G_APPLICATION_FLAGS_NONE})
-    GtkMl_S *bindings =
-        new_map(ctx, NULL, new_symbol(ctx, NULL, "#nil", 4), new_map(ctx, NULL, new_nil(ctx, NULL),
-        new_map(ctx, NULL, new_symbol(ctx, NULL, "#t", 2), new_map(ctx, NULL, new_true(ctx, NULL),
-        new_map(ctx, NULL, new_symbol(ctx, NULL, "#f", 2), new_map(ctx, NULL, new_false(ctx, NULL),
-        new_map(ctx, NULL, new_symbol(ctx, NULL, "flags-none", 10), new_map(ctx, NULL, new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE),
-        new_nil(ctx, NULL)))))))));
-    ctx->bindings = new_list(ctx, NULL, bindings, new_nil(ctx, NULL));
+    ctx->bindings = new_list(ctx, NULL, new_nil(ctx, NULL), new_nil(ctx, NULL));
+    ctx->top_scope = &gtk_ml_car(ctx->bindings);
+    gtk_ml_define(ctx, new_symbol(ctx, NULL, "#nil", 4), new_nil(ctx, NULL));
+    gtk_ml_define(ctx, new_symbol(ctx, NULL, "#t", 2), new_true(ctx, NULL));
+    gtk_ml_define(ctx, new_symbol(ctx, NULL, "#f", 2), new_false(ctx, NULL));
+    gtk_ml_define(ctx, new_symbol(ctx, NULL, "flags-none", 10), new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE));
     gtk_ml_enable_gc(ctx, 1);
     return ctx;
 }
@@ -651,6 +651,14 @@ void gtk_ml_leave(GtkMl_Context *ctx) {
     ctx->bindings = gtk_ml_cdr(ctx->bindings);
 }
 
+void gtk_ml_define(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value) {
+    gboolean enabled = gtk_ml_disable_gc(ctx);
+    GtkMl_S *new_context = new_map(ctx, NULL, key, new_map(ctx, NULL, value,
+        *ctx->top_scope));
+    *ctx->top_scope = new_context;
+    gtk_ml_enable_gc(ctx, enabled);
+}
+
 void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value) {
     gboolean enabled = gtk_ml_disable_gc(ctx);
     GtkMl_S *new_context = new_map(ctx, NULL, key, new_map(ctx, NULL, value,
@@ -972,6 +980,22 @@ GTKML_PRIVATE GtkMl_S *builtin_lambda(GtkMl_Context *ctx, const char **err, GtkM
     return new_lambda(ctx, &expr->span, lambda_args, lambda_body);
 }
 
+GTKML_PRIVATE GtkMl_S *builtin_define(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
+    GtkMl_S *args = gtk_ml_cdr(expr);
+
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return NULL;
+    }
+
+    GtkMl_S *key = gtk_ml_car(args);
+    GtkMl_S *value = gtk_ml_cdar(args);
+
+    gtk_ml_define(ctx, key, value);
+    return new_nil(ctx, &expr->span);
+}
+
 GTKML_PRIVATE GtkMl_S *builtin_application(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
     GtkMl_S *args = gtk_ml_cdr(expr);
 
@@ -1080,6 +1104,8 @@ GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
         if (car->kind == GTKML_S_SYMBOL) {
             if (strncmp(car->value.s_symbol.ptr, "lambda", car->value.s_symbol.len) == 0) {
                 return builtin_lambda(ctx, err, expr);
+            } else if (strncmp(car->value.s_symbol.ptr, "define", car->value.s_symbol.len) == 0) {
+                return builtin_define(ctx, err, expr);
             } else if (strncmp(car->value.s_symbol.ptr, "Application", car->value.s_symbol.len) == 0) {
                 return builtin_application(ctx, err, expr);
             } else if (strncmp(car->value.s_symbol.ptr, "new-window", car->value.s_symbol.len) == 0) {

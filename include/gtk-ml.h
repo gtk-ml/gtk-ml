@@ -195,6 +195,8 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_pop(GtkMl_Context *ctx);
 GTKML_PUBLIC void gtk_ml_enter(GtkMl_Context *ctx);
 // leaves the most recent bindings context
 GTKML_PUBLIC void gtk_ml_leave(GtkMl_Context *ctx);
+// binds a value to a key in the top bindings context
+GTKML_PUBLIC void gtk_ml_define(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value);
 // binds a value to a key in the most recent bindings context
 GTKML_PUBLIC void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value);
 // gets a value bound to a key
