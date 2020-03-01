@@ -20,6 +20,90 @@
 
 #define GTKML_GC_THRESHOLD 256
 
+#define GTKML_VM_STACK 16 * 1024 * 1024
+
+#define GTKML_F_HALT 0x10
+#define GTKML_F_ZERO 0x8
+#define GTKML_F_SIGN 0x4
+#define GTKML_F_OVERFLOW 0x2
+#define GTKML_F_CARRY 0x1
+#define GTKML_F_NONE 0x0
+
+#define GTKML_I_ARITH 0x1
+#define GTKML_I_IMM 0x2
+#define GTKML_I_BR 0x3
+#define GTKML_EI_IMM 0xa
+#define GTKML_EI_BR 0xb
+#define GTKML_I_EXTENDED 0x8
+
+#define GTKML_IA_NOP 0x0
+#define GTKML_IA_HALT 0x1
+#define GTKML_IA_MOVE 0x2
+#define GTKML_IA_INTEGER_ADD 0x4
+#define GTKML_IA_INTEGER_SUBTRACT 0x5
+#define GTKML_IA_INTEGER_SIGNED_MULTIPLY 0x6
+#define GTKML_IA_INTEGER_UNSIGNED_MULTIPLY 0x7
+#define GTKML_IA_INTEGER_SIGNED_DIVIDE 0x8
+#define GTKML_IA_INTEGER_UNSIGNED_DIVIDE 0x9
+#define GTKML_IA_INTEGER_SIGNED_MODULO 0xa
+#define GTKML_IA_INTEGER_UNSIGNED_MODULO 0xb
+#define GTKML_IA_FLOAT_ADD 0x14
+#define GTKML_IA_FLOAT_SUBTRACT 0x15
+#define GTKML_IA_FLOAT_MULTIPLY 0x16
+#define GTKML_IA_FLOAT_DIVIDE 0x18
+#define GTKML_IA_FLOAT_MODULO 0x19
+#define GTKML_IA_BIT_AND 0x20
+#define GTKML_IA_BIT_OR 0x21
+#define GTKML_IA_BIT_XOR 0x22
+#define GTKML_IA_BIT_NAND 0x24
+#define GTKML_IA_BIT_NOR 0x25
+#define GTKML_IA_BIT_XNOR 0x26
+#define GTKML_IA_BRANCH_REGISTER_ABSOLUTE 0x40
+#define GTKML_IA_BRANCH_REGISTER_RELATIVE 0x41
+
+#define GTKML_EII_PUSH_EXT_IMM 0x0
+#define GTKML_EII_POP 0x1
+
+#define GTKML_EIBR_CALL_FFI 0x0
+
+#define GTKML_SIA_NOP "NOP"
+#define GTKML_SIA_HALT "HALT"
+#define GTKML_SIA_MOVE "MOVE"
+#define GTKML_SIA_INTEGER_ADD "INTEGER_ADD"
+#define GTKML_SIA_INTEGER_SUBTRACT "INTEGER_SUBTRACT"
+#define GTKML_SIA_INTEGER_SIGNED_MULTIPLY "INTEGER_SIGNED_MULTIPLY"
+#define GTKML_SIA_INTEGER_UNSIGNED_MULTIPLY "INTEGER_UNSIGNED_MULTIPLY"
+#define GTKML_SIA_INTEGER_SIGNED_DIVIDE "INTEGER_SIGNED_DIVIDE"
+#define GTKML_SIA_INTEGER_UNSIGNED_DIVIDE "INTEGER_UNSIGNED_DIVIDE"
+#define GTKML_SIA_INTEGER_SIGNED_MODULO "INTEGER_SIGNED_MODULO"
+#define GTKML_SIA_INTEGER_UNSIGNED_MODULO "INTEGER_UNSIGNED_MODULO"
+#define GTKML_SIA_FLOAT_ADD "FLOAT_ADD"
+#define GTKML_SIA_FLOAT_SUBTRACT "FLOAT_SUBTRACT"
+#define GTKML_SIA_FLOAT_MULTIPLY "FLOAT_MULTIPLY"
+#define GTKML_SIA_FLOAT_DIVIDE "FLOAT_DIVIDE"
+#define GTKML_SIA_FLOAT_MODULO "FLOAT_MODULO"
+#define GTKML_SIA_BIT_AND "BIT_AND"
+#define GTKML_SIA_BIT_OR "BIT_OR"
+#define GTKML_SIA_BIT_XOR "BIT_XOR"
+#define GTKML_SIA_BIT_NAND "BIT_NAND"
+#define GTKML_SIA_BIT_NOR "BIT_NOR"
+#define GTKML_SIA_BIT_XNOR "BIT_XNOR"
+#define GTKML_SIA_BRANCH_REGISTER_ABSOLUTE "BRANCH_REGISTER_ABSOLUTE"
+#define GTKML_SIA_BRANCH_REGISTER_RELATIVE "BRANCH_REGISTER_RELATIVE"
+
+#define GTKML_SEII_PUSH_EXT_IMM "PUSH_EXT_IMM"
+#define GTKML_SEII_POP "POP"
+
+#define GTKML_SEIBR_CALL_FFI "CALL_FFI"
+
+#define GTKML_R_ZERO 0
+#define GTKML_R_FLAGS 251
+#define GTKML_R_SP 252
+#define GTKML_R_BP 253
+#define GTKML_R_LR 254
+#define GTKML_R_PC 255
+#define GTKML_REGISTER_COUNT 256
+
 #define GTKML_ERR_IO_ERROR ":error \"unknown io error, check errno\""
 #define GTKML_ERR_CHARACTER_ERROR ":error \"unexpected character\""
 #define GTKML_ERR_TOKEN_ERROR ":error \"unexpected token\""
@@ -31,6 +115,9 @@
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
 #define GTKML_ERR_VARIADIC_ERROR ":error \"free-standing variadic expression\""
+#define GTKML_ERR_CATEGORY_ERROR ":error \"invalid category\""
+#define GTKML_ERR_OPCODE_ERROR ":error \"invalid opcode\""
+#define GTKML_ERR_PROGRAM_ERROR ":error \"not a program\""
 #define GTKML_ERR_UNIMPLEMENTED ":error \"unimplemented\""
 
 #define gtk_ml_car(x) (x->value.s_list.car)
@@ -47,6 +134,8 @@
 
 typedef struct GtkMl_S GtkMl_S;
 typedef struct GtkMl_Context GtkMl_Context;
+typedef struct GtkMl_Vm GtkMl_Vm;
+typedef union GtkMl_Register GtkMl_Register;
 
 // a lexical analysis level token tag
 typedef enum GtkMl_TokenKind {
@@ -203,21 +292,87 @@ typedef struct GtkMl_S {
     GtkMl_SUnion value;
 } GtkMl_S;
 
+typedef struct GtkMl_InstrGen {
+    unsigned long cond : 4;
+    unsigned long category : 4;
+    unsigned long _pad : 56;
+} GtkMl_InstrGen;
+
+typedef struct GtkMl_InstrArith {
+    unsigned long cond : 4;
+    unsigned long category : 4; // must be 0001
+    unsigned long opcode : 8;
+    unsigned long rd : 8;
+    unsigned long rs : 8;
+    unsigned long ra : 8;
+    unsigned long _pad : 24;
+} GtkMl_InstrArith;
+
+typedef struct GtkMl_InstrImm {
+    unsigned long cond : 4;
+    unsigned long category : 4; // must be 0010 or 1010
+    unsigned long opcode : 8;
+    unsigned long rd : 8;
+    unsigned long rs : 8;
+    unsigned long imm : 32;
+} GtkMl_InstrImm;
+
+typedef struct GtkMl_InstrBr {
+    unsigned long cond : 4;
+    unsigned long category : 4; // must be 0011 or 1011
+    unsigned long opcode : 8;
+    unsigned long imm : 48;
+} GtkMl_InstrBr;
+
+typedef union GtkMl_Instruction {
+    GtkMl_InstrGen gen;
+    GtkMl_InstrArith arith;
+    GtkMl_InstrImm imm;
+    GtkMl_InstrBr br;
+    uint64_t imm64;
+} GtkMl_Instruction;
+
+union GtkMl_Register {
+    GtkMl_S *s;
+    GtkMl_Register *p;
+    GtkMl_Instruction *b;
+    uint64_t u;
+    int64_t i;
+    double f;
+};
+
 // creates a new context on the heap
 // must be deleted with `gtk_ml_del_context`
 GTKML_PUBLIC GtkMl_Context *gtk_ml_new_context();
 // deletes a context created with `gtk_ml_new_context`
 GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
+// loads an executable program into the context
+GTKML_PUBLIC void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Instruction *exec, size_t n_exec);
+// runs a program previously loaded with `gtk_ml_load_program`
+GTKML_PUBLIC gboolean gtk_ml_run_program(GtkMl_Context *ctx, const char **err);
+
+// creates a new virtual machine on the heap
+// must be deleted with `gtk_ml_del_vm`
+GTKML_PUBLIC GtkMl_Vm *gtk_ml_new_vm(GtkMl_Context *ctx);
+// deletes a virtual machine created with `gtk_ml_new_vm`
+GTKML_PUBLIC void gtk_ml_del_vm(GtkMl_Vm *vm);
+
 // loads an expression from a path
 GTKML_PUBLIC GtkMl_S *gtk_ml_load(GtkMl_Context *ctx, char **src, const char **err, const char *file);
 // loads an expression from a file
 GTKML_PUBLIC GtkMl_S *gtk_ml_loadf(GtkMl_Context *ctx, char **src, const char **err, FILE *stream);
 // loads an expression from a string
 GTKML_PUBLIC GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, const char **err, const char *src);
+
+// compile a lambda expression to bytecode
+GTKML_PUBLIC GtkMl_Instruction *gtk_ml_compile(GtkMl_Context *ctx, const char **err, size_t *n_exec, GtkMl_S *lambda);
+
 // pushes an expression to the stack
 GTKML_PUBLIC void gtk_ml_push(GtkMl_Context *ctx, GtkMl_S *value);
 // pops an expression from the stack
 GTKML_PUBLIC GtkMl_S *gtk_ml_pop(GtkMl_Context *ctx);
+// peeks an expression at the top of the stack
+GTKML_PUBLIC GtkMl_S *gtk_ml_peek(GtkMl_Context *ctx);
 // enters a bindings context
 GTKML_PUBLIC void gtk_ml_enter(GtkMl_Context *ctx);
 // leaves the most recent bindings context

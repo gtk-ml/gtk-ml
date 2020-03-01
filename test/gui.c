@@ -1,7 +1,7 @@
 #include <gtk/gtk.h>
 #include "gtk-ml.h"
 
-#define GUI "examples/hello.gtkml"
+#define GUI "examples/gui.gtkml"
 
 int main() {
     const char *err = NULL;
@@ -22,28 +22,20 @@ int main() {
     GtkMl_Instruction *exec = gtk_ml_compile(ctx, &err, &n_exec, gui);
     if (!exec) {
         gtk_ml_del_context(ctx);
-        free(src);
         fprintf(stderr, "%s\n", err);
         return 1;
     }
 
     gtk_ml_load_program(ctx, exec, n_exec);
 
-    if (!(gtk_ml_run_program(ctx, &err))) {
+    GtkMl_S *app;
+    if (!(app = gtk_ml_call(ctx, &err, gui, gtk_ml_nil(ctx)))) {
         gtk_ml_del_context(ctx);
-        free(src);
         fprintf(stderr, "%s\n", err);
         return 1;
     }
 
-    GtkMl_S *app = gtk_ml_peek(ctx);
-
-    if (!app) {
-        gtk_ml_del_context(ctx);
-        free(src);
-        fprintf(stderr, "%s\n", err);
-        return 1;
-    }
+    gtk_ml_push(ctx, app);
 
     int status = g_application_run(G_APPLICATION(app->value.s_userdata.userdata), 0, NULL);
 
