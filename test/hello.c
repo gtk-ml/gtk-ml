@@ -45,7 +45,7 @@ int main() {
         return 1;
     }
 
-    if (!(gtk_ml_run_program(ctx, &err, program, NULL))) {
+    if (!gtk_ml_run_program(ctx, &err, program, NULL)) {
         gtk_ml_del_context(ctx);
         free(src);
         fprintf(stderr, "%s\n", err);

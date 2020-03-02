@@ -8,7 +8,6 @@ struct GtkMl_Context {
     size_t n_values;
     size_t m_values;
     GtkMl_S *first;
-    GtkMl_S *last;
 
     GtkMl_S *bindings;
     GtkMl_S **top_scope;
@@ -24,96 +23,6 @@ struct GtkMl_Vm {
     size_t exec_len;
 
     GtkMl_Context *ctx;
-};
-
-static const char *S_I_ARITH[] = {
-    [GTKML_IA_NOP] = GTKML_SIA_NOP,
-    [GTKML_IA_HALT] = GTKML_SIA_HALT,
-    [GTKML_IA_INTEGER_ADD] = GTKML_SIA_INTEGER_ADD,
-    [GTKML_IA_INTEGER_SUBTRACT] = GTKML_SIA_INTEGER_SUBTRACT,
-    [GTKML_IA_INTEGER_SIGNED_MULTIPLY] = GTKML_SIA_INTEGER_SIGNED_MULTIPLY,
-    [GTKML_IA_INTEGER_UNSIGNED_MULTIPLY] = GTKML_SIA_INTEGER_UNSIGNED_MULTIPLY,
-    [GTKML_IA_INTEGER_SIGNED_DIVIDE] = GTKML_SIA_INTEGER_SIGNED_DIVIDE,
-    [GTKML_IA_INTEGER_UNSIGNED_DIVIDE] = GTKML_SIA_INTEGER_UNSIGNED_DIVIDE,
-    [GTKML_IA_INTEGER_SIGNED_MODULO] = GTKML_SIA_INTEGER_SIGNED_MODULO,
-    [GTKML_IA_INTEGER_UNSIGNED_MODULO] = GTKML_SIA_INTEGER_UNSIGNED_MODULO,
-    [GTKML_IA_FLOAT_ADD] = GTKML_SIA_FLOAT_ADD,
-    [GTKML_IA_FLOAT_SUBTRACT] = GTKML_SIA_FLOAT_SUBTRACT,
-    [GTKML_IA_FLOAT_MULTIPLY] = GTKML_SIA_FLOAT_MULTIPLY,
-    [GTKML_IA_FLOAT_DIVIDE] = GTKML_SIA_FLOAT_DIVIDE,
-    [GTKML_IA_FLOAT_MODULO] = GTKML_SIA_FLOAT_MODULO,
-    [GTKML_IA_BIT_AND] = GTKML_SIA_BIT_AND,
-    [GTKML_IA_BIT_OR] = GTKML_SIA_BIT_OR,
-    [GTKML_IA_BIT_XOR] = GTKML_SIA_BIT_XOR,
-    [GTKML_IA_BIT_NAND] = GTKML_SIA_BIT_NAND,
-    [GTKML_IA_BIT_NOR] = GTKML_SIA_BIT_NOR,
-    [GTKML_IA_BIT_XNOR] = GTKML_SIA_BIT_XNOR,
-    [GTKML_IA_BRANCH_ABSOLUTE] = GTKML_SIA_BRANCH_ABSOLUTE,
-    [GTKML_IA_BRANCH_RELATIVE] = GTKML_SIA_BRANCH_RELATIVE,
-    [GTKML_IA_BIND] = GTKML_SIA_BIND,
-    [GTKML_IA_DEFINE] = GTKML_SIA_DEFINE,
-    [255] = NULL,
-};
-
-static const char *S_I_IMM[] = {
-    [GTKML_II_PUSH_IMM] = GTKML_SII_PUSH_IMM,
-    [GTKML_II_POP] = GTKML_SII_POP,
-    [GTKML_II_GET_IMM] = GTKML_SII_GET_IMM,
-    [255] = NULL,
-};
-
-static const char *S_I_IMM_EXTERN[] = {
-    [GTKML_II_PUSH_IMM] = GTKML_SII_PUSH_IMM_EXTERN,
-    [GTKML_II_POP] = GTKML_SII_POP,
-    [GTKML_II_GET_IMM] = GTKML_SII_GET_IMM,
-    [255] = NULL,
-};
-
-static const char *S_I_BR[] = {
-    [GTKML_IBR_CALL_FFI] = GTKML_SIBR_CALL_FFI,
-    [GTKML_IBR_CALL] = GTKML_SIBR_CALL,
-    [GTKML_IBR_RET] = GTKML_SIBR_RET,
-    [255] = NULL,
-};
-
-static const char *S_EI_IMM[] = {
-    [GTKML_EII_PUSH_EXT_IMM] = GTKML_SEII_PUSH_EXT_IMM,
-    [GTKML_EII_POP_EXT] = GTKML_SEII_POP_EXT,
-    [GTKML_EII_GET_EXT_IMM] = GTKML_SEII_GET_EXT_IMM,
-    [255] = NULL,
-};
-
-static const char *S_EI_IMM_EXTERN[] = {
-    [GTKML_EII_PUSH_EXT_IMM] = GTKML_SEII_PUSH_EXT_IMM_EXTERN,
-    [GTKML_EII_POP_EXT] = GTKML_SEII_POP_EXT,
-    [GTKML_EII_GET_EXT_IMM] = GTKML_SEII_GET_EXT_IMM,
-    [255] = NULL,
-};
-
-static const char *S_EI_BR[] = {
-    [GTKML_EIBR_CALL_EXT_FFI] = GTKML_SEIBR_CALL_EXT_FFI,
-    [GTKML_EIBR_CALL_EXT] = GTKML_SEIBR_CALL_EXT,
-    [GTKML_EIBR_RET_EXT] = GTKML_SEIBR_RET_EXT,
-    [255] = NULL,
-};
-
-static const char **S_CATEGORY[] = {
-    [0] = NULL,
-    [GTKML_I_ARITH] = S_I_ARITH,
-    [GTKML_I_IMM] = S_I_IMM,
-    [GTKML_I_BR] = S_I_BR,
-    [4] = NULL,
-    [5] = NULL,
-    [GTKML_I_IMM | GTKML_I_IMM_EXTERN] = S_I_IMM_EXTERN,
-    [7] = NULL,
-    [8] = NULL,
-    [9] = NULL,
-    [GTKML_EI_IMM] = S_EI_IMM,
-    [GTKML_EI_BR] = S_EI_BR,
-    [12] = NULL,
-    [13] = NULL,
-    [GTKML_EI_IMM | GTKML_EI_IMM_EXTERN] = S_EI_IMM_EXTERN,
-    [15] = NULL,
 };
 
 GTKML_PRIVATE GtkMl_S *new_value(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKind kind);
@@ -200,19 +109,180 @@ GTKML_PRIVATE gboolean gtk_ml_eibr_call_ext_ffi(GtkMl_Vm *vm, const char **err, 
 GTKML_PRIVATE gboolean gtk_ml_eibr_call_ext(GtkMl_Vm *vm, const char **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 GTKML_PRIVATE gboolean gtk_ml_eibr_ret_ext(GtkMl_Vm *vm, const char **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 
+GTKML_PRIVATE const char *S_I_ARITH[] = {
+    [GTKML_IA_NOP] = GTKML_SIA_NOP,
+    [GTKML_IA_HALT] = GTKML_SIA_HALT,
+    [GTKML_IA_INTEGER_ADD] = GTKML_SIA_INTEGER_ADD,
+    [GTKML_IA_INTEGER_SUBTRACT] = GTKML_SIA_INTEGER_SUBTRACT,
+    [GTKML_IA_INTEGER_SIGNED_MULTIPLY] = GTKML_SIA_INTEGER_SIGNED_MULTIPLY,
+    [GTKML_IA_INTEGER_UNSIGNED_MULTIPLY] = GTKML_SIA_INTEGER_UNSIGNED_MULTIPLY,
+    [GTKML_IA_INTEGER_SIGNED_DIVIDE] = GTKML_SIA_INTEGER_SIGNED_DIVIDE,
+    [GTKML_IA_INTEGER_UNSIGNED_DIVIDE] = GTKML_SIA_INTEGER_UNSIGNED_DIVIDE,
+    [GTKML_IA_INTEGER_SIGNED_MODULO] = GTKML_SIA_INTEGER_SIGNED_MODULO,
+    [GTKML_IA_INTEGER_UNSIGNED_MODULO] = GTKML_SIA_INTEGER_UNSIGNED_MODULO,
+    [GTKML_IA_FLOAT_ADD] = GTKML_SIA_FLOAT_ADD,
+    [GTKML_IA_FLOAT_SUBTRACT] = GTKML_SIA_FLOAT_SUBTRACT,
+    [GTKML_IA_FLOAT_MULTIPLY] = GTKML_SIA_FLOAT_MULTIPLY,
+    [GTKML_IA_FLOAT_DIVIDE] = GTKML_SIA_FLOAT_DIVIDE,
+    [GTKML_IA_FLOAT_MODULO] = GTKML_SIA_FLOAT_MODULO,
+    [GTKML_IA_BIT_AND] = GTKML_SIA_BIT_AND,
+    [GTKML_IA_BIT_OR] = GTKML_SIA_BIT_OR,
+    [GTKML_IA_BIT_XOR] = GTKML_SIA_BIT_XOR,
+    [GTKML_IA_BIT_NAND] = GTKML_SIA_BIT_NAND,
+    [GTKML_IA_BIT_NOR] = GTKML_SIA_BIT_NOR,
+    [GTKML_IA_BIT_XNOR] = GTKML_SIA_BIT_XNOR,
+    [GTKML_IA_BRANCH_ABSOLUTE] = GTKML_SIA_BRANCH_ABSOLUTE,
+    [GTKML_IA_BRANCH_RELATIVE] = GTKML_SIA_BRANCH_RELATIVE,
+    [GTKML_IA_BIND] = GTKML_SIA_BIND,
+    [GTKML_IA_DEFINE] = GTKML_SIA_DEFINE,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char *S_I_IMM[] = {
+    [GTKML_II_PUSH_IMM] = GTKML_SII_PUSH_IMM,
+    [GTKML_II_POP] = GTKML_SII_POP,
+    [GTKML_II_GET_IMM] = GTKML_SII_GET_IMM,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char *S_I_IMM_EXTERN[] = {
+    [GTKML_II_PUSH_IMM] = GTKML_SII_PUSH_IMM_EXTERN,
+    [GTKML_II_POP] = GTKML_SII_POP,
+    [GTKML_II_GET_IMM] = GTKML_SII_GET_IMM,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char *S_I_BR[] = {
+    [GTKML_IBR_CALL_FFI] = GTKML_SIBR_CALL_FFI,
+    [GTKML_IBR_CALL] = GTKML_SIBR_CALL,
+    [GTKML_IBR_RET] = GTKML_SIBR_RET,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char *S_EI_IMM[] = {
+    [GTKML_EII_PUSH_EXT_IMM] = GTKML_SEII_PUSH_EXT_IMM,
+    [GTKML_EII_POP_EXT] = GTKML_SEII_POP_EXT,
+    [GTKML_EII_GET_EXT_IMM] = GTKML_SEII_GET_EXT_IMM,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char *S_EI_IMM_EXTERN[] = {
+    [GTKML_EII_PUSH_EXT_IMM] = GTKML_SEII_PUSH_EXT_IMM_EXTERN,
+    [GTKML_EII_POP_EXT] = GTKML_SEII_POP_EXT,
+    [GTKML_EII_GET_EXT_IMM] = GTKML_SEII_GET_EXT_IMM,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char *S_EI_BR[] = {
+    [GTKML_EIBR_CALL_EXT_FFI] = GTKML_SEIBR_CALL_EXT_FFI,
+    [GTKML_EIBR_CALL_EXT] = GTKML_SEIBR_CALL_EXT,
+    [GTKML_EIBR_RET_EXT] = GTKML_SEIBR_RET_EXT,
+    [255] = NULL,
+};
+
+GTKML_PRIVATE const char **S_CATEGORY[] = {
+    [0] = NULL,
+    [GTKML_I_ARITH] = S_I_ARITH,
+    [GTKML_I_IMM] = S_I_IMM,
+    [GTKML_I_BR] = S_I_BR,
+    [4] = NULL,
+    [5] = NULL,
+    [GTKML_I_IMM | GTKML_I_IMM_EXTERN] = S_I_IMM_EXTERN,
+    [7] = NULL,
+    [8] = NULL,
+    [9] = NULL,
+    [GTKML_EI_IMM] = S_EI_IMM,
+    [GTKML_EI_BR] = S_EI_BR,
+    [12] = NULL,
+    [13] = NULL,
+    [GTKML_EI_IMM | GTKML_EI_IMM_EXTERN] = S_EI_IMM_EXTERN,
+    [15] = NULL,
+};
+
+GTKML_PRIVATE gboolean (*CATEGORY[])(GtkMl_Vm *, const char **, GtkMl_Instruction *) = {
+    [0] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [GTKML_I_ARITH] = gtk_ml_ia,
+    [GTKML_I_IMM] = gtk_ml_ii,
+    [GTKML_I_BR] = gtk_ml_ibr,
+    [4] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [5] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [6] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [7] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [8] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [9] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [GTKML_EI_IMM] = gtk_ml_eii,
+    [GTKML_EI_BR] = gtk_ml_eibr,
+    [GTKML_EI_EXPORT] = gtk_ml_enop,
+    [13] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [14] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+    [15] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
+};
+
+GTKML_PRIVATE gboolean (*I_ARITH[])(GtkMl_Vm *, const char **, GtkMl_Instruction) = {
+    [GTKML_IA_NOP] = gtk_ml_ia_nop,
+    [GTKML_IA_HALT] = gtk_ml_ia_halt,
+    [GTKML_IA_INTEGER_ADD] = gtk_ml_ia_integer_add,
+    [GTKML_IA_INTEGER_SUBTRACT] = gtk_ml_ia_integer_subtract,
+    [GTKML_IA_INTEGER_SIGNED_MULTIPLY] = gtk_ml_ia_integer_signed_multiply,
+    [GTKML_IA_INTEGER_UNSIGNED_MULTIPLY] = gtk_ml_ia_integer_unsigned_multiply,
+    [GTKML_IA_INTEGER_SIGNED_DIVIDE] = gtk_ml_ia_integer_signed_divide,
+    [GTKML_IA_INTEGER_UNSIGNED_DIVIDE] = gtk_ml_ia_integer_unsigned_divide,
+    [GTKML_IA_INTEGER_SIGNED_MODULO] = gtk_ml_ia_integer_signed_modulo,
+    [GTKML_IA_INTEGER_UNSIGNED_MODULO] = gtk_ml_ia_integer_unsigned_modulo,
+    [GTKML_IA_FLOAT_ADD] = gtk_ml_ia_float_add,
+    [GTKML_IA_FLOAT_SUBTRACT] = gtk_ml_ia_float_subtract,
+    [GTKML_IA_FLOAT_MULTIPLY] = gtk_ml_ia_float_multiply,
+    [GTKML_IA_FLOAT_DIVIDE] = gtk_ml_ia_float_divide,
+    [GTKML_IA_FLOAT_MODULO] = gtk_ml_ia_float_modulo,
+    [GTKML_IA_BIT_AND] = gtk_ml_ia_bit_and,
+    [GTKML_IA_BIT_OR] = gtk_ml_ia_bit_or,
+    [GTKML_IA_BIT_XOR] = gtk_ml_ia_bit_xor,
+    [GTKML_IA_BIT_NAND] = gtk_ml_ia_bit_nand,
+    [GTKML_IA_BIT_NOR] = gtk_ml_ia_bit_nor,
+    [GTKML_IA_BIT_XNOR] = gtk_ml_ia_bit_xnor,
+    [GTKML_IA_BRANCH_ABSOLUTE] = gtk_ml_ia_branch_absolute,
+    [GTKML_IA_BRANCH_RELATIVE] = gtk_ml_ia_branch_relative,
+    [GTKML_IA_BIND] = gtk_ml_ia_bind,
+    [GTKML_IA_DEFINE] = gtk_ml_ia_define,
+    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction)) NULL,
+};
+
+GTKML_PRIVATE gboolean (*I_IMM[])(GtkMl_Vm *, const char **, GtkMl_Instruction) = {
+    [GTKML_II_PUSH_IMM] = gtk_ml_ii_push_imm,
+    [GTKML_II_POP] = gtk_ml_ii_pop,
+    [GTKML_II_GET_IMM] = gtk_ml_ii_get_imm,
+    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction)) NULL,
+};
+
+GTKML_PRIVATE gboolean (*I_BR[])(GtkMl_Vm *, const char **, GtkMl_Instruction) = {
+    [GTKML_IBR_CALL_FFI] = gtk_ml_ibr_call_ffi,
+    [GTKML_IBR_CALL] = gtk_ml_ibr_call,
+    [GTKML_IBR_RET] = gtk_ml_ibr_ret,
+    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction)) NULL,
+};
+
+GTKML_PRIVATE gboolean (*EI_IMM[])(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *) = {
+    [GTKML_EII_PUSH_EXT_IMM] = gtk_ml_eii_push_ext_imm,
+    [GTKML_EII_POP_EXT] = gtk_ml_eii_pop_ext,
+    [GTKML_EII_GET_EXT_IMM] = gtk_ml_eii_get_ext_imm,
+    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *)) NULL,
+};
+
+GTKML_PRIVATE gboolean (*EI_BR[])(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *) = {
+    [GTKML_EIBR_CALL_EXT_FFI] = gtk_ml_eibr_call_ext_ffi,
+    [GTKML_EIBR_CALL_EXT] = gtk_ml_eibr_call_ext,
+    [GTKML_EIBR_RET_EXT] = gtk_ml_eibr_ret_ext,
+    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *)) NULL,
+};
+
 GtkMl_Context *gtk_ml_new_context() {
     GtkMl_Context *ctx = malloc(sizeof(GtkMl_Context));
     ctx->gc_enabled = 1;
     ctx->n_values = 0;
-    ctx->m_values = GTKML_GC_THRESHOLD;
+    ctx->m_values = GTKML_GC_COUNT_THRESHOLD;
     ctx->first = NULL;
-    ctx->last = NULL;
     ctx->vm = gtk_ml_new_vm(ctx);
 
-    gtk_ml_disable_gc(ctx);
-    // root value
-    // the root doesn't get sweeped by gc, so it doesn't need to be pushed to stack
-    new_nil(ctx, NULL);
     // ({'#nil #nil '#t #t '#f #f 'flags-none G_APPLICATION_FLAGS_NONE})
     ctx->bindings = new_list(ctx, NULL, new_nil(ctx, NULL), new_nil(ctx, NULL));
     ctx->top_scope = &gtk_ml_car(ctx->bindings);
@@ -229,7 +299,6 @@ GtkMl_Context *gtk_ml_new_context() {
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "Application", 11), new_ffi(ctx, NULL, builtin_application));
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "new-window", 10), new_ffi(ctx, NULL, builtin_new_window));
 
-    gtk_ml_enable_gc(ctx, 1);
     return ctx;
 }
 
@@ -713,15 +782,9 @@ GTKML_PRIVATE GtkMl_S *new_value(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKi
     ++ctx->n_values;
 
     GtkMl_S *s = malloc(sizeof(GtkMl_S));
-    if (!ctx->last) {
-        ctx->first = s;
-        ctx->last = s;
-    } else {
-        ctx->last->next = s;
-        ctx->last = s;
-    }
+    s->next = ctx->first;
+    ctx->first = s;
 
-    s->next = NULL;
     s->flags = GTKML_FLAG_NONE;
     s->kind = kind;
     if (span) {
@@ -1076,7 +1139,6 @@ GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, const char **err, const char *src) {
         return NULL;
     }
     GtkMl_Token *_tokenv = tokenv;
-    gboolean enabled = gtk_ml_disable_gc(ctx);
 
     GtkMl_S *body = new_nil(ctx, NULL);
     GtkMl_S **last = &body;
@@ -1093,7 +1155,6 @@ GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, const char **err, const char *src) {
 
     GtkMl_S *result = new_lambda(ctx, NULL, new_nil(ctx, NULL), body, new_nil(ctx, NULL));
 
-    gtk_ml_enable_gc(ctx, enabled);
     free(tokenv);
     return result;
 }
@@ -1572,9 +1633,7 @@ GtkMl_S *gtk_ml_peek(GtkMl_Context *ctx) {
 }
 
 void gtk_ml_enter(GtkMl_Context *ctx) {
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     ctx->bindings = new_list(ctx, NULL, new_nil(ctx, NULL), ctx->bindings);
-    gtk_ml_enable_gc(ctx, enabled);
 }
 
 void gtk_ml_leave(GtkMl_Context *ctx) {
@@ -1582,19 +1641,15 @@ void gtk_ml_leave(GtkMl_Context *ctx) {
 }
 
 void gtk_ml_define(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value) {
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     GtkMl_S *new_context = new_map(ctx, NULL, key, new_map(ctx, NULL, value,
         *ctx->top_scope));
     *ctx->top_scope = new_context;
-    gtk_ml_enable_gc(ctx, enabled);
 }
 
 void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value) {
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     GtkMl_S *new_context = new_map(ctx, NULL, key, new_map(ctx, NULL, value,
         ctx->bindings->value.s_map.car));
     ctx->bindings->value.s_map.car = new_context;
-    gtk_ml_enable_gc(ctx, enabled);
 }
 
 GTKML_PRIVATE GtkMl_S *map_find(GtkMl_S *map, GtkMl_S *key) {
@@ -1652,6 +1707,7 @@ GTKML_PRIVATE void mark_value(GtkMl_S *s) {
     }
 
     s->flags |= GTKML_FLAG_REACHABLE;
+
     switch (s->kind) {
     case GTKML_S_NIL:
     case GTKML_S_TRUE:
@@ -1693,11 +1749,38 @@ GTKML_PRIVATE void mark_value(GtkMl_S *s) {
     }
 }
 
+GTKML_PRIVATE void mark_program(GtkMl_Instruction *exec, size_t n_exec) {
+    for (size_t pc = 0; pc < n_exec;) {
+        GtkMl_Instruction instr = exec[pc];
+        if (CATEGORY[instr.gen.category]) {
+            if (instr.gen.category & GTKML_I_EXTENDED) {
+                if (exec[pc + 1].imm64) {
+                    mark_value(exec[pc + 1].imm64);
+                }
+            } else if (instr.gen.category == GTKML_I_IMM) {
+                if (instr.imm.imm) {
+                    mark_value((GtkMl_S *) instr.imm.imm);
+                }
+            } else if (instr.gen.category == GTKML_I_BR) {
+                if (instr.br.imm) {
+                    mark_value((GtkMl_S *) instr.br.imm);
+                }
+            }
+        }
+        if (instr.gen.category & GTKML_I_EXTENDED) {
+            pc += 2;
+        } else {
+            ++pc;
+        }
+    }
+}
+
 GTKML_PRIVATE void mark(GtkMl_Context *ctx) {
     for (size_t sp = 0; sp < ctx->vm->reg[GTKML_R_SP].sp; sp++) {
         mark_value(ctx->vm->stack[sp].s_expr);
     }
     mark_value(ctx->bindings);
+    mark_program(ctx->vm->exec, ctx->vm->exec_len);
 }
 
 GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
@@ -1788,31 +1871,35 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
 }
 
 GTKML_PRIVATE void sweep(GtkMl_Context *ctx) {
-    GtkMl_S *prev = ctx->first;
-    GtkMl_S *value = prev->next;
-    while (value) {
-        if (value->flags & GTKML_FLAG_REACHABLE) {
-            value->flags &= ~GTKML_FLAG_REACHABLE;
-            prev = value;
-            value = value->next;
+    GtkMl_S **value = &ctx->first;
+    while (*value) {
+        if ((*value)->flags & GTKML_FLAG_REACHABLE) {
+            (*value)->flags &= ~GTKML_FLAG_REACHABLE;
+            value = &(*value)->next;
         } else {
-            prev->next = value->next;
-            delete(ctx, value);
-            value = prev->next;
+            GtkMl_S *unreachable = *value;
+            *value = (*value)->next;
+            delete(ctx, unreachable);
         }
     }
 }
 
 // simple mark & sweep gc
-void gtk_ml_collect(GtkMl_Context *ctx) {
+gboolean gtk_ml_collect(GtkMl_Context *ctx) {
     if (!ctx->gc_enabled) {
-        return;
+        return 0;
+    }
+
+    if (ctx->n_values < ctx->m_values) {
+        return 0;
     }
 
     size_t n_values = ctx->n_values;
     mark(ctx);
     sweep(ctx);
     ctx->m_values = 2 * n_values;
+
+    return 1;
 }
 
 gboolean gtk_ml_disable_gc(GtkMl_Context *ctx) {
@@ -1969,7 +2056,7 @@ gboolean gtk_ml_dumpf_program(GtkMl_Context *ctx, FILE *stream, const char **err
 
     for (size_t pc = 0; pc < ctx->vm->exec_len;) {
         GtkMl_Instruction instr = ctx->vm->exec[pc];
-        printf("%zx ", 8 * pc);
+        fprintf(stream, "%zx ", 8 * pc);
         if (S_CATEGORY[instr.gen.category]) {
             fprintf(stream, "%s ", S_CATEGORY[instr.gen.category][instr.arith.opcode]);
             if (instr.gen.category & GTKML_I_EXTENDED) {
@@ -2065,13 +2152,11 @@ GTKML_PRIVATE void activate_lambda(GtkApplication* app, gpointer userdata) {
 
     GtkMl_Context *ctx = ctx_expr->value.s_lightdata.userdata;
 
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     const char *err;
     GtkMl_S *result = gtk_ml_call(ctx, &err, lambda_expr, new_list(ctx, NULL, lambda_expr, new_list(ctx, NULL, app_expr, new_nil(ctx, NULL))));
     if (result) {
         app_expr->value.s_userdata.keep = new_list(ctx, NULL, result, app_expr->value.s_userdata.keep);
     }
-    gtk_ml_enable_gc(ctx, enabled);
 }
 
 GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
@@ -2084,7 +2169,6 @@ GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
 
     GtkMl_Context *ctx = ctx_expr->value.s_lightdata.userdata;
 
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     const char *err;
     uint64_t pc = ctx->vm->reg[GTKML_R_PC].pc;
     uint64_t flags = ctx->vm->reg[GTKML_R_FLAGS].flags & GTKML_F_TOPCALL;
@@ -2095,7 +2179,6 @@ GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
     ctx->vm->reg[GTKML_R_FLAGS].flags &= ~GTKML_F_TOPCALL;
     ctx->vm->reg[GTKML_R_FLAGS].flags |= flags;
     ctx->vm->reg[GTKML_R_PC].pc = pc;
-    gtk_ml_enable_gc(ctx, enabled);
 }
 
 GTKML_PRIVATE GtkMl_S *builtin_lambda(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
@@ -2194,7 +2277,6 @@ GTKML_PRIVATE GtkMl_S *builtin_application(GtkMl_Context *ctx, const char **err,
         return NULL;
     }
 
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     GtkApplication *app = gtk_application_new(id_expr->value.s_string.ptr, flags_expr->value.s_int.value);
     GtkMl_S *app_expr = new_userdata(ctx, &expr->span, app, gtk_ml_object_unref);
 
@@ -2209,7 +2291,6 @@ GTKML_PRIVATE GtkMl_S *builtin_application(GtkMl_Context *ctx, const char **err,
         app_expr->value.s_userdata.keep = new_list(ctx, &app_expr->span, userdata, app_expr->value.s_userdata.keep);
         g_signal_connect(app, "activate", G_CALLBACK(activate_lambda), userdata);
     }
-    gtk_ml_enable_gc(ctx, enabled);
 
     return app_expr;
 }
@@ -2269,41 +2350,16 @@ GTKML_PRIVATE GtkMl_S *vm_map(GtkMl_Context *ctx, const char **err, GtkMl_S *exp
 
 GTKML_PRIVATE GtkMl_S *vm_application(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
     (void) err;
+    (void) expr;
 
-    int64_t n = expr->value.s_int.value;
+    GtkMl_S *map_expr = gtk_ml_pop(ctx);
+    GtkMl_S *flags_expr = gtk_ml_pop(ctx);
+    GtkMl_S *id_expr = gtk_ml_pop(ctx);
+    GtkMl_S *application = gtk_ml_pop(ctx);
+    (void) application;
 
-    GtkMl_S *args = new_nil(ctx, NULL);
-
-    while (n--) {
-        args = new_list(ctx, NULL, gtk_ml_pop(ctx), args);
-    }
-
-    args = gtk_ml_cdr(args);
-
-    if (args->kind == GTKML_S_NIL
-            || gtk_ml_cdr(args)->kind == GTKML_S_NIL
-            || gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
-        *err = GTKML_ERR_ARITY_ERROR;
-        return NULL;
-    }
-
-    GtkMl_S *id_expr = gtk_ml_car(args);
-    if (!id_expr) {
-        return NULL;
-    }
-    GtkMl_S *flags_expr = gtk_ml_cdar(args);
-    if (!flags_expr) {
-        return NULL;
-    }
-
-    gboolean enabled = gtk_ml_disable_gc(ctx);
     GtkApplication *app = gtk_application_new(id_expr->value.s_string.ptr, flags_expr->value.s_int.value);
     GtkMl_S *app_expr = new_userdata(ctx, &expr->span, app, gtk_ml_object_unref);
-
-    GtkMl_S *map_expr = gtk_ml_cddar(args);
-    if (!map_expr) {
-        return NULL;
-    }
 
     GtkMl_S *activate = map_finds(map_expr, "activate");
     if (activate) {
@@ -2312,7 +2368,6 @@ GTKML_PRIVATE GtkMl_S *vm_application(GtkMl_Context *ctx, const char **err, GtkM
         app_expr->value.s_userdata.keep = new_list(ctx, &app_expr->span, userdata, app_expr->value.s_userdata.keep);
         g_signal_connect(app, "activate", G_CALLBACK(activate_program), userdata);
     }
-    gtk_ml_enable_gc(ctx, enabled);
 
     return app_expr;
 }
@@ -2320,41 +2375,14 @@ GTKML_PRIVATE GtkMl_S *vm_application(GtkMl_Context *ctx, const char **err, GtkM
 GTKML_PRIVATE GtkMl_S *vm_new_window(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
     (void) ctx;
     (void) err;
+    (void) expr;
 
-    int64_t n = expr->value.s_int.value;
-
-    GtkMl_S *args = new_nil(ctx, NULL);
-
-    while (n--) {
-        args = new_list(ctx, NULL, gtk_ml_pop(ctx), args);
-    }
-
-    args = gtk_ml_cdr(args);
-
-    if (args->kind == GTKML_S_NIL
-            || gtk_ml_cdr(args)->kind == GTKML_S_NIL
-            || gtk_ml_cddr(args)->kind == GTKML_S_NIL
-            || gtk_ml_cdddr(args)->kind == GTKML_S_NIL) {
-        *err = GTKML_ERR_ARITY_ERROR;
-        return NULL;
-    }
-
-    GtkMl_S *app_expr = gtk_ml_car(args);
-    if (!app_expr) {
-        return NULL;
-    }
-    GtkMl_S *title_expr = gtk_ml_cdar(args);
-    if (!title_expr) {
-        return NULL;
-    }
-    GtkMl_S *width_expr = gtk_ml_cddar(args);
-    if (!width_expr) {
-        return NULL;
-    }
-    GtkMl_S *height_expr = gtk_ml_cdddar(args);
-    if (!height_expr) {
-        return NULL;
-    }
+    GtkMl_S *height_expr = gtk_ml_pop(ctx);
+    GtkMl_S *width_expr = gtk_ml_pop(ctx);
+    GtkMl_S *title_expr = gtk_ml_pop(ctx);
+    GtkMl_S *app_expr = gtk_ml_pop(ctx);
+    GtkMl_S *new_window = gtk_ml_pop(ctx);
+    (void) new_window;
 
     GtkWidget *window = gtk_application_window_new(app_expr->value.s_userdata.userdata);
     gtk_window_set_title(GTK_WINDOW(window), title_expr->value.s_string.ptr);
@@ -2686,82 +2714,6 @@ void gtk_ml_del_vm(GtkMl_Vm *vm) {
     free(vm);
 }
 
-static gboolean (*CATEGORY[])(GtkMl_Vm *, const char **, GtkMl_Instruction *) = {
-    [0] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [GTKML_I_ARITH] = gtk_ml_ia,
-    [GTKML_I_IMM] = gtk_ml_ii,
-    [GTKML_I_BR] = gtk_ml_ibr,
-    [4] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [5] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [6] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [7] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [8] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [9] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [GTKML_EI_IMM] = gtk_ml_eii,
-    [GTKML_EI_BR] = gtk_ml_eibr,
-    [GTKML_EI_EXPORT] = gtk_ml_enop,
-    [13] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [14] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-    [15] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction *)) NULL,
-};
-
-static gboolean (*I_ARITH[])(GtkMl_Vm *, const char **, GtkMl_Instruction) = {
-    [GTKML_IA_NOP] = gtk_ml_ia_nop,
-    [GTKML_IA_HALT] = gtk_ml_ia_halt,
-    [GTKML_IA_INTEGER_ADD] = gtk_ml_ia_integer_add,
-    [GTKML_IA_INTEGER_SUBTRACT] = gtk_ml_ia_integer_subtract,
-    [GTKML_IA_INTEGER_SIGNED_MULTIPLY] = gtk_ml_ia_integer_signed_multiply,
-    [GTKML_IA_INTEGER_UNSIGNED_MULTIPLY] = gtk_ml_ia_integer_unsigned_multiply,
-    [GTKML_IA_INTEGER_SIGNED_DIVIDE] = gtk_ml_ia_integer_signed_divide,
-    [GTKML_IA_INTEGER_UNSIGNED_DIVIDE] = gtk_ml_ia_integer_unsigned_divide,
-    [GTKML_IA_INTEGER_SIGNED_MODULO] = gtk_ml_ia_integer_signed_modulo,
-    [GTKML_IA_INTEGER_UNSIGNED_MODULO] = gtk_ml_ia_integer_unsigned_modulo,
-    [GTKML_IA_FLOAT_ADD] = gtk_ml_ia_float_add,
-    [GTKML_IA_FLOAT_SUBTRACT] = gtk_ml_ia_float_subtract,
-    [GTKML_IA_FLOAT_MULTIPLY] = gtk_ml_ia_float_multiply,
-    [GTKML_IA_FLOAT_DIVIDE] = gtk_ml_ia_float_divide,
-    [GTKML_IA_FLOAT_MODULO] = gtk_ml_ia_float_modulo,
-    [GTKML_IA_BIT_AND] = gtk_ml_ia_bit_and,
-    [GTKML_IA_BIT_OR] = gtk_ml_ia_bit_or,
-    [GTKML_IA_BIT_XOR] = gtk_ml_ia_bit_xor,
-    [GTKML_IA_BIT_NAND] = gtk_ml_ia_bit_nand,
-    [GTKML_IA_BIT_NOR] = gtk_ml_ia_bit_nor,
-    [GTKML_IA_BIT_XNOR] = gtk_ml_ia_bit_xnor,
-    [GTKML_IA_BRANCH_ABSOLUTE] = gtk_ml_ia_branch_absolute,
-    [GTKML_IA_BRANCH_RELATIVE] = gtk_ml_ia_branch_relative,
-    [GTKML_IA_BIND] = gtk_ml_ia_bind,
-    [GTKML_IA_DEFINE] = gtk_ml_ia_define,
-    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction)) NULL,
-};
-
-static gboolean (*I_IMM[])(GtkMl_Vm *, const char **, GtkMl_Instruction) = {
-    [GTKML_II_PUSH_IMM] = gtk_ml_ii_push_imm,
-    [GTKML_II_POP] = gtk_ml_ii_pop,
-    [GTKML_II_GET_IMM] = gtk_ml_ii_get_imm,
-    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction)) NULL,
-};
-
-static gboolean (*I_BR[])(GtkMl_Vm *, const char **, GtkMl_Instruction) = {
-    [GTKML_IBR_CALL_FFI] = gtk_ml_ibr_call_ffi,
-    [GTKML_IBR_CALL] = gtk_ml_ibr_call,
-    [GTKML_IBR_RET] = gtk_ml_ibr_ret,
-    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction)) NULL,
-};
-
-static gboolean (*EI_IMM[])(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *) = {
-    [GTKML_EII_PUSH_EXT_IMM] = gtk_ml_eii_push_ext_imm,
-    [GTKML_EII_POP_EXT] = gtk_ml_eii_pop_ext,
-    [GTKML_EII_GET_EXT_IMM] = gtk_ml_eii_get_ext_imm,
-    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *)) NULL,
-};
-
-static gboolean (*EI_BR[])(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *) = {
-    [GTKML_EIBR_CALL_EXT_FFI] = gtk_ml_eibr_call_ext_ffi,
-    [GTKML_EIBR_CALL_EXT] = gtk_ml_eibr_call_ext,
-    [GTKML_EIBR_RET_EXT] = gtk_ml_eibr_ret_ext,
-    [255] = (gboolean (*)(GtkMl_Vm *, const char **, GtkMl_Instruction, GtkMl_S *)) NULL,
-};
-
 gboolean gtk_ml_vm_step(GtkMl_Vm *vm, const char **err, GtkMl_Instruction *instr) {
     if (!instr->gen.cond || (instr->gen.cond && (vm->reg[GTKML_R_FLAGS].flags & instr->gen.cond))) {
         gboolean (*category)(GtkMl_Vm *, const char **, GtkMl_Instruction *) = CATEGORY[instr->gen.category];
@@ -2789,9 +2741,10 @@ gboolean gtk_ml_vm_run(GtkMl_Vm *vm, const char **err) {
         if (!gtk_ml_vm_step(vm, err, vm->exec + (vm->reg[GTKML_R_PC].pc >> 3))) {
             return 0;
         }
-        if (gc_counter++ == GTKML_GC_THRESHOLD) {
-            gtk_ml_collect(vm->ctx);
-            gc_counter = 0;
+        if (gc_counter++ == GTKML_GC_STEP_THRESHOLD) {
+            if (gtk_ml_collect(vm->ctx)) {
+                gc_counter = 0;
+            }
         }
         vm->reg[GTKML_R_ZERO].flags = 0;
     }
@@ -3202,7 +3155,6 @@ gboolean gtk_ml_ibr_ret(GtkMl_Vm *vm, const char **err, GtkMl_Instruction instr)
 gboolean gtk_ml_eii_push_ext_imm(GtkMl_Vm *vm, const char **err, GtkMl_Instruction instr, GtkMl_S *imm64) {
     (void) err;
     (void) instr;
-    printf("push ext imm %p\n", (void *) imm64);
     gtk_ml_push(vm->ctx, imm64);
     PC_INCREMENT_EXTENDED;
     return 1;

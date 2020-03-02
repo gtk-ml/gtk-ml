@@ -18,7 +18,8 @@
 #define GTKML_FLAG_REACHABLE 0x1
 #define GTKML_FLAG_DELETE 0x2
 
-#define GTKML_GC_THRESHOLD 256
+#define GTKML_GC_COUNT_THRESHOLD 1024
+#define GTKML_GC_STEP_THRESHOLD 256
 
 #define GTKML_VM_STACK 16 * 1024 * 1024
 
@@ -489,7 +490,7 @@ GTKML_PUBLIC void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value);
 // gets a value bound to a key
 GTKML_PUBLIC GtkMl_S *gtk_ml_get(GtkMl_Context *ctx, GtkMl_S *key);
 // collects garbage
-GTKML_PUBLIC void gtk_ml_collect(GtkMl_Context *ctx);
+GTKML_PUBLIC gboolean gtk_ml_collect(GtkMl_Context *ctx);
 // temporarily disables gc
 GTKML_PUBLIC gboolean gtk_ml_disable_gc(GtkMl_Context *ctx);
 // reenables gc
