@@ -426,6 +426,8 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_get_export(GtkMl_Context *ctx, const char **err, co
 GTKML_PUBLIC GtkMl_Builder *gtk_ml_new_builder();
 // builds the program
 GTKML_PUBLIC GtkMl_Program gtk_ml_build(GtkMl_Context *ctx, const char **err, GtkMl_Builder *b);
+// deletes a program returned by `gtk_ml_build`
+GTKML_PUBLIC void gtk_ml_del_program(GtkMl_Program program);
 // appends and returns a basic block to builder
 GTKML_PUBLIC GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name);
 

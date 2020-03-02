@@ -36,7 +36,6 @@ int main() {
     }
 
     gtk_ml_load_program(ctx, linked);
-    gtk_ml_dumpf_program(ctx, stdout, &err);
 
     GtkMl_S *program = gtk_ml_get_export(ctx, &err, linked.start);
     if (!program) {
@@ -66,6 +65,7 @@ int main() {
 
     gtk_ml_del_context(ctx);
     free(src);
+    gtk_ml_del_program(linked);
 
     return status;
 }

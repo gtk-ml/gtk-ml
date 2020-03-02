@@ -432,6 +432,11 @@ GtkMl_Program gtk_ml_build(GtkMl_Context *ctx, const char **err, GtkMl_Builder *
     return program;
 }
 
+GTKML_PUBLIC void gtk_ml_del_program(GtkMl_Program program) {
+    free((void *) program.start);
+    free(program.exec);
+}
+
 GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name) {
     if (b->len_bb == b->cap_bb) {
         b->cap_bb *= 2;
@@ -1241,7 +1246,7 @@ gboolean compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock 
 
     char *name = malloc(strlen(linkage_name) + 1);
     strcpy(name, linkage_name);
-    GtkMl_S *program = new_program(ctx, &lambda->span, linkage_name, 0, lambda->value.s_lambda.args, lambda->value.s_lambda.body, lambda->value.s_lambda.capture);
+    GtkMl_S *program = new_program(ctx, &lambda->span, name, 0, lambda->value.s_lambda.args, lambda->value.s_lambda.body, lambda->value.s_lambda.capture);
     basic_block->exec[basic_block->len_exec].imm64 = program;
     ++basic_block->len_exec;
 
@@ -1730,6 +1735,7 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
         delete(ctx, s->value.s_var.expr);
         break;
     case GTKML_S_PROGRAM:
+        free((void *) s->value.s_program.linkage_name);
         delete(ctx, s->value.s_program.args);
         delete(ctx, s->value.s_program.capture);
         break;
@@ -1763,13 +1769,15 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_VARIADIC:
     case GTKML_S_LAMBDA:
     case GTKML_S_ADDRESS:
-    case GTKML_S_PROGRAM:
     case GTKML_S_MACRO:
     case GTKML_S_FFI:
         break;
     case GTKML_S_STRING:
         // const cast required
         free((void *) s->value.s_string.ptr);
+        break;
+    case GTKML_S_PROGRAM:
+        free((void *) s->value.s_program.linkage_name);
         break;
     case GTKML_S_USERDATA:
         s->value.s_userdata.del(ctx, s->value.s_userdata.userdata);
