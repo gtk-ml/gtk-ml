@@ -27,19 +27,18 @@ int main() {
         return 1;
     }
 
-    size_t n_exec;
-    GtkMl_Instruction *exec = gtk_ml_build(ctx, &n_exec, &err, builder);
-    if (!exec) {
+    GtkMl_Program linked = gtk_ml_build(ctx, &err, builder);
+    if (!linked.exec) {
         gtk_ml_del_context(ctx);
         free(src);
         fprintf(stderr, "%s\n", err);
         return 1;
     }
 
-    gtk_ml_load_program(ctx, exec, n_exec);
+    gtk_ml_load_program(ctx, linked);
     gtk_ml_dumpf_program(ctx, stdout, &err);
 
-    GtkMl_S *program = gtk_ml_get_export(ctx, &err, "_start");
+    GtkMl_S *program = gtk_ml_get_export(ctx, &err, linked.start);
     if (!program) {
         gtk_ml_del_context(ctx);
         free(src);
