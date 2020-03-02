@@ -18,8 +18,17 @@ int main() {
 
     gtk_ml_push(ctx, gui);
 
+    GtkMl_Builder *builder = gtk_ml_new_builder();
+
+    if (!gtk_ml_compile(ctx, builder, &err, gui)) {
+        gtk_ml_del_context(ctx);
+        free(src);
+        fprintf(stderr, "%s\n", err);
+        return 1;
+    }
+
     size_t n_exec;
-    GtkMl_Instruction *exec = gtk_ml_compile(ctx, &err, &n_exec, gui);
+    GtkMl_Instruction *exec = gtk_ml_build(ctx, &n_exec, &err, builder);
     if (!exec) {
         gtk_ml_del_context(ctx);
         free(src);
@@ -28,8 +37,17 @@ int main() {
     }
 
     gtk_ml_load_program(ctx, exec, n_exec);
+    gtk_ml_dumpf_program(ctx, stdout, &err);
 
-    if (!(gtk_ml_run_program(ctx, &err))) {
+    GtkMl_S *program = gtk_ml_get_export(ctx, &err, "_start");
+    if (!program) {
+        gtk_ml_del_context(ctx);
+        free(src);
+        fprintf(stderr, "%s\n", err);
+        return 1;
+    }
+
+    if (!(gtk_ml_run_program(ctx, &err, program, NULL))) {
         gtk_ml_del_context(ctx);
         free(src);
         fprintf(stderr, "%s\n", err);

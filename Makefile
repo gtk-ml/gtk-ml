@@ -9,8 +9,7 @@ INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
 TEST_HELLO=$(BINDIR)/hello 
-TEST_GUI=$(BINDIR)/gui 
-TESTS=$(TEST_HELLO) $(TEST_GUI)
+TESTS=$(TEST_HELLO)
 OBJ=$(OBJDIR)/gtk-ml.c.o
 
 CFLAGS:=-O0 -g -Wall -Wextra -Werror -pedantic -fPIC -std=c11 -pthread $(shell pkg-config --cflags gtk+-3.0)
@@ -42,9 +41,6 @@ $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIB)
 
 $(TEST_HELLO): test/hello.c $(TARGET)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
-
-$(TEST_GUI): test/gui.c $(TARGET)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
 
 $(OBJDIR): $(BINDIR)

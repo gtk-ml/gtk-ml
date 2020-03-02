@@ -1,1 +1,3 @@
-(Application "de.walterpi.example" flags-none {})
+(Application "de.walterpi.example" flags-none {
+  :activate (lambda (app)
+    (new-window app "gtk-ml example" 640 480))})
