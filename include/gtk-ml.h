@@ -168,6 +168,7 @@ typedef struct GtkMl_S GtkMl_S;
 typedef struct GtkMl_Context GtkMl_Context;
 typedef struct GtkMl_Vm GtkMl_Vm;
 typedef union GtkMl_Register GtkMl_Register;
+typedef uint64_t GtkMl_Static;
 
 // a lexical analysis level token tag
 typedef enum GtkMl_TokenKind {
@@ -380,7 +381,7 @@ typedef union GtkMl_Instruction {
     GtkMl_InstrImm imm;
     GtkMl_InstrBr br;
     uint64_t instr;
-    GtkMl_S *imm64;
+    GtkMl_Static imm64;
 } GtkMl_Instruction;
 
 typedef struct GtkMl_BasicBlock {
@@ -394,6 +395,11 @@ typedef struct GtkMl_Builder {
     GtkMl_BasicBlock *basic_blocks;
     size_t len_bb;
     size_t cap_bb;
+
+    GtkMl_S **statics;
+    size_t len_static;
+    size_t cap_static;
+
     unsigned int counter;
 } GtkMl_Builder;
 
@@ -409,6 +415,8 @@ typedef struct GtkMl_Program {
     const char *start;
     GtkMl_Instruction *exec;
     size_t n_exec;
+    GtkMl_S **statics;
+    size_t n_static;
 } GtkMl_Program;
 
 // creates a new context on the heap
@@ -417,7 +425,7 @@ GTKML_PUBLIC GtkMl_Context *gtk_ml_new_context();
 // deletes a context created with `gtk_ml_new_context`
 GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
 // loads an executable program into the context
-GTKML_PUBLIC void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Program program);
+GTKML_PUBLIC void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Program* program);
 // runs a program previously loaded with `gtk_ml_load_program`
 GTKML_PUBLIC gboolean gtk_ml_run_program(GtkMl_Context *ctx, const char **err, GtkMl_S *program, GtkMl_S *args);
 // gets an export address from a program previously loaded with `gtk_ml_load_program`
@@ -426,34 +434,36 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_get_export(GtkMl_Context *ctx, const char **err, co
 // creates a new builder on the heap
 GTKML_PUBLIC GtkMl_Builder *gtk_ml_new_builder();
 // builds the program
-GTKML_PUBLIC GtkMl_Program gtk_ml_build(GtkMl_Context *ctx, const char **err, GtkMl_Builder *b);
+GTKML_PUBLIC gboolean gtk_ml_build(GtkMl_Context *ctx, GtkMl_Program *out, const char **err, GtkMl_Builder *b);
 // deletes a program returned by `gtk_ml_build`
-GTKML_PUBLIC void gtk_ml_del_program(GtkMl_Program program);
+GTKML_PUBLIC void gtk_ml_del_program(GtkMl_Program* program);
 // appends and returns a basic block to builder
 GTKML_PUBLIC GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name);
+// appends a static value and returns a handle to it
+GTKML_PUBLIC GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value);
 
 // builds a halt instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err);
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_push_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_push_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_push_extended_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_push_extended_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *linkage_name);
+GTKML_PUBLIC gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static linkage_name);
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_call_extended_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_call_extended_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_call_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+GTKML_PUBLIC gboolean gtk_ml_build_call_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call instruction in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_call_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *program);
+GTKML_PUBLIC gboolean gtk_ml_build_call_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static program);
 // builds a call instruction in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *program);
+GTKML_PUBLIC gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static program);
 // builds a ret instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err);
 
