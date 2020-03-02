@@ -18,7 +18,122 @@
 #define GTKML_FLAG_REACHABLE 0x1
 #define GTKML_FLAG_DELETE 0x2
 
-#define GTKML_GC_THRESHOLD 256
+#define GTKML_GC_COUNT_THRESHOLD 1024
+#define GTKML_GC_STEP_THRESHOLD 256
+
+#define GTKML_VM_STACK 16 * 1024 * 1024
+
+#define GTKML_F_TOPCALL 0x20
+#define GTKML_F_HALT 0x10
+#define GTKML_F_ZERO 0x8
+#define GTKML_F_SIGN 0x4
+#define GTKML_F_OVERFLOW 0x2
+#define GTKML_F_CARRY 0x1
+#define GTKML_F_NONE 0x0
+
+#define GTKML_I_ARITH 0x1
+#define GTKML_I_IMM 0x2
+#define GTKML_I_IMM_EXTERN 0x4
+#define GTKML_I_BR 0x3
+#define GTKML_EI_IMM 0xa
+#define GTKML_EI_IMM_EXTERN 0x4
+#define GTKML_EI_BR 0xb
+#define GTKML_EI_EXPORT 0xc
+#define GTKML_I_EXTENDED 0x8
+
+#define GTKML_IA_NOP 0x0
+#define GTKML_IA_HALT 0x1
+#define GTKML_IA_INTEGER_ADD 0x4
+#define GTKML_IA_INTEGER_SUBTRACT 0x5
+#define GTKML_IA_INTEGER_SIGNED_MULTIPLY 0x6
+#define GTKML_IA_INTEGER_UNSIGNED_MULTIPLY 0x7
+#define GTKML_IA_INTEGER_SIGNED_DIVIDE 0x8
+#define GTKML_IA_INTEGER_UNSIGNED_DIVIDE 0x9
+#define GTKML_IA_INTEGER_SIGNED_MODULO 0xa
+#define GTKML_IA_INTEGER_UNSIGNED_MODULO 0xb
+#define GTKML_IA_FLOAT_ADD 0x14
+#define GTKML_IA_FLOAT_SUBTRACT 0x15
+#define GTKML_IA_FLOAT_MULTIPLY 0x16
+#define GTKML_IA_FLOAT_DIVIDE 0x18
+#define GTKML_IA_FLOAT_MODULO 0x19
+#define GTKML_IA_BIT_AND 0x20
+#define GTKML_IA_BIT_OR 0x21
+#define GTKML_IA_BIT_XOR 0x22
+#define GTKML_IA_BIT_NAND 0x24
+#define GTKML_IA_BIT_NOR 0x25
+#define GTKML_IA_BIT_XNOR 0x26
+#define GTKML_IA_BRANCH_ABSOLUTE 0x40
+#define GTKML_IA_BRANCH_RELATIVE 0x41
+#define GTKML_IA_BIND 0x50
+#define GTKML_IA_DEFINE 0x51
+
+#define GTKML_II_PUSH_IMM 0x0
+#define GTKML_II_POP 0x1
+#define GTKML_II_GET_IMM 0x2
+
+#define GTKML_IBR_CALL_FFI 0x0
+#define GTKML_IBR_CALL 0x1
+#define GTKML_IBR_RET 0x2
+
+#define GTKML_EII_PUSH_EXT_IMM 0x0
+#define GTKML_EII_POP_EXT 0x1
+#define GTKML_EII_GET_EXT_IMM 0x2
+
+#define GTKML_EIBR_CALL_EXT_FFI 0x0
+#define GTKML_EIBR_CALL_EXT 0x1
+#define GTKML_EIBR_RET_EXT 0x2
+
+#define GTKML_SIA_NOP "NOP"
+#define GTKML_SIA_HALT "HALT"
+#define GTKML_SIA_INTEGER_ADD "INTEGER_ADD"
+#define GTKML_SIA_INTEGER_SUBTRACT "INTEGER_SUBTRACT"
+#define GTKML_SIA_INTEGER_SIGNED_MULTIPLY "INTEGER_SIGNED_MULTIPLY"
+#define GTKML_SIA_INTEGER_UNSIGNED_MULTIPLY "INTEGER_UNSIGNED_MULTIPLY"
+#define GTKML_SIA_INTEGER_SIGNED_DIVIDE "INTEGER_SIGNED_DIVIDE"
+#define GTKML_SIA_INTEGER_UNSIGNED_DIVIDE "INTEGER_UNSIGNED_DIVIDE"
+#define GTKML_SIA_INTEGER_SIGNED_MODULO "INTEGER_SIGNED_MODULO"
+#define GTKML_SIA_INTEGER_UNSIGNED_MODULO "INTEGER_UNSIGNED_MODULO"
+#define GTKML_SIA_FLOAT_ADD "FLOAT_ADD"
+#define GTKML_SIA_FLOAT_SUBTRACT "FLOAT_SUBTRACT"
+#define GTKML_SIA_FLOAT_MULTIPLY "FLOAT_MULTIPLY"
+#define GTKML_SIA_FLOAT_DIVIDE "FLOAT_DIVIDE"
+#define GTKML_SIA_FLOAT_MODULO "FLOAT_MODULO"
+#define GTKML_SIA_BIT_AND "BIT_AND"
+#define GTKML_SIA_BIT_OR "BIT_OR"
+#define GTKML_SIA_BIT_XOR "BIT_XOR"
+#define GTKML_SIA_BIT_NAND "BIT_NAND"
+#define GTKML_SIA_BIT_NOR "BIT_NOR"
+#define GTKML_SIA_BIT_XNOR "BIT_XNOR"
+#define GTKML_SIA_BRANCH_ABSOLUTE "BRANCH_ABSOLUTE"
+#define GTKML_SIA_BRANCH_RELATIVE "BRANCH_RELATIVE"
+#define GTKML_SIA_BIND "BIND"
+#define GTKML_SIA_DEFINE "DEFINE"
+
+#define GTKML_SII_PUSH_IMM_EXTERN "PUSH_IMM EXTERN"
+#define GTKML_SII_PUSH_IMM "PUSH_IMM"
+#define GTKML_SII_POP "POP"
+#define GTKML_SII_GET_IMM "GET_IMM"
+
+#define GTKML_SIBR_CALL_FFI "CALL_FFI"
+#define GTKML_SIBR_CALL "CALL"
+#define GTKML_SIBR_RET "RET"
+
+#define GTKML_SEII_PUSH_EXT_IMM_EXTERN "PUSH_EXT_IMM EXTERN"
+#define GTKML_SEII_PUSH_EXT_IMM "PUSH_EXT_IMM"
+#define GTKML_SEII_POP_EXT "POP_EXT"
+#define GTKML_SEII_GET_EXT_IMM "GET_EXT_IMM"
+
+#define GTKML_SEIBR_CALL_EXT_FFI "CALL_EXT_FFI"
+#define GTKML_SEIBR_CALL_EXT "CALL_EXT"
+#define GTKML_SEIBR_RET_EXT "RET_EXT"
+
+#define GTKML_R_ZERO 0
+#define GTKML_R_FLAGS 1
+#define GTKML_R_SP 2
+#define GTKML_R_BP 3
+#define GTKML_R_LR 4
+#define GTKML_R_PC 5
+#define GTKML_REGISTER_COUNT 6
 
 #define GTKML_ERR_IO_ERROR ":error \"unknown io error, check errno\""
 #define GTKML_ERR_CHARACTER_ERROR ":error \"unexpected character\""
@@ -31,6 +146,10 @@
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
 #define GTKML_ERR_VARIADIC_ERROR ":error \"free-standing variadic expression\""
+#define GTKML_ERR_CATEGORY_ERROR ":error \"invalid category\""
+#define GTKML_ERR_OPCODE_ERROR ":error \"invalid opcode\""
+#define GTKML_ERR_PROGRAM_ERROR ":error \"not a program\""
+#define GTKML_ERR_LINKAGE_ERROR ":error \"symbol not found while linking\""
 #define GTKML_ERR_UNIMPLEMENTED ":error \"unimplemented\""
 
 #define gtk_ml_car(x) (x->value.s_list.car)
@@ -47,6 +166,8 @@
 
 typedef struct GtkMl_S GtkMl_S;
 typedef struct GtkMl_Context GtkMl_Context;
+typedef struct GtkMl_Vm GtkMl_Vm;
+typedef union GtkMl_Register GtkMl_Register;
 
 // a lexical analysis level token tag
 typedef enum GtkMl_TokenKind {
@@ -97,6 +218,8 @@ typedef enum GtkMl_SKind {
     GTKML_S_MAP,
     GTKML_S_VARIADIC,
     GTKML_S_LAMBDA,
+    GTKML_S_PROGRAM,
+    GTKML_S_ADDRESS,
     GTKML_S_MACRO,
     GTKML_S_FFI,
     GTKML_S_LIGHTDATA,
@@ -157,6 +280,20 @@ typedef struct GtkMl_SLambda {
     GtkMl_S *capture;
 } GtkMl_SLambda;
 
+// a compiled closure
+typedef struct GtkMl_SProgram {
+    const char *linkage_name;
+    uint64_t addr;
+    GtkMl_S *args;
+    GtkMl_S *body;
+    GtkMl_S *capture;
+} GtkMl_SProgram;
+
+// a compiled closure
+typedef struct GtkMl_SAddress {
+    uint64_t addr;
+} GtkMl_SAddress;
+
 // a closure that doesn't evaluate its arguments
 typedef struct GtkMl_SMacro {
     GtkMl_S *args;
@@ -188,6 +325,8 @@ typedef union GtkMl_SUnion {
     GtkMl_SMap s_map;
     GtkMl_SVariadic s_var;
     GtkMl_SLambda s_lambda;
+    GtkMl_SProgram s_program;
+    GtkMl_SAddress s_address;
     GtkMl_SMacro s_macro;
     GtkMl_SFfi s_ffi;
     GtkMl_SLightdata s_lightdata;
@@ -203,21 +342,143 @@ typedef struct GtkMl_S {
     GtkMl_SUnion value;
 } GtkMl_S;
 
+typedef struct GtkMl_InstrGen {
+    unsigned long cond : 4;
+    unsigned long category : 4;
+    unsigned long _pad : 56;
+} GtkMl_InstrGen;
+
+typedef struct GtkMl_InstrArith {
+    unsigned long cond : 4;
+    unsigned long category : 4; // must be 0001
+    unsigned long opcode : 8;
+    unsigned long rd : 8;
+    unsigned long rs : 8;
+    unsigned long ra : 8;
+    unsigned long _pad : 24;
+} GtkMl_InstrArith;
+
+typedef struct GtkMl_InstrImm {
+    unsigned long cond : 4;
+    unsigned long category : 4; // must be 0010 or 1010
+    unsigned long opcode : 8;
+    unsigned long rd : 8;
+    unsigned long rs : 8;
+    unsigned long imm : 32;
+} GtkMl_InstrImm;
+
+typedef struct GtkMl_InstrBr {
+    unsigned long cond : 4;
+    unsigned long category : 4; // must be 0011 or 1011
+    unsigned long opcode : 8;
+    unsigned long imm : 48;
+} GtkMl_InstrBr;
+
+typedef union GtkMl_Instruction {
+    GtkMl_InstrGen gen;
+    GtkMl_InstrArith arith;
+    GtkMl_InstrImm imm;
+    GtkMl_InstrBr br;
+    uint64_t instr;
+    GtkMl_S *imm64;
+} GtkMl_Instruction;
+
+typedef struct GtkMl_BasicBlock {
+    const char *name;
+    GtkMl_Instruction *exec;
+    size_t len_exec;
+    size_t cap_exec;
+} GtkMl_BasicBlock;
+
+typedef struct GtkMl_Builder {
+    GtkMl_BasicBlock *basic_blocks;
+    size_t len_bb;
+    size_t cap_bb;
+    unsigned int counter;
+} GtkMl_Builder;
+
+union GtkMl_Register {
+    GtkMl_S *s_expr;
+    uint64_t sp;
+    uint64_t pc;
+    uint64_t flags;
+    uint64_t value;
+};
+
+typedef struct GtkMl_Program {
+    const char *start;
+    GtkMl_Instruction *exec;
+    size_t n_exec;
+} GtkMl_Program;
+
 // creates a new context on the heap
 // must be deleted with `gtk_ml_del_context`
 GTKML_PUBLIC GtkMl_Context *gtk_ml_new_context();
 // deletes a context created with `gtk_ml_new_context`
 GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
+// loads an executable program into the context
+GTKML_PUBLIC void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Program program);
+// runs a program previously loaded with `gtk_ml_load_program`
+GTKML_PUBLIC gboolean gtk_ml_run_program(GtkMl_Context *ctx, const char **err, GtkMl_S *program, GtkMl_S *args);
+// gets an export address from a program previously loaded with `gtk_ml_load_program`
+GTKML_PUBLIC GtkMl_S *gtk_ml_get_export(GtkMl_Context *ctx, const char **err, const char *linkage_name);
+
+// creates a new builder on the heap
+GTKML_PUBLIC GtkMl_Builder *gtk_ml_new_builder();
+// builds the program
+GTKML_PUBLIC GtkMl_Program gtk_ml_build(GtkMl_Context *ctx, const char **err, GtkMl_Builder *b);
+// deletes a program returned by `gtk_ml_build`
+GTKML_PUBLIC void gtk_ml_del_program(GtkMl_Program program);
+// appends and returns a basic block to builder
+GTKML_PUBLIC GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name);
+
+// builds a halt instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_push_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_push_extended_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *linkage_name);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a call to C in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_call_extended_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a call to C in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_call_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *imm64);
+// builds a call instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_call_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *program);
+// builds a call instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *program);
+// builds a ret instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err);
+
+// creates a new virtual machine on the heap
+// must be deleted with `gtk_ml_del_vm`
+GTKML_PUBLIC GtkMl_Vm *gtk_ml_new_vm(GtkMl_Context *ctx);
+// deletes a virtual machine created with `gtk_ml_new_vm`
+GTKML_PUBLIC void gtk_ml_del_vm(GtkMl_Vm *vm);
+
 // loads an expression from a path
 GTKML_PUBLIC GtkMl_S *gtk_ml_load(GtkMl_Context *ctx, char **src, const char **err, const char *file);
 // loads an expression from a file
 GTKML_PUBLIC GtkMl_S *gtk_ml_loadf(GtkMl_Context *ctx, char **src, const char **err, FILE *stream);
 // loads an expression from a string
 GTKML_PUBLIC GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, const char **err, const char *src);
+
+// compile a lambda expression to bytecode
+GTKML_PUBLIC gboolean gtk_ml_compile(GtkMl_Context *ctx, GtkMl_Builder *b, const char **err, GtkMl_S *lambda);
+
 // pushes an expression to the stack
 GTKML_PUBLIC void gtk_ml_push(GtkMl_Context *ctx, GtkMl_S *value);
 // pops an expression from the stack
 GTKML_PUBLIC GtkMl_S *gtk_ml_pop(GtkMl_Context *ctx);
+// peeks an expression at the top of the stack
+GTKML_PUBLIC GtkMl_S *gtk_ml_peek(GtkMl_Context *ctx);
 // enters a bindings context
 GTKML_PUBLIC void gtk_ml_enter(GtkMl_Context *ctx);
 // leaves the most recent bindings context
@@ -229,7 +490,7 @@ GTKML_PUBLIC void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_S *key, GtkMl_S *value);
 // gets a value bound to a key
 GTKML_PUBLIC GtkMl_S *gtk_ml_get(GtkMl_Context *ctx, GtkMl_S *key);
 // collects garbage
-GTKML_PUBLIC void gtk_ml_collect(GtkMl_Context *ctx);
+GTKML_PUBLIC gboolean gtk_ml_collect(GtkMl_Context *ctx);
 // temporarily disables gc
 GTKML_PUBLIC gboolean gtk_ml_disable_gc(GtkMl_Context *ctx);
 // reenables gc
@@ -240,6 +501,12 @@ GTKML_PUBLIC gboolean gtk_ml_dumpf(FILE *stream, const char **err, GtkMl_S *expr
 GTKML_PUBLIC char *gtk_ml_dumpsn(char *ptr, size_t n, const char **err, GtkMl_S *expr);
 // dumps a value to a string and reallocates if necessary
 GTKML_PUBLIC char *gtk_ml_dumpsnr(char *ptr, size_t n, const char **err, GtkMl_S *expr);
+// dumps a program to a file
+GTKML_PUBLIC gboolean gtk_ml_dumpf_program(GtkMl_Context *ctx, FILE *stream, const char **err);
+// dumps a program to a string
+GTKML_PUBLIC char *gtk_ml_dumpsn_program(GtkMl_Context *ctx, char *ptr, size_t n, const char **err);
+// dumps a program to a string and reallocates if necessary
+GTKML_PUBLIC char *gtk_ml_dumpsnr_program(GtkMl_Context *ctx, char *ptr, size_t n, const char **err);
 // evaluates an expression
 GTKML_PUBLIC GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 // calls a lambda, a macro or an ffi expression with arguments

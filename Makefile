@@ -8,20 +8,21 @@ CC=clang
 INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
-TEST=$(BINDIR)/hello
+TEST_HELLO=$(BINDIR)/hello 
+TESTS=$(TEST_HELLO)
 OBJ=$(OBJDIR)/gtk-ml.c.o
 
 CFLAGS:=-O0 -g -Wall -Wextra -Werror -pedantic -fPIC -std=c11 -pthread $(shell pkg-config --cflags gtk+-3.0)
-LDFLAGS:=$(shell pkg-config --libs gtk+-3.0)
+LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
 INCLUDE:=-I$(INCDIR)
 
 .PHONY: default all test install clean
 
 default: all
 
-all: $(TARGET) $(TEST) compile_commands.json
+all: $(TARGET) $(TESTS) compile_commands.json
 
-test: $(TEST)
+test: $(TESTS)
 
 install: $(TARGET)
 	rm -rf ~/.local/include/$(INCLUDE_NAME)
@@ -39,7 +40,7 @@ compile_commands.json: $(OBJ)
 $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIB)
 
-$(TEST): test/hello.c $(TARGET)
+$(TEST_HELLO): test/hello.c $(TARGET)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
 
 $(OBJDIR): $(BINDIR)
