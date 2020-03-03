@@ -160,7 +160,7 @@
 #define GTKML_ERR_TYPE_ERROR ":error \"invalid type for expression\""
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
-#define GTKML_ERR_VARIADIC_ERROR ":error \"free-standing variadic expression\""
+#define GTKML_ERR_VARARG_ERROR ":error \"free-standing vararg expression\""
 #define GTKML_ERR_UNQUOTE_ERROR ":error \"free-standing unquote expression\""
 #define GTKML_ERR_CATEGORY_ERROR ":error \"invalid category\""
 #define GTKML_ERR_OPCODE_ERROR ":error \"invalid opcode\""
@@ -192,6 +192,9 @@ typedef uint64_t GtkMl_Static;
 typedef enum GtkMl_TokenKind {
     GTKML_TOK_DOT,
     GTKML_TOK_ELLIPSIS,
+    GTKML_TOK_TICK,
+    GTKML_TOK_BACKTICK,
+    GTKML_TOK_COMMA,
     GTKML_TOK_PARENL,
     GTKML_TOK_PARENR,
     GTKML_TOK_CURLYL,
@@ -235,7 +238,7 @@ typedef enum GtkMl_SKind {
     GTKML_S_KEYWORD,
     GTKML_S_LIST,
     GTKML_S_MAP,
-    GTKML_S_VARIADIC,
+    GTKML_S_VARARG,
     GTKML_S_QUOTE,
     GTKML_S_QUASIQUOTE,
     GTKML_S_UNQUOTE,

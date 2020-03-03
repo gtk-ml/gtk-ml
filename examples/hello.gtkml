@@ -1,7 +1,7 @@
 ; define a Window macro
 (define-macro (Window title width height)
-  (quasiquote (lambda (app)
-    (new-window app (unquote title) (unquote width) (unquote height)))))
+  `(lambda (app)
+    (new-window app ,title ,width ,height)))
 ; run the application
 (Application "de.walterpi.example" flags-none {
   :activate (Window "gtk-ml example" 640 480)})

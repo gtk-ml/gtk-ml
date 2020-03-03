@@ -3,6 +3,19 @@
 #include <math.h>
 #include "gtk-ml.h"
 
+typedef GtkMl_S *(*GtkMl_ReaderFn)(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
+
+typedef struct GtkMl_Reader {
+    GtkMl_TokenKind token;
+    GtkMl_ReaderFn fn;
+} GtkMl_Reader;
+
+typedef struct GtkMl_Parser {
+    GtkMl_Reader *readers;
+    size_t len_reader;
+    size_t cap_reader;
+} GtkMl_Parser;
+
 struct GtkMl_Context {
     gboolean gc_enabled;
     size_t n_values;
@@ -13,6 +26,7 @@ struct GtkMl_Context {
     GtkMl_S **top_scope;
 
     GtkMl_Vm *vm;
+    GtkMl_Parser parser;
 };
 
 struct GtkMl_Vm {
@@ -25,6 +39,13 @@ struct GtkMl_Vm {
     GtkMl_Context *ctx;
 };
 
+
+GTKML_PRIVATE GtkMl_S *parse(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
+GTKML_PRIVATE GtkMl_S *parse_vararg(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
+GTKML_PRIVATE GtkMl_S *parse_quote(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
+GTKML_PRIVATE GtkMl_S *parse_quasiquote(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
+GTKML_PRIVATE GtkMl_S *parse_unquote(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
+
 GTKML_PRIVATE GtkMl_S *new_value(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKind kind);
 GTKML_PRIVATE GtkMl_S *new_nil(GtkMl_Context *ctx, GtkMl_Span *span);
 GTKML_PRIVATE GtkMl_S *new_true(GtkMl_Context *ctx, GtkMl_Span *span);
@@ -36,7 +57,7 @@ GTKML_PRIVATE GtkMl_S *new_symbol(GtkMl_Context *ctx, GtkMl_Span *span, const ch
 GTKML_PRIVATE GtkMl_S *new_keyword(GtkMl_Context *ctx, GtkMl_Span *span, const char *ptr, size_t len);
 GTKML_PRIVATE GtkMl_S *new_list(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *car, GtkMl_S *cdr);
 GTKML_PRIVATE GtkMl_S *new_map(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *car, GtkMl_S *cdr);
-GTKML_PRIVATE GtkMl_S *new_variadic(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr);
+GTKML_PRIVATE GtkMl_S *new_vararg(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *new_quote(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *new_quasiquote(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *new_unquote(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr);
@@ -51,6 +72,7 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PRIVATE void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
 
 GTKML_PRIVATE GtkMl_S *builtin_lambda(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
+GTKML_PRIVATE GtkMl_S *builtin_vararg(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *builtin_quote(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *builtin_quasiquote(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *builtin_unquote(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
@@ -325,6 +347,7 @@ GtkMl_Context *gtk_ml_new_context() {
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "flags-none", 10), new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE));
 
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "lambda", 6), new_ffi(ctx, NULL, builtin_lambda));
+    gtk_ml_define(ctx, new_symbol(ctx, NULL, "vararg", 6), new_ffi(ctx, NULL, builtin_vararg));
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "quote", 5), new_ffi(ctx, NULL, builtin_quote));
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "quasiquote", 10), new_ffi(ctx, NULL, builtin_quasiquote));
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "unquote", 7), new_ffi(ctx, NULL, builtin_unquote));
@@ -333,6 +356,26 @@ GtkMl_Context *gtk_ml_new_context() {
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "define-macro", 12), new_ffi(ctx, NULL, builtin_define_macro));
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "Application", 11), new_ffi(ctx, NULL, builtin_application));
     gtk_ml_define(ctx, new_symbol(ctx, NULL, "new-window", 10), new_ffi(ctx, NULL, builtin_new_window));
+
+    ctx->parser.readers = malloc(sizeof(GtkMl_Reader) * 64);
+    ctx->parser.len_reader = 0;
+    ctx->parser.cap_reader = 64;
+
+    ctx->parser.readers[ctx->parser.len_reader].token = GTKML_TOK_ELLIPSIS;
+    ctx->parser.readers[ctx->parser.len_reader].fn = parse_vararg;
+    ++ctx->parser.len_reader;
+
+    ctx->parser.readers[ctx->parser.len_reader].token = GTKML_TOK_TICK;
+    ctx->parser.readers[ctx->parser.len_reader].fn = parse_quote;
+    ++ctx->parser.len_reader;
+
+    ctx->parser.readers[ctx->parser.len_reader].token = GTKML_TOK_BACKTICK;
+    ctx->parser.readers[ctx->parser.len_reader].fn = parse_quasiquote;
+    ++ctx->parser.len_reader;
+
+    ctx->parser.readers[ctx->parser.len_reader].token = GTKML_TOK_COMMA;
+    ctx->parser.readers[ctx->parser.len_reader].fn = parse_unquote;
+    ++ctx->parser.len_reader;
 
     return ctx;
 }
@@ -384,7 +427,7 @@ gboolean gtk_ml_run_program(GtkMl_Context *ctx, const char **err, GtkMl_S *progr
 
     if (params->kind == GTKML_S_LIST) {
         GtkMl_S *param = gtk_ml_car(params);
-        if (param->kind == GTKML_S_VARIADIC) {
+        if (param->kind == GTKML_S_VARARG) {
             gtk_ml_bind(ctx, param->value.s_var.expr, new_nil(ctx, NULL));
         } else {
             *err = GTKML_ERR_ARITY_ERROR;
@@ -721,6 +764,30 @@ GTKML_PRIVATE gboolean lex(GtkMl_Token **tokenv, size_t *tokenc, const char **er
             (*tokenv)[*tokenc].span.col = col;
             ++*tokenc;
             break;
+        case '\'':
+            (*tokenv)[*tokenc].kind = GTKML_TOK_TICK;
+            (*tokenv)[*tokenc].span.ptr = src;
+            (*tokenv)[*tokenc].span.len = 1;
+            (*tokenv)[*tokenc].span.line = line;
+            (*tokenv)[*tokenc].span.col = col;
+            ++*tokenc;
+            break;
+        case '`':
+            (*tokenv)[*tokenc].kind = GTKML_TOK_BACKTICK;
+            (*tokenv)[*tokenc].span.ptr = src;
+            (*tokenv)[*tokenc].span.len = 1;
+            (*tokenv)[*tokenc].span.line = line;
+            (*tokenv)[*tokenc].span.col = col;
+            ++*tokenc;
+            break;
+        case ',':
+            (*tokenv)[*tokenc].kind = GTKML_TOK_COMMA;
+            (*tokenv)[*tokenc].span.ptr = src;
+            (*tokenv)[*tokenc].span.len = 1;
+            (*tokenv)[*tokenc].span.line = line;
+            (*tokenv)[*tokenc].span.col = col;
+            ++*tokenc;
+            break;
         case '(':
             (*tokenv)[*tokenc].kind = GTKML_TOK_PARENL;
             (*tokenv)[*tokenc].span.ptr = src;
@@ -957,8 +1024,8 @@ GTKML_PRIVATE GtkMl_S *new_map(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *ca
     return s;
 }
 
-GTKML_PRIVATE GtkMl_S *new_variadic(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr) {
-    GtkMl_S *s = new_value(ctx, span, GTKML_S_VARIADIC);
+GTKML_PRIVATE GtkMl_S *new_vararg(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *expr) {
+    GtkMl_S *s = new_value(ctx, span, GTKML_S_VARARG);
     s->value.s_var.expr = expr;
     return s;
 }
@@ -1058,9 +1125,7 @@ GTKML_PRIVATE void span_add(GtkMl_Span *dest, GtkMl_Span *lhs, GtkMl_Span *rhs) 
     dest->col = col;
 }
 
-GTKML_PRIVATE GtkMl_S *parse(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc);
-
-GTKML_PRIVATE GtkMl_S *parse_variadic(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_S *parse_vararg(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_ELLIPSIS) {
         *err = GTKML_ERR_TOKEN_ERROR;
         return NULL;
@@ -1078,7 +1143,70 @@ GTKML_PRIVATE GtkMl_S *parse_variadic(GtkMl_Context *ctx, const char **err, GtkM
 
     span_add(&span, &span, &expr->span);
 
-    return new_variadic(ctx, &span, expr);
+    return new_vararg(ctx, &span, expr);
+}
+
+GtkMl_S *parse_quote(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
+    if ((*tokenv)[0].kind != GTKML_TOK_TICK) {
+        *err = GTKML_ERR_TOKEN_ERROR;
+        return NULL;
+    }
+
+    GtkMl_Span span = (*tokenv)[0].span;
+
+    ++*tokenv;
+    --*tokenc;
+
+    GtkMl_S *expr = parse(ctx, err, tokenv, tokenc);
+    if (!expr) {
+        return NULL;
+    }
+
+    span_add(&span, &span, &expr->span);
+
+    return new_quote(ctx, &span, expr);
+}
+
+GtkMl_S *parse_quasiquote(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
+    if ((*tokenv)[0].kind != GTKML_TOK_BACKTICK) {
+        *err = GTKML_ERR_TOKEN_ERROR;
+        return NULL;
+    }
+
+    GtkMl_Span span = (*tokenv)[0].span;
+
+    ++*tokenv;
+    --*tokenc;
+
+    GtkMl_S *expr = parse(ctx, err, tokenv, tokenc);
+    if (!expr) {
+        return NULL;
+    }
+
+    span_add(&span, &span, &expr->span);
+
+    return new_quasiquote(ctx, &span, expr);
+}
+
+GtkMl_S *parse_unquote(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
+    if ((*tokenv)[0].kind != GTKML_TOK_COMMA) {
+        *err = GTKML_ERR_TOKEN_ERROR;
+        return NULL;
+    }
+
+    GtkMl_Span span = (*tokenv)[0].span;
+
+    ++*tokenv;
+    --*tokenc;
+
+    GtkMl_S *expr = parse(ctx, err, tokenv, tokenc);
+    if (!expr) {
+        return NULL;
+    }
+
+    span_add(&span, &span, &expr->span);
+
+    return new_unquote(ctx, &span, expr);
 }
 
 GTKML_PRIVATE GtkMl_S *parse_list_rest(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
@@ -1220,10 +1348,8 @@ GTKML_PRIVATE GtkMl_S *parse_keyword(GtkMl_Context *ctx, const char **err, GtkMl
     return result;
 }
 
-GTKML_PRIVATE GtkMl_S *parse(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_S *parse(GtkMl_Context *ctx, const char **err, GtkMl_Token **tokenv, size_t *tokenc) {
     switch ((*tokenv)[0].kind) {
-    case GTKML_TOK_ELLIPSIS:
-        return parse_variadic(ctx, err, tokenv, tokenc);
     case GTKML_TOK_PARENL:
         return parse_list(ctx, err, tokenv, tokenc);
     case GTKML_TOK_CURLYL:
@@ -1239,6 +1365,11 @@ GTKML_PRIVATE GtkMl_S *parse(GtkMl_Context *ctx, const char **err, GtkMl_Token *
     case GTKML_TOK_KEYWORD:
         return parse_keyword(ctx, err, tokenv, tokenc);
     default:
+        for (size_t i = 0; i < ctx->parser.len_reader; i++) {
+            if (ctx->parser.readers[i].token == (*tokenv)[0].kind) {
+                return ctx->parser.readers[i].fn(ctx, err, tokenv, tokenc);
+            }
+        }
         *err = GTKML_ERR_TOKEN_ERROR;
         return NULL;
     }
@@ -1357,7 +1488,7 @@ gboolean compile_macro_quasi_expression(GtkMl_Context *ctx, GtkMl_Builder *b, Gt
     case GTKML_S_SYMBOL:
     case GTKML_S_LAMBDA:
     case GTKML_S_MACRO:
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
     case GTKML_S_QUOTE:
     case GTKML_S_QUASIQUOTE:
         return gtk_ml_build_push_extended_imm(ctx, b, basic_block, err, gtk_ml_append_static(b, stmt));
@@ -1452,7 +1583,7 @@ gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
         }
         return gtk_ml_build_map_extended_imm(ctx, b, basic_block, err, gtk_ml_append_static(b, new_int(ctx, NULL, n)));
     }
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         *err = GTKML_ERR_UNIMPLEMENTED;
         return 0;
     case GTKML_S_QUOTE:
@@ -1471,6 +1602,7 @@ gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
             const char *symbol_application = "Application";
             const char *symbol_new_window = "new-window";
             const char *symbol_lambda = "lambda";
+            const char *symbol_vararg = "vararg";
             const char *symbol_quote = "quote";
             const char *symbol_quasiquote = "quasiquote";
 
@@ -1502,6 +1634,14 @@ gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
                 }
 
                 return compile_expression(ctx, b, basic_block, err, &lambda);
+            } else if (function->value.s_symbol.len == strlen(symbol_vararg)
+                    && memcmp(function->value.s_symbol.ptr, symbol_vararg, function->value.s_symbol.len) == 0) {
+                GtkMl_S *vararg = builtin_vararg(ctx, err, *stmt);
+                if (!vararg) {
+                    return 0;
+                }
+
+                return compile_expression(ctx, b, basic_block, err, &vararg);
             } else if (function->value.s_symbol.len == strlen(symbol_quote)
                     && memcmp(function->value.s_symbol.ptr, symbol_quote, function->value.s_symbol.len) == 0) {
                 GtkMl_S *quote = builtin_quote(ctx, err, *stmt);
@@ -1524,6 +1664,7 @@ gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
         if (allow_macro && function->kind == GTKML_S_SYMBOL) {
             const char *symbol_lambda = "lambda";
             const char *symbol_macro = "macro";
+            const char *symbol_vararg = "vararg";
             const char *symbol_quote = "quote";
             const char *symbol_quasiquote = "quasiquote";
 
@@ -1543,6 +1684,14 @@ gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
                 }
 
                 return compile_macro_expression(ctx, b, basic_block, err, &macro, allow_macro, allow_runtime, allow_macro_expansion);
+            } else if (function->value.s_symbol.len == strlen(symbol_vararg)
+                    && memcmp(function->value.s_symbol.ptr, symbol_vararg, function->value.s_symbol.len) == 0) {
+                GtkMl_S *vararg = builtin_vararg(ctx, err, *stmt);
+                if (!vararg) {
+                    return 0;
+                }
+
+                return compile_macro_expression(ctx, b, basic_block, err, &vararg, allow_macro, allow_runtime, allow_macro_expansion);
             } else if (function->value.s_symbol.len == strlen(symbol_quote)
                     && memcmp(function->value.s_symbol.ptr, symbol_quote, function->value.s_symbol.len) == 0) {
                 GtkMl_S *quote = builtin_quote(ctx, err, *stmt);
@@ -2234,7 +2383,7 @@ GTKML_PRIVATE void mark_value(GtkMl_S *s) {
         mark_value(gtk_ml_car(s));
         mark_value(gtk_ml_cdr(s));
         break;
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         mark_value(s->value.s_var.expr);
         break;
     case GTKML_S_QUOTE:
@@ -2308,7 +2457,7 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
         delete(ctx, gtk_ml_cdr(s));
         delete(ctx, gtk_ml_car(s));
         break;
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         delete(ctx, s->value.s_var.expr);
         break;
     case GTKML_S_QUOTE:
@@ -2352,7 +2501,7 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_LIGHTDATA:
     case GTKML_S_LIST:
     case GTKML_S_MAP:
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
     case GTKML_S_QUOTE:
     case GTKML_S_QUASIQUOTE:
     case GTKML_S_UNQUOTE:
@@ -2466,7 +2615,7 @@ gboolean gtk_ml_dumpf(FILE *stream, const char **err, GtkMl_S *expr) {
         }
         fprintf(stream, "}");
         return 1;
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         fprintf(stream, "...");
         return gtk_ml_dumpf(stream, err, expr->value.s_var.expr);
     case GTKML_S_QUOTE:
@@ -2713,6 +2862,17 @@ GTKML_PRIVATE GtkMl_S *builtin_lambda(GtkMl_Context *ctx, const char **err, GtkM
     GtkMl_S *lambda_body = gtk_ml_cdr(args);
 
     return new_lambda(ctx, &expr->span, lambda_args, lambda_body, local_scope(ctx));
+}
+
+GTKML_PRIVATE GtkMl_S *builtin_vararg(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
+    GtkMl_S *args = gtk_ml_cdr(expr);
+
+    if (args->kind == GTKML_S_NIL) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return NULL;
+    }
+
+    return new_vararg(ctx, &expr->span, gtk_ml_car(args));
 }
 
 GTKML_PRIVATE GtkMl_S *builtin_quote(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
@@ -2978,8 +3138,8 @@ GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr) {
         }
         return new_map(ctx, &expr->span, car, cdr);
     }
-    case GTKML_S_VARIADIC:
-        *err = GTKML_ERR_VARIADIC_ERROR;
+    case GTKML_S_VARARG:
+        *err = GTKML_ERR_VARARG_ERROR;
         return NULL;
     case GTKML_S_QUOTE:
         return expr->value.s_quote.expr;
@@ -3021,7 +3181,7 @@ GTKML_PRIVATE GtkMl_S *call_lambda(GtkMl_Context *ctx, const char **err, GtkMl_S
 
     if (params->kind == GTKML_S_LIST) {
         GtkMl_S *param = gtk_ml_car(params);
-        if (param->kind == GTKML_S_VARIADIC) {
+        if (param->kind == GTKML_S_VARARG) {
             gtk_ml_bind(ctx, param->value.s_var.expr, new_nil(ctx, NULL));
         } else {
             *err = GTKML_ERR_ARITY_ERROR;
@@ -3068,7 +3228,7 @@ GTKML_PRIVATE GtkMl_S *call_macro(GtkMl_Context *ctx, const char **err, GtkMl_S 
 
     while (params->kind != GTKML_S_NIL && args->kind != GTKML_S_NIL) {
         GtkMl_S *param = gtk_ml_car(params);
-        if (param->kind == GTKML_S_VARIADIC) {
+        if (param->kind == GTKML_S_VARARG) {
             gtk_ml_bind(ctx, param->value.s_var.expr, args);
             params = gtk_ml_cdr(params);
             while (args->kind != GTKML_S_NIL) {
@@ -3084,7 +3244,7 @@ GTKML_PRIVATE GtkMl_S *call_macro(GtkMl_Context *ctx, const char **err, GtkMl_S 
 
     if (params->kind == GTKML_S_LIST) {
         GtkMl_S *param = gtk_ml_car(params);
-        if (param->kind == GTKML_S_VARIADIC) {
+        if (param->kind == GTKML_S_VARARG) {
             gtk_ml_bind(ctx, param->value.s_var.expr, new_nil(ctx, NULL));
         } else {
             *err = GTKML_ERR_ARITY_ERROR;
@@ -3125,7 +3285,7 @@ GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *function, Gt
 
     while (expr->kind != GTKML_S_NIL) {
         GtkMl_S *arg = gtk_ml_car(expr);
-        if (arg->kind == GTKML_S_VARIADIC) {
+        if (arg->kind == GTKML_S_VARARG) {
             expr = gtk_ml_exec(ctx, err, arg->value.s_var.expr);
             if (!expr) {
                 return NULL;
@@ -3208,7 +3368,7 @@ gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs) {
             return gtk_ml_equal(gtk_ml_cdr(lhs), gtk_ml_cdr(rhs));
         }
         break;
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         return gtk_ml_equal(lhs->value.s_var.expr, rhs->value.s_var.expr);
     case GTKML_S_QUOTE:
         return gtk_ml_equal(lhs->value.s_quote.expr, rhs->value.s_quote.expr);
@@ -3976,7 +4136,7 @@ gboolean gtk_ml_serf_value(FILE *stream, const char **err, const GtkMl_S *value)
         }
         fprintf(stream, ";");
         break;
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         *err = GTKML_ERR_UNIMPLEMENTED;
         return 0;
     case GTKML_S_QUOTE:
@@ -4088,7 +4248,7 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Context *ctx, FILE *stream, const char **err)
         }
         break;
     }
-    case GTKML_S_VARIADIC:
+    case GTKML_S_VARARG:
         *err = GTKML_ERR_UNIMPLEMENTED;
         return 0;
     case GTKML_S_QUOTE:
