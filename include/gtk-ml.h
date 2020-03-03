@@ -185,6 +185,7 @@
 typedef struct GtkMl_S GtkMl_S;
 typedef struct GtkMl_Context GtkMl_Context;
 typedef struct GtkMl_Vm GtkMl_Vm;
+typedef struct GtkMl_Builder GtkMl_Builder;
 typedef union GtkMl_Register GtkMl_Register;
 typedef uint64_t GtkMl_Static;
 
@@ -430,7 +431,16 @@ typedef struct GtkMl_BasicBlock {
     size_t cap_exec;
 } GtkMl_BasicBlock;
 
-typedef struct GtkMl_Builder {
+typedef gboolean (*GtkMl_BuilderFn)(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+
+typedef struct GtkMl_BuilderMacro {
+    const char *name;
+    GtkMl_BuilderFn fn;
+    gboolean require_macro;
+    gboolean require_runtime;
+} GtkMl_BuilderMacro;
+
+struct GtkMl_Builder {
     GtkMl_BasicBlock *basic_blocks;
     size_t len_bb;
     size_t cap_bb;
@@ -443,7 +453,11 @@ typedef struct GtkMl_Builder {
 
     GtkMl_Context *macro_ctx;
     GtkMl_Vm *macro_vm;
-} GtkMl_Builder;
+
+    GtkMl_BuilderMacro *builders;
+    size_t len_builder;
+    size_t cap_builder;
+};
 
 union GtkMl_Register {
     GtkMl_S *s_expr;

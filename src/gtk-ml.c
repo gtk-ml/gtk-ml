@@ -82,6 +82,16 @@ GTKML_PRIVATE GtkMl_S *builtin_define_macro(GtkMl_Context *ctx, const char **err
 GTKML_PRIVATE GtkMl_S *builtin_application(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *builtin_new_window(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 
+GTKML_PRIVATE gboolean builder_lambda(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_vararg(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_quote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_quasiquote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_unquote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_macro(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+
 GTKML_PRIVATE GtkMl_S *vm_std_application(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_new_window(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
 
@@ -481,6 +491,82 @@ GtkMl_Builder *gtk_ml_new_builder() {
     b->macro_ctx = gtk_ml_new_context();
     b->macro_vm = b->macro_ctx->vm;
 
+    b->builders = malloc(sizeof(GtkMl_BuilderMacro) * 64);
+    b->len_builder = 0;
+    b->cap_builder = 64;
+
+    char *name_lambda = malloc(strlen("lambda") + 1);
+    strcpy(name_lambda, "lambda");
+    b->builders[b->len_builder].name = name_lambda;
+    b->builders[b->len_builder].fn = builder_lambda;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_vararg = malloc(strlen("vararg") + 1);
+    strcpy(name_vararg, "vararg");
+    b->builders[b->len_builder].name = name_vararg;
+    b->builders[b->len_builder].fn = builder_vararg;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_quote = malloc(strlen("quote") + 1);
+    strcpy(name_quote, "quote");
+    b->builders[b->len_builder].name = name_quote;
+    b->builders[b->len_builder].fn = builder_quote;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_quasiquote = malloc(strlen("quasiquote") + 1);
+    strcpy(name_quasiquote, "quasiquote");
+    b->builders[b->len_builder].name = name_quasiquote;
+    b->builders[b->len_builder].fn = builder_quasiquote;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_unquote = malloc(strlen("unquote") + 1);
+    strcpy(name_unquote, "unquote");
+    b->builders[b->len_builder].name = name_unquote;
+    b->builders[b->len_builder].fn = builder_unquote;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_macro = malloc(strlen("macro") + 1);
+    strcpy(name_macro, "macro");
+    b->builders[b->len_builder].name = name_macro;
+    b->builders[b->len_builder].fn = builder_macro;
+    b->builders[b->len_builder].require_macro = 1;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_define = malloc(strlen("define") + 1);
+    strcpy(name_define, "define");
+    b->builders[b->len_builder].name = name_define;
+    b->builders[b->len_builder].fn = builder_define;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_application = malloc(strlen("Application") + 1);
+    strcpy(name_application, "Application");
+    b->builders[b->len_builder].name = name_application;
+    b->builders[b->len_builder].fn = builder_application;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 1;
+    ++b->len_builder;
+
+    char *name_new_window = malloc(strlen("new-window") + 1);
+    strcpy(name_new_window, "new-window");
+    b->builders[b->len_builder].name = name_new_window;
+    b->builders[b->len_builder].fn = builder_new_window;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 1;
+    ++b->len_builder;
+
     return b;
 }
 
@@ -599,6 +685,10 @@ gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, const char **err, GtkMl_B
         for (size_t i = 0; i < b->len_bb; i++) {
             free(b->basic_blocks[i].exec);
         }
+        for (size_t i = 0; i < b->len_builder; i++) {
+            free((void *) b->builders[i].name);
+        }
+        free(b->builders);
         free(b->statics);
         free(b->basic_blocks);
         free(b);
@@ -1436,6 +1526,105 @@ GTKML_PRIVATE gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builde
 GTKML_PRIVATE gboolean compile_macro_body(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S *stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean compile_macro_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, const char *linkage_name, GtkMl_S *stmt, gboolean ret, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 
+gboolean builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL
+            || gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return 0;
+    }
+
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_APPLICATION, *stmt, 0);
+}
+
+gboolean builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL
+            || gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
+        *err = GTKML_ERR_ARITY_ERROR;
+        return 0;
+    }
+
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_NEW_WINDOW, *stmt, 0);
+}
+
+gboolean builder_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) ctx;
+    (void) b;
+    (void) basic_block;
+    (void) stmt;
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+
+    *err = GTKML_ERR_UNIMPLEMENTED;
+    return 0;
+}
+
+gboolean builder_lambda(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *lambda = builtin_lambda(ctx, err, *stmt);
+    if (!lambda) {
+        return 0;
+    }
+
+    return compile_macro_expression(ctx, b, basic_block, err, &lambda, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean builder_macro(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *macro = builtin_macro(ctx, err, *stmt);
+    if (!macro) {
+        return 0;
+    }
+
+    return compile_macro_expression(ctx, b, basic_block, err, &macro, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean builder_vararg(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *vararg = builtin_vararg(ctx, err, *stmt);
+    if (!vararg) {
+        return 0;
+    }
+
+    return compile_macro_expression(ctx, b, basic_block, err, &vararg, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean builder_quote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *quote = builtin_quote(ctx, err, *stmt);
+    if (!quote) {
+        return 0;
+    }
+
+    return compile_macro_expression(ctx, b, basic_block, err, &quote, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean builder_quasiquote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *quasiquote = builtin_quasiquote(ctx, err, *stmt);
+    if (!quasiquote) {
+        return 0;
+    }
+
+    return compile_macro_expression(ctx, b, basic_block, err, &quasiquote, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean builder_unquote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *unquote = builtin_unquote(ctx, err, *stmt);
+    if (!unquote) {
+        return 0;
+    }
+
+    return compile_macro_expression(ctx, b, basic_block, err, &unquote, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
 gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, uint64_t function, GtkMl_S *args, gboolean compile_first) {
     int64_t n = 0;
     if (!compile_first) {
@@ -1595,119 +1784,27 @@ gboolean compile_macro_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
         return 0;
     case GTKML_S_LIST: {
         GtkMl_S *function = gtk_ml_car(*stmt);
-
         GtkMl_S *args = gtk_ml_cdr(*stmt);
 
-        if (allow_runtime && function->kind == GTKML_S_SYMBOL) {
-            const char *symbol_application = "Application";
-            const char *symbol_new_window = "new-window";
-            const char *symbol_lambda = "lambda";
-            const char *symbol_vararg = "vararg";
-            const char *symbol_quote = "quote";
-            const char *symbol_quasiquote = "quasiquote";
+        if (function->kind == GTKML_S_SYMBOL) {
+            size_t len = function->value.s_symbol.len;
+            const char *ptr = function->value.s_symbol.ptr;
 
-            if (function->value.s_symbol.len == strlen(symbol_application)
-                    && memcmp(function->value.s_symbol.ptr, symbol_application, function->value.s_symbol.len) == 0) {
-                if (args->kind == GTKML_S_NIL
-                        || gtk_ml_cdr(args)->kind == GTKML_S_NIL
-                        || gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
-                    *err = GTKML_ERR_ARITY_ERROR;
-                    return 0;
+            for (size_t i = 0; i < b->len_builder; i++) {
+                GtkMl_BuilderMacro *bm = b->builders + i;
+                if (strlen(bm->name) == len && strncmp(bm->name, ptr, len) == 0) {
+                    if (bm->require_macro) {
+                        if (allow_macro) {
+                            return bm->fn(ctx, b, basic_block, err, stmt, allow_macro, allow_runtime, allow_macro_expansion);
+                        }
+                    } else if (bm->require_runtime) {
+                        if (allow_runtime) {
+                            return bm->fn(ctx, b, basic_block, err, stmt, allow_macro, allow_runtime, allow_macro_expansion);
+                        }
+                    } else {
+                        return bm->fn(ctx, b, basic_block, err, stmt, allow_macro, allow_runtime, allow_macro_expansion);
+                    }
                 }
-
-                return compile_std_call(ctx, b, basic_block, err, GTKML_STD_APPLICATION, *stmt, 0);
-            } else if (function->value.s_symbol.len == strlen(symbol_new_window)
-                    && memcmp(function->value.s_symbol.ptr, symbol_new_window, function->value.s_symbol.len) == 0) {
-                if (args->kind == GTKML_S_NIL
-                        || gtk_ml_cdr(args)->kind == GTKML_S_NIL
-                        || gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
-                    *err = GTKML_ERR_ARITY_ERROR;
-                    return 0;
-                }
-
-                return compile_std_call(ctx, b, basic_block, err, GTKML_STD_NEW_WINDOW, *stmt, 0);
-            } else if (function->value.s_symbol.len == strlen(symbol_lambda)
-                    && memcmp(function->value.s_symbol.ptr, symbol_lambda, function->value.s_symbol.len) == 0) {
-                GtkMl_S *lambda = builtin_lambda(ctx, err, *stmt);
-                if (!lambda) {
-                    return 0;
-                }
-
-                return compile_expression(ctx, b, basic_block, err, &lambda);
-            } else if (function->value.s_symbol.len == strlen(symbol_vararg)
-                    && memcmp(function->value.s_symbol.ptr, symbol_vararg, function->value.s_symbol.len) == 0) {
-                GtkMl_S *vararg = builtin_vararg(ctx, err, *stmt);
-                if (!vararg) {
-                    return 0;
-                }
-
-                return compile_expression(ctx, b, basic_block, err, &vararg);
-            } else if (function->value.s_symbol.len == strlen(symbol_quote)
-                    && memcmp(function->value.s_symbol.ptr, symbol_quote, function->value.s_symbol.len) == 0) {
-                GtkMl_S *quote = builtin_quote(ctx, err, *stmt);
-                if (!quote) {
-                    return 0;
-                }
-
-                return compile_expression(ctx, b, basic_block, err, &quote);
-            } else if (function->value.s_symbol.len == strlen(symbol_quasiquote)
-                    && memcmp(function->value.s_symbol.ptr, symbol_quasiquote, function->value.s_symbol.len) == 0) {
-                GtkMl_S *quasiquote = builtin_quasiquote(ctx, err, *stmt);
-                if (!quasiquote) {
-                    return 0;
-                }
-
-                return compile_expression(ctx, b, basic_block, err, &quasiquote);
-            }
-        }
-
-        if (allow_macro && function->kind == GTKML_S_SYMBOL) {
-            const char *symbol_lambda = "lambda";
-            const char *symbol_macro = "macro";
-            const char *symbol_vararg = "vararg";
-            const char *symbol_quote = "quote";
-            const char *symbol_quasiquote = "quasiquote";
-
-            if (function->value.s_symbol.len == strlen(symbol_lambda)
-                    && memcmp(function->value.s_symbol.ptr, symbol_lambda, function->value.s_symbol.len) == 0) {
-                GtkMl_S *lambda = builtin_lambda(ctx, err, *stmt);
-                if (!lambda) {
-                    return 0;
-                }
-
-                return compile_macro_expression(ctx, b, basic_block, err, &lambda, allow_macro, allow_runtime, allow_macro_expansion);
-            } else if (function->value.s_symbol.len == strlen(symbol_macro)
-                    && memcmp(function->value.s_symbol.ptr, symbol_macro, function->value.s_symbol.len) == 0) {
-                GtkMl_S *macro = builtin_macro(ctx, err, *stmt);
-                if (!macro) {
-                    return 0;
-                }
-
-                return compile_macro_expression(ctx, b, basic_block, err, &macro, allow_macro, allow_runtime, allow_macro_expansion);
-            } else if (function->value.s_symbol.len == strlen(symbol_vararg)
-                    && memcmp(function->value.s_symbol.ptr, symbol_vararg, function->value.s_symbol.len) == 0) {
-                GtkMl_S *vararg = builtin_vararg(ctx, err, *stmt);
-                if (!vararg) {
-                    return 0;
-                }
-
-                return compile_macro_expression(ctx, b, basic_block, err, &vararg, allow_macro, allow_runtime, allow_macro_expansion);
-            } else if (function->value.s_symbol.len == strlen(symbol_quote)
-                    && memcmp(function->value.s_symbol.ptr, symbol_quote, function->value.s_symbol.len) == 0) {
-                GtkMl_S *quote = builtin_quote(ctx, err, *stmt);
-                if (!quote) {
-                    return 0;
-                }
-
-                return compile_macro_expression(ctx, b, basic_block, err, &quote, allow_macro, allow_runtime, allow_macro_expansion);
-            } else if (function->value.s_symbol.len == strlen(symbol_quasiquote)
-                    && memcmp(function->value.s_symbol.ptr, symbol_quasiquote, function->value.s_symbol.len) == 0) {
-                GtkMl_S *quasiquote = builtin_quasiquote(ctx, err, *stmt);
-                if (!quasiquote) {
-                    return 0;
-                }
-
-                return compile_macro_expression(ctx, b, basic_block, err, &quasiquote, allow_macro, allow_runtime, allow_macro_expansion);
             }
         }
 
