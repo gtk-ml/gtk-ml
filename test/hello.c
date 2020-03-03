@@ -27,23 +27,51 @@ int main() {
         return 1;
     }
 
-    GtkMl_Program linked = gtk_ml_build(ctx, &err, builder);
-    if (!linked.exec) {
+    GtkMl_Program linked;
+    if (!gtk_ml_build(ctx, &linked, &err, builder)) {
         gtk_ml_del_context(ctx);
         free(src);
         fprintf(stderr, "%s\n", err);
         return 1;
     }
 
-    gtk_ml_load_program(ctx, linked);
+    FILE *bgtkml = fopen("hello.bgtkml", "wb+");
+    if (!gtk_ml_serf_program(bgtkml, &err, &linked)) {
+        gtk_ml_del_context(ctx);
+        free(src);
+        fprintf(stderr, "%s\n", err);
+        return 1;
+    }
+    gtk_ml_del_program(&linked);
 
-    GtkMl_S *program = gtk_ml_get_export(ctx, &err, linked.start);
+    bgtkml = freopen("hello.bgtkml", "r", bgtkml);
+    GtkMl_Program loaded;
+    if (!gtk_ml_deserf_program(ctx, &loaded, bgtkml, &err)) {
+        gtk_ml_del_context(ctx);
+        free(src);
+        fprintf(stderr, "%s\n", err);
+        return 1;
+    }
+
+    fclose(bgtkml);
+
+    gtk_ml_load_program(ctx, &loaded);
+
+    if (!gtk_ml_dumpf_program(ctx, stdout, &err)) {
+        gtk_ml_del_context(ctx);
+        free(src);
+        fprintf(stderr, "%s\n", err);
+        return 1;
+    }
+
+    GtkMl_S *program = gtk_ml_get_export(ctx, &err, loaded.start);
     if (!program) {
         gtk_ml_del_context(ctx);
         free(src);
         fprintf(stderr, "%s\n", err);
         return 1;
     }
+    gtk_ml_del_program(&loaded);
 
     if (!gtk_ml_run_program(ctx, &err, program, NULL)) {
         gtk_ml_del_context(ctx);
@@ -65,7 +93,6 @@ int main() {
 
     gtk_ml_del_context(ctx);
     free(src);
-    gtk_ml_del_program(linked);
 
     return status;
 }
