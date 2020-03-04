@@ -73,9 +73,9 @@
 #define GTKML_II_PUSH_IMM 0x0
 #define GTKML_II_POP 0x1
 #define GTKML_II_GET_IMM 0x2
+#define GTKML_II_LIST_IMM 0x10
 #define GTKML_II_MAP_IMM 0x11
 
-#define GTKML_IBR_CALL_FFI 0x0
 #define GTKML_IBR_CALL 0x1
 #define GTKML_IBR_RET 0x2
 #define GTKML_IBR_CALL_STD 0x3
@@ -83,9 +83,9 @@
 #define GTKML_EII_PUSH_EXT_IMM 0x0
 #define GTKML_EII_POP_EXT 0x1
 #define GTKML_EII_GET_EXT_IMM 0x2
+#define GTKML_EII_LIST_EXT_IMM 0x10
 #define GTKML_EII_MAP_EXT_IMM 0x11
 
-#define GTKML_EIBR_CALL_EXT_FFI 0x0
 #define GTKML_EIBR_CALL_EXT 0x1
 #define GTKML_EIBR_RET_EXT 0x2
 #define GTKML_EIBR_CALL_EXT_STD 0x3
@@ -120,10 +120,10 @@
 #define GTKML_SII_PUSH_IMM "PUSH_IMM"
 #define GTKML_SII_POP "POP"
 #define GTKML_SII_GET_IMM "GET_IMM"
+#define GTKML_SII_LIST_IMM "LIST_IMM"
 #define GTKML_SII_MAP_IMM "MAP_IMM"
 
 #define GTKML_SIBR_CALL_STD "CALL_STD"
-#define GTKML_SIBR_CALL_FFI "CALL_FFI"
 #define GTKML_SIBR_CALL "CALL"
 #define GTKML_SIBR_RET "RET"
 
@@ -131,10 +131,10 @@
 #define GTKML_SEII_PUSH_EXT_IMM "PUSH_EXT_IMM"
 #define GTKML_SEII_POP_EXT "POP_EXT"
 #define GTKML_SEII_GET_EXT_IMM "GET_EXT_IMM"
+#define GTKML_SEII_LIST_EXT_IMM "LIST_EXT_IMM"
 #define GTKML_SEII_MAP_EXT_IMM "MAP_EXT_IMM"
 
 #define GTKML_SEIBR_CALL_EXT_STD "CALL_EXT_STD"
-#define GTKML_SEIBR_CALL_EXT_FFI "CALL_EXT_FFI"
 #define GTKML_SEIBR_CALL_EXT "CALL_EXT"
 #define GTKML_SEIBR_RET_EXT "RET_EXT"
 
@@ -156,7 +156,8 @@
 #define GTKML_ERR_TYPE_ERROR ":error \"invalid type for expression\""
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
-#define GTKML_ERR_VARIADIC_ERROR ":error \"free-standing variadic expression\""
+#define GTKML_ERR_VARARG_ERROR ":error \"free-standing vararg expression\""
+#define GTKML_ERR_UNQUOTE_ERROR ":error \"free-standing unquote expression\""
 #define GTKML_ERR_CATEGORY_ERROR ":error \"invalid category\""
 #define GTKML_ERR_OPCODE_ERROR ":error \"invalid opcode\""
 #define GTKML_ERR_PROGRAM_ERROR ":error \"not a program\""
@@ -180,6 +181,7 @@
 typedef struct GtkMl_S GtkMl_S;
 typedef struct GtkMl_Context GtkMl_Context;
 typedef struct GtkMl_Vm GtkMl_Vm;
+typedef struct GtkMl_Builder GtkMl_Builder;
 typedef union GtkMl_Register GtkMl_Register;
 typedef uint64_t GtkMl_Static;
 
@@ -187,6 +189,9 @@ typedef uint64_t GtkMl_Static;
 typedef enum GtkMl_TokenKind {
     GTKML_TOK_DOT,
     GTKML_TOK_ELLIPSIS,
+    GTKML_TOK_TICK,
+    GTKML_TOK_BACKTICK,
+    GTKML_TOK_COMMA,
     GTKML_TOK_PARENL,
     GTKML_TOK_PARENR,
     GTKML_TOK_CURLYL,
@@ -230,12 +235,14 @@ typedef enum GtkMl_SKind {
     GTKML_S_KEYWORD,
     GTKML_S_LIST,
     GTKML_S_MAP,
-    GTKML_S_VARIADIC,
+    GTKML_S_VARARG,
+    GTKML_S_QUOTE,
+    GTKML_S_QUASIQUOTE,
+    GTKML_S_UNQUOTE,
     GTKML_S_LAMBDA,
     GTKML_S_PROGRAM,
     GTKML_S_ADDRESS,
     GTKML_S_MACRO,
-    GTKML_S_FFI,
     GTKML_S_LIGHTDATA,
     GTKML_S_USERDATA,
 } GtkMl_SKind;
@@ -287,6 +294,18 @@ typedef struct GtkMl_SVariadic {
     GtkMl_S *expr;
 } GtkMl_SVariadic;
 
+typedef struct GtkMl_SQuote {
+    GtkMl_S *expr;
+} GtkMl_SQuote;
+
+typedef struct GtkMl_SQuasiquote {
+    GtkMl_S *expr;
+} GtkMl_SQuasiquote;
+
+typedef struct GtkMl_SUnquote {
+    GtkMl_S *expr;
+} GtkMl_SUnquote;
+
 // a closure that evaluates its arguments
 typedef struct GtkMl_SLambda {
     GtkMl_S *args;
@@ -315,10 +334,6 @@ typedef struct GtkMl_SMacro {
     GtkMl_S *capture;
 } GtkMl_SMacro;
 
-typedef struct GtkMl_SFfi {
-    GtkMl_S *(*function)(GtkMl_Context *, const char **, GtkMl_S *);
-} GtkMl_SFfi;
-
 typedef struct GtkMl_SLightdata {
     void *userdata; // reference
 } GtkMl_SLightdata;
@@ -338,11 +353,13 @@ typedef union GtkMl_SUnion {
     GtkMl_SList s_list;
     GtkMl_SMap s_map;
     GtkMl_SVariadic s_var;
+    GtkMl_SQuote s_quote;
+    GtkMl_SQuasiquote s_quasiquote;
+    GtkMl_SUnquote s_unquote;
     GtkMl_SLambda s_lambda;
     GtkMl_SProgram s_program;
     GtkMl_SAddress s_address;
     GtkMl_SMacro s_macro;
-    GtkMl_SFfi s_ffi;
     GtkMl_SLightdata s_lightdata;
     GtkMl_SUserdata s_userdata;
 } GtkMl_SUnion;
@@ -404,7 +421,16 @@ typedef struct GtkMl_BasicBlock {
     size_t cap_exec;
 } GtkMl_BasicBlock;
 
-typedef struct GtkMl_Builder {
+typedef gboolean (*GtkMl_BuilderFn)(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+
+typedef struct GtkMl_BuilderMacro {
+    const char *name;
+    GtkMl_BuilderFn fn;
+    gboolean require_macro;
+    gboolean require_runtime;
+} GtkMl_BuilderMacro;
+
+struct GtkMl_Builder {
     GtkMl_BasicBlock *basic_blocks;
     size_t len_bb;
     size_t cap_bb;
@@ -414,7 +440,14 @@ typedef struct GtkMl_Builder {
     size_t cap_static;
 
     unsigned int counter;
-} GtkMl_Builder;
+
+    GtkMl_Context *macro_ctx;
+    GtkMl_Vm *macro_vm;
+
+    GtkMl_BuilderMacro *builders;
+    size_t len_builder;
+    size_t cap_builder;
+};
 
 union GtkMl_Register {
     GtkMl_S *s_expr;
@@ -446,6 +479,8 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_get_export(GtkMl_Context *ctx, const char **err, co
 
 // creates a new builder on the heap
 GTKML_PUBLIC GtkMl_Builder *gtk_ml_new_builder();
+// builds the program's macros
+GTKML_PUBLIC gboolean gtk_ml_build_macros(GtkMl_Program *out, const char **err, GtkMl_Builder *b);
 // builds the program
 GTKML_PUBLIC gboolean gtk_ml_build(GtkMl_Context *ctx, GtkMl_Program *out, const char **err, GtkMl_Builder *b);
 // deletes a program returned by `gtk_ml_build`
@@ -470,13 +505,13 @@ GTKML_PUBLIC gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Bu
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_list_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_list_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
-// builds a call to C in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_call_extended_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
-// builds a call to C in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_call_ffi(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_call_extended_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
@@ -501,8 +536,14 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_loadf(GtkMl_Context *ctx, char **src, const char **
 // loads an expression from a string
 GTKML_PUBLIC GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, const char **err, const char *src);
 
+// do a macro pass on the selected lambda expression
+GTKML_PUBLIC gboolean gtk_ml_macro_pass(GtkMl_Builder *b, const char **err, GtkMl_S *lambda);
+// compile a lambda expression to bytecode
+GTKML_PUBLIC gboolean gtk_ml_compile_macros(GtkMl_Builder *b, const char **err, GtkMl_S *macro);
 // compile a lambda expression to bytecode
 GTKML_PUBLIC gboolean gtk_ml_compile(GtkMl_Context *ctx, GtkMl_Builder *b, const char **err, GtkMl_S *lambda);
+// compile a lambda expression to bytecode with expanding macros
+GTKML_PUBLIC gboolean gtk_ml_compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, const char **err, GtkMl_S *lambda);
 
 // pushes an expression to the stack
 GTKML_PUBLIC void gtk_ml_push(GtkMl_Context *ctx, GtkMl_S *value);
@@ -538,10 +579,6 @@ GTKML_PUBLIC gboolean gtk_ml_dumpf_program(GtkMl_Context *ctx, FILE *stream, con
 GTKML_PUBLIC char *gtk_ml_dumpsn_program(GtkMl_Context *ctx, char *ptr, size_t n, const char **err);
 // dumps a program to a string and reallocates if necessary
 GTKML_PUBLIC char *gtk_ml_dumpsnr_program(GtkMl_Context *ctx, char *ptr, size_t n, const char **err);
-// evaluates an expression
-GTKML_PUBLIC GtkMl_S *gtk_ml_exec(GtkMl_Context *ctx, const char **err, GtkMl_S *expr);
-// calls a lambda, a macro or an ffi expression with arguments
-GTKML_PUBLIC GtkMl_S *gtk_ml_call(GtkMl_Context *ctx, const char **err, GtkMl_S *function, GtkMl_S *expr);
 // compares two values for equality
 GTKML_PUBLIC gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs);
 

@@ -20,7 +20,7 @@ int main() {
 
     GtkMl_Builder *builder = gtk_ml_new_builder();
 
-    if (!gtk_ml_compile(ctx, builder, &err, gui)) {
+    if (!gtk_ml_compile_program(ctx, builder, &err, gui)) {
         gtk_ml_del_context(ctx);
         free(src);
         fprintf(stderr, "%s\n", err);
