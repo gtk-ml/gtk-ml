@@ -10,7 +10,7 @@ LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
 TEST_HELLO=$(BINDIR)/hello 
 TESTS=$(TEST_HELLO)
-OBJ=$(OBJDIR)/gtk-ml.c.o
+OBJ=$(OBJDIR)/gtk-ml.c.o $(OBJDIR)/hashtrie.c.o $(OBJDIR)/hashset.c.o $(OBJDIR)/array.c.o
 
 CFLAGS:=-O0 -g -Wall -Wextra -Werror -pedantic -fPIC -std=c11 -pthread $(shell pkg-config --cflags gtk+-3.0)
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
