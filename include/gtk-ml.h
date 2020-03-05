@@ -164,6 +164,7 @@
 #define GTKML_ERR_TYPE_ERROR ":error \"invalid type for expression\""
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
+#define GTKML_ERR_CONSTANT_ERROR ":error \"constant not found\""
 #define GTKML_ERR_VARARG_ERROR ":error \"free-standing vararg expression\""
 #define GTKML_ERR_UNQUOTE_ERROR ":error \"free-standing unquote expression\""
 #define GTKML_ERR_CATEGORY_ERROR ":error \"invalid category\""
@@ -201,8 +202,11 @@ typedef enum GtkMl_TokenKind {
     GTKML_TOK_TICK,
     GTKML_TOK_BACKTICK,
     GTKML_TOK_COMMA,
+    GTKML_TOK_POUND,
     GTKML_TOK_PARENL,
     GTKML_TOK_PARENR,
+    GTKML_TOK_SQUAREL,
+    GTKML_TOK_SQUARER,
     GTKML_TOK_CURLYL,
     GTKML_TOK_CURLYR,
     GTKML_TOK_INT,
