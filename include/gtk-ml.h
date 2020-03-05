@@ -75,6 +75,8 @@
 #define GTKML_II_GET_IMM 0x2
 #define GTKML_II_LIST_IMM 0x10
 #define GTKML_II_MAP_IMM 0x11
+#define GTKML_II_SET_IMM 0x12
+#define GTKML_II_ARRAY_IMM 0x13
 
 #define GTKML_IBR_CALL 0x1
 #define GTKML_IBR_RET 0x2
@@ -85,6 +87,8 @@
 #define GTKML_EII_GET_EXT_IMM 0x2
 #define GTKML_EII_LIST_EXT_IMM 0x10
 #define GTKML_EII_MAP_EXT_IMM 0x11
+#define GTKML_EII_SET_EXT_IMM 0x12
+#define GTKML_EII_ARRAY_EXT_IMM 0x13
 
 #define GTKML_EIBR_CALL_EXT 0x1
 #define GTKML_EIBR_RET_EXT 0x2
@@ -122,6 +126,8 @@
 #define GTKML_SII_GET_IMM "GET_IMM"
 #define GTKML_SII_LIST_IMM "LIST_IMM"
 #define GTKML_SII_MAP_IMM "MAP_IMM"
+#define GTKML_SII_SET_IMM "SET_IMM"
+#define GTKML_SII_ARRAY_IMM "ARRAY_IMM"
 
 #define GTKML_SIBR_CALL_STD "CALL_STD"
 #define GTKML_SIBR_CALL "CALL"
@@ -133,6 +139,8 @@
 #define GTKML_SEII_GET_EXT_IMM "GET_EXT_IMM"
 #define GTKML_SEII_LIST_EXT_IMM "LIST_EXT_IMM"
 #define GTKML_SEII_MAP_EXT_IMM "MAP_EXT_IMM"
+#define GTKML_SEII_SET_EXT_IMM "SET_EXT_IMM"
+#define GTKML_SEII_ARRAY_EXT_IMM "ARRAY_EXT_IMM"
 
 #define GTKML_SEIBR_CALL_EXT_STD "CALL_EXT_STD"
 #define GTKML_SEIBR_CALL_EXT "CALL_EXT"
@@ -156,6 +164,7 @@
 #define GTKML_ERR_TYPE_ERROR ":error \"invalid type for expression\""
 #define GTKML_ERR_ARITY_ERROR ":error \"invalid argument count\""
 #define GTKML_ERR_BINDING_ERROR ":error \"binding not found\""
+#define GTKML_ERR_CONSTANT_ERROR ":error \"constant not found\""
 #define GTKML_ERR_VARARG_ERROR ":error \"free-standing vararg expression\""
 #define GTKML_ERR_UNQUOTE_ERROR ":error \"free-standing unquote expression\""
 #define GTKML_ERR_CATEGORY_ERROR ":error \"invalid category\""
@@ -184,6 +193,7 @@ typedef struct GtkMl_Vm GtkMl_Vm;
 typedef struct GtkMl_Builder GtkMl_Builder;
 typedef union GtkMl_Register GtkMl_Register;
 typedef uint64_t GtkMl_Static;
+typedef uint32_t GtkMl_Hash;
 
 // a lexical analysis level token tag
 typedef enum GtkMl_TokenKind {
@@ -192,8 +202,11 @@ typedef enum GtkMl_TokenKind {
     GTKML_TOK_TICK,
     GTKML_TOK_BACKTICK,
     GTKML_TOK_COMMA,
+    GTKML_TOK_POUND,
     GTKML_TOK_PARENL,
     GTKML_TOK_PARENR,
+    GTKML_TOK_SQUAREL,
+    GTKML_TOK_SQUARER,
     GTKML_TOK_CURLYL,
     GTKML_TOK_CURLYR,
     GTKML_TOK_INT,
@@ -223,6 +236,27 @@ typedef struct GtkMl_Token {
     GtkMl_TokenValue value;
 } GtkMl_Token;
 
+typedef struct GtkMl_HashTrieNode GtkMl_HashTrieNode;
+
+typedef struct GtkMl_HashTrie {
+    GtkMl_HashTrieNode *root;
+    size_t len;
+} GtkMl_HashTrie;
+
+typedef struct GtkMl_HashSetNode GtkMl_HashSetNode;
+
+typedef struct GtkMl_HashSet {
+    GtkMl_HashSetNode *root;
+    size_t len;
+} GtkMl_HashSet;
+
+typedef struct GtkMl_ArrayNode GtkMl_ArrayNode;
+
+typedef struct GtkMl_Array {
+    GtkMl_ArrayNode *root;
+    size_t len;
+} GtkMl_Array;
+
 // a grammar level s expression tag
 typedef enum GtkMl_SKind {
     GTKML_S_NIL,
@@ -235,6 +269,8 @@ typedef enum GtkMl_SKind {
     GTKML_S_KEYWORD,
     GTKML_S_LIST,
     GTKML_S_MAP,
+    GTKML_S_SET,
+    GTKML_S_ARRAY,
     GTKML_S_VARARG,
     GTKML_S_QUOTE,
     GTKML_S_QUASIQUOTE,
@@ -282,13 +318,19 @@ typedef struct GtkMl_SList {
 } GtkMl_SList;
 
 // a map like {:width 640 :height 480}
-// TODO(walterpi):
-// map currently implement as an assoc list
-// will be implemented as a hashmap in the future
 typedef struct GtkMl_SMap {
-    GtkMl_S *car;
-    GtkMl_S *cdr;
+    GtkMl_HashTrie map;
 } GtkMl_SMap;
+
+// a set like #{:a :b :c}
+typedef struct GtkMl_SSet {
+    GtkMl_HashSet set;
+} GtkMl_SSet;
+
+// an array like [1 2 3]
+typedef struct GtkMl_SArray {
+    GtkMl_Array array;
+} GtkMl_SArray;
 
 typedef struct GtkMl_SVariadic {
     GtkMl_S *expr;
@@ -352,6 +394,8 @@ typedef union GtkMl_SUnion {
     GtkMl_SKeyword s_keyword;
     GtkMl_SList s_list;
     GtkMl_SMap s_map;
+    GtkMl_SSet s_set;
+    GtkMl_SArray s_array;
     GtkMl_SVariadic s_var;
     GtkMl_SQuote s_quote;
     GtkMl_SQuasiquote s_quasiquote;
@@ -370,6 +414,8 @@ typedef struct GtkMl_S {
     unsigned int flags;
     GtkMl_SKind kind;
     GtkMl_Span span;
+    gboolean hashed;
+    GtkMl_Hash hash;
     GtkMl_SUnion value;
 } GtkMl_S;
 
@@ -512,6 +558,14 @@ GTKML_PUBLIC gboolean gtk_ml_build_list_imm(GtkMl_Context *ctx, GtkMl_Builder *b
 GTKML_PUBLIC gboolean gtk_ml_build_map_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_set_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_set_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_array_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_array_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_call_extended_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
@@ -581,14 +635,20 @@ GTKML_PUBLIC char *gtk_ml_dumpsn_program(GtkMl_Context *ctx, char *ptr, size_t n
 GTKML_PUBLIC char *gtk_ml_dumpsnr_program(GtkMl_Context *ctx, char *ptr, size_t n, const char **err);
 // compares two values for equality
 GTKML_PUBLIC gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs);
+// calculates a hash of a value if possible
+GTKML_PUBLIC gboolean gtk_ml_hash(GtkMl_Hash *hash, GtkMl_S *value);
+
+/* miscelaneous */
 
 GTKML_PUBLIC GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx);
 
 GTKML_PUBLIC void gtk_ml_delete_reference(GtkMl_Context *ctx, void *);
 GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
 
+/* serialization and deserialization */
+
 // serializes a value and returns a heap-allocated pointer to it
-GTKML_PUBLIC gboolean gtk_ml_serf_value(FILE *stream, const char **err, const GtkMl_S *value);
+GTKML_PUBLIC gboolean gtk_ml_serf_value(FILE *stream, const char **err, GtkMl_S *value);
 // deserializes a value from a sequence of bytes
 GTKML_PUBLIC GtkMl_S *gtk_ml_deserf_value(GtkMl_Context *ctx, FILE *stream, const char **err);
 
@@ -596,6 +656,52 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_deserf_value(GtkMl_Context *ctx, FILE *stream, cons
 GTKML_PUBLIC gboolean gtk_ml_serf_program(FILE *stream, const char **err, const GtkMl_Program *program);
 // deserializes a program from a sequence of bytes
 GTKML_PUBLIC gboolean gtk_ml_deserf_program(GtkMl_Context *ctx, GtkMl_Program *program, FILE *stream, const char **err);
+
+/* data structures */
+
+typedef enum GtkMl_VisitResult {
+    GTKML_VISIT_RECURSE,
+    GTKML_VISIT_CONTINUE,
+    GTKML_VISIT_BREAK,
+} GtkMl_VisitResult;
+
+typedef GtkMl_VisitResult (*GtkMl_HashTrieFn)(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *data);
+typedef GtkMl_VisitResult (*GtkMl_HashSetFn)(GtkMl_HashSet *hs, GtkMl_S *value, void *data);
+typedef GtkMl_VisitResult (*GtkMl_ArrayFn)(GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
+
+GTKML_PUBLIC void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht);
+GTKML_PUBLIC void gtk_ml_del_hash_trie(GtkMl_HashTrie *ht);
+GTKML_PUBLIC size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht);
+GTKML_PUBLIC void gtk_ml_hash_trie_concat(GtkMl_HashTrie *out, GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
+GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_insert(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_get(GtkMl_HashTrie *ht, GtkMl_S *key);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_contains(GtkMl_HashTrie *ht, GtkMl_S *key);
+GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_delete(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, GtkMl_S *key);
+GTKML_PUBLIC void gtk_ml_hash_trie_foreach(GtkMl_HashTrie *ht, GtkMl_HashTrieFn fn, void *data);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_equal(GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
+
+GTKML_PUBLIC void gtk_ml_new_hash_set(GtkMl_HashSet *hs);
+GTKML_PUBLIC void gtk_ml_del_hash_set(GtkMl_HashSet *hs);
+GTKML_PUBLIC size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs);
+GTKML_PUBLIC void gtk_ml_hash_set_concat(GtkMl_HashSet *out, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
+GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_get(GtkMl_HashSet *hs, GtkMl_S *value);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_contains(GtkMl_HashSet *hs, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_delete(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *value);
+GTKML_PUBLIC void gtk_ml_hash_set_foreach(GtkMl_HashSet *ht, GtkMl_HashSetFn fn, void *data);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
+
+GTKML_PUBLIC void gtk_ml_new_array(GtkMl_Array *array);
+GTKML_PUBLIC void gtk_ml_del_array(GtkMl_Array *array);
+GTKML_PUBLIC size_t gtk_ml_array_len(GtkMl_Array *array);
+GTKML_PUBLIC void gtk_ml_array_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs);
+GTKML_PUBLIC void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_array_pop(GtkMl_Array *out, GtkMl_Array *array);
+GTKML_PUBLIC GtkMl_S *gtk_ml_array_get(GtkMl_Array *array, size_t index);
+GTKML_PUBLIC gboolean gtk_ml_array_contains(GtkMl_Array *array, size_t *index, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_array_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index);
+GTKML_PUBLIC void gtk_ml_array_foreach(GtkMl_Array *ht, GtkMl_ArrayFn fn, void *data);
+GTKML_PUBLIC gboolean gtk_ml_array_equal(GtkMl_Array *lhs, GtkMl_Array *rhs);
 
 #endif /* ifndef GTK_ML_H */
 
