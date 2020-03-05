@@ -38,7 +38,7 @@ GTKML_PRIVATE GtkMl_S *delete(GtkMl_HashSetNode **out, size_t *dec, GtkMl_HashSe
 GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_HashSet *hs, GtkMl_HashSetNode *node, GtkMl_HashSetFn fn, void *data);
 
 void gtk_ml_new_hash_set(GtkMl_HashSet *hs) {
-    hs->root = new_branch();
+    hs->root = NULL;
     hs->len = 0;
 }
 
@@ -163,6 +163,7 @@ GtkMl_S *insert(GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, G
     if (!node) {
         ++*inc;
         *out = new_leaf(key);
+        return NULL;
     }
 
     switch (node->kind) {
