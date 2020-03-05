@@ -44,7 +44,6 @@ void gtk_ml_new_hash_set(GtkMl_HashSet *hs) {
 
 void gtk_ml_del_hash_set(GtkMl_HashSet *hs) {
     del_node(hs->root);
-    free(hs->root);
 }
 
 size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs) {

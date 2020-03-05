@@ -40,13 +40,12 @@ GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_HashTrie *ht, GtkMl_HashTrieNode *
 GTKML_PRIVATE gboolean equal(GtkMl_HashTrieNode *lhs, GtkMl_HashTrieNode *rhs);
 
 void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht) {
-    ht->root = new_branch();
+    ht->root = NULL;
     ht->len = 0;
 }
 
 void gtk_ml_del_hash_trie(GtkMl_HashTrie *ht) {
     del_node(ht->root);
-    free(ht->root);
 }
 
 size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht) {

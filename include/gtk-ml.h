@@ -410,6 +410,8 @@ typedef struct GtkMl_S {
     unsigned int flags;
     GtkMl_SKind kind;
     GtkMl_Span span;
+    gboolean hashed;
+    GtkMl_Hash hash;
     GtkMl_SUnion value;
 } GtkMl_S;
 

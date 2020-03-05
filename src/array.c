@@ -81,17 +81,15 @@ void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value) {
     gboolean result = push(&out->root, array->root, &depth, value);
     if (!result) {
         out->root = new_branch(out->root->shift + GTKML_A_BITS, 2);
-        out->root->value.a_branch.nodes[0] = array->root;
-        if (!result) {
-            size_t shift = out->root->shift;
-            GtkMl_ArrayNode **out_node = out->root->value.a_branch.nodes + 1;
-            while (depth--) {
-                shift -= GTKML_A_BITS;
-                *out_node = new_branch(shift, 1);
-                out_node = (*out_node)->value.a_branch.nodes;
-            }
-            *out_node = new_leaf(value);
+        out->root->value.a_branch.nodes[0] = copy_node(array->root);
+        size_t shift = out->root->shift;
+        GtkMl_ArrayNode **out_node = out->root->value.a_branch.nodes + 1;
+        while (depth--) {
+            shift -= GTKML_A_BITS;
+            *out_node = new_branch(shift, 1);
+            out_node = (*out_node)->value.a_branch.nodes;
         }
+        *out_node = new_leaf(value);
     }
 }
 
