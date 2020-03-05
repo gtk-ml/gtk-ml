@@ -31,10 +31,10 @@ install: $(TARGET)
 	cp -r include ~/.local/include/$(INCLUDE_NAME)
 	cp $(TARGET) ~/.local/lib64/
 
-$(OBJDIR)/%.c.o: $(SRCDIR)/%.c
+$(OBJDIR)/%.c.o: $(SRCDIR)/%.c $(OBJDIR) $(DBDIR)
 	$(CC) $(CFLAGS) $(INCLUDE) -MJ $(DBDIR)/$*.c.o.json -c -o $@ $<
 
-compile_commands.json: $(OBJ)
+compile_commands.json: $(OBJ) $(DBDIR)
 	sed -e '1s/^/[\n/' -e '$$s/,$$/\n]/' $(patsubst $(OBJDIR)/%.c.o,$(DBDIR)/%.c.o.json,$^) > $@
 
 $(TARGET): $(OBJ)
@@ -48,6 +48,9 @@ $(OBJDIR): $(BINDIR)
 
 $(BINDIR):
 	mkdir -p $(BINDIR)
+
+$(DBDIR): 
+	mkdir -p $(DBDIR)
 
 clean:
 	rm -rf bin/
