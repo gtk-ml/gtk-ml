@@ -431,8 +431,6 @@ typedef struct GtkMl_S {
     unsigned int flags;
     GtkMl_SKind kind;
     GtkMl_Span span;
-    gboolean hashed;
-    GtkMl_Hash hash;
     GtkMl_SUnion value;
 } GtkMl_S;
 
@@ -527,6 +525,18 @@ typedef struct GtkMl_Program {
     GtkMl_S **statics;
     size_t n_static;
 } GtkMl_Program;
+
+typedef struct GtkMl_Serializer {
+    // ptr to offset map
+    // uses a hack to convert `void *` into size_t
+    GtkMl_HashTrie ptr_map;
+} GtkMl_Serializer;
+
+typedef struct GtkMl_Deserializer {
+    // offset to ptr map
+    // uses a hack to convert `void *` into size_t
+    GtkMl_HashTrie ptr_map;
+} GtkMl_Deserializer;
 
 // creates a new context on the heap
 // must be deleted with `gtk_ml_del_context`
@@ -676,15 +686,18 @@ GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
 
 /* serialization and deserialization */
 
+GTKML_PUBLIC void gtk_ml_new_serializer(GtkMl_Serializer *serf);
+GTKML_PUBLIC void gtk_ml_new_deserializer(GtkMl_Deserializer *deserf);
+
 // serializes a value and returns a heap-allocated pointer to it
-GTKML_PUBLIC gboolean gtk_ml_serf_value(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *value);
+GTKML_PUBLIC gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *value);
 // deserializes a value from a sequence of bytes
-GTKML_PUBLIC GtkMl_S *gtk_ml_deserf_value(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
+GTKML_PUBLIC GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
 
 // serializes a program and returns a heap-allocated pointer to it
-GTKML_PUBLIC gboolean gtk_ml_serf_program(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, const GtkMl_Program *program);
+GTKML_PUBLIC gboolean gtk_ml_serf_program(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, const GtkMl_Program *program);
 // deserializes a program from a sequence of bytes
-GTKML_PUBLIC gboolean gtk_ml_deserf_program(GtkMl_Context *ctx, GtkMl_Program *program, FILE *stream, GtkMl_S **err);
+GTKML_PUBLIC gboolean gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, GtkMl_Program *program, FILE *stream, GtkMl_S **err);
 
 /* data structures */
 

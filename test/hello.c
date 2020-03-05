@@ -38,8 +38,10 @@ int main() {
         return 1;
     }
 
+    GtkMl_Serializer serf;
+    gtk_ml_new_serializer(&serf);
     FILE *bgtkml = fopen("hello.bgtkml", "wb+");
-    if (!gtk_ml_serf_program(ctx, bgtkml, &err, &linked)) {
+    if (!gtk_ml_serf_program(&serf, ctx, bgtkml, &err, &linked)) {
         free(src);
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
@@ -48,9 +50,11 @@ int main() {
     }
     gtk_ml_del_program(&linked);
 
+    GtkMl_Deserializer deserf;
+    gtk_ml_new_deserializer(&deserf);
     bgtkml = freopen("hello.bgtkml", "r", bgtkml);
     GtkMl_Program loaded;
-    if (!gtk_ml_deserf_program(ctx, &loaded, bgtkml, &err)) {
+    if (!gtk_ml_deserf_program(&deserf, ctx, &loaded, bgtkml, &err)) {
         free(src);
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
