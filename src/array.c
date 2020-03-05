@@ -41,7 +41,7 @@ GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *nod
 GTKML_PRIVATE GtkMl_VisitResult fn_contains(GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
 
 void gtk_ml_new_array(GtkMl_Array *array) {
-    array->root = new_branch(0, 0);
+    array->root = NULL;
     array->len = 0;
 }
 
@@ -80,7 +80,7 @@ void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value) {
     size_t depth;
     gboolean result = push(&out->root, array->root, &depth, value);
     if (!result) {
-        out->root = new_branch(out->root->shift + GTKML_A_BITS, 2);
+        out->root = new_branch(array->root->shift + GTKML_A_BITS, 2);
         out->root->value.a_branch.nodes[0] = copy_node(array->root);
         size_t shift = out->root->shift;
         GtkMl_ArrayNode **out_node = out->root->value.a_branch.nodes + 1;
