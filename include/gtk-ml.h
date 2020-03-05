@@ -80,6 +80,9 @@
 #define GTKML_II_ARRAY_IMM 0x13
 #define GTKML_II_SETMM_IMM 0x14
 #define GTKML_II_GETMM_IMM 0x15
+#define GTKML_II_VAR_IMM 0x16
+#define GTKML_II_GETVAR_IMM 0x17
+#define GTKML_II_ASSIGNVAR_IMM 0x18
 
 #define GTKML_IBR_CALL 0x1
 #define GTKML_IBR_RET 0x2
@@ -133,6 +136,9 @@
 #define GTKML_SII_ARRAY_IMM "ARRAY_IMM"
 #define GTKML_SII_SETMM_IMM "SETMM_IMM"
 #define GTKML_SII_GETMM_IMM "GETMM_IMM"
+#define GTKML_SII_VAR_IMM "VAR_IMM"
+#define GTKML_SII_GETVAR_IMM "GETVAR_IMM"
+#define GTKML_SII_ASSIGNVAR_IMM "ASSIGNVAR_IMM"
 
 #define GTKML_SIBR_CALL_STD "CALL_STD"
 #define GTKML_SIBR_CALL "CALL"
@@ -285,6 +291,7 @@ typedef enum GtkMl_SKind {
     GTKML_S_MAP,
     GTKML_S_SET,
     GTKML_S_ARRAY,
+    GTKML_S_VAR,
     GTKML_S_VARARG,
     GTKML_S_QUOTE,
     GTKML_S_QUASIQUOTE,
@@ -349,9 +356,13 @@ typedef struct GtkMl_SArray {
     GtkMl_Array array;
 } GtkMl_SArray;
 
-typedef struct GtkMl_SVariadic {
+typedef struct GtkMl_SVar {
     GtkMl_S *expr;
-} GtkMl_SVariadic;
+} GtkMl_SVar;
+
+typedef struct GtkMl_SVararg {
+    GtkMl_S *expr;
+} GtkMl_SVararg;
 
 typedef struct GtkMl_SQuote {
     GtkMl_S *expr;
@@ -413,7 +424,8 @@ typedef union GtkMl_SUnion {
     GtkMl_SMap s_map;
     GtkMl_SSet s_set;
     GtkMl_SArray s_array;
-    GtkMl_SVariadic s_var;
+    GtkMl_SVar s_var;
+    GtkMl_SVararg s_vararg;
     GtkMl_SQuote s_quote;
     GtkMl_SQuasiquote s_quasiquote;
     GtkMl_SUnquote s_unquote;
@@ -597,6 +609,12 @@ GTKML_PUBLIC gboolean gtk_ml_build_array_imm(GtkMl_Context *ctx, GtkMl_Builder *
 GTKML_PUBLIC gboolean gtk_ml_build_setmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_getmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_var_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_getvar_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_assignvar_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a call to C in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_call_extended_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
