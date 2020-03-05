@@ -32,7 +32,7 @@ struct GtkMl_HashTrieNode {
 GTKML_PRIVATE GtkMl_HashTrieNode *new_leaf(GtkMl_S *key, GtkMl_S *value);
 GTKML_PRIVATE GtkMl_HashTrieNode *new_branch();
 GTKML_PRIVATE GtkMl_HashTrieNode *copy_node(GtkMl_HashTrieNode *node);
-GTKML_PRIVATE void del_node(GtkMl_HashTrieNode *node);
+GTKML_PRIVATE void del_node(GtkMl_Context *ctx, GtkMl_HashTrieNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PRIVATE GtkMl_S *insert(GtkMl_HashTrieNode **out, size_t *inc, GtkMl_HashTrieNode *node, GtkMl_S *key, GtkMl_S *value, GtkMl_Hash hash, uint32_t shift);
 GTKML_PRIVATE GtkMl_S *get(GtkMl_HashTrieNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift);
 GTKML_PRIVATE GtkMl_S *delete(GtkMl_HashTrieNode **out, size_t *dec, GtkMl_HashTrieNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift);
@@ -44,8 +44,8 @@ void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht) {
     ht->len = 0;
 }
 
-void gtk_ml_del_hash_trie(GtkMl_HashTrie *ht) {
-    del_node(ht->root);
+void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
+    del_node(ctx, ht->root, deleter);
 }
 
 size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht) {
@@ -149,7 +149,7 @@ GtkMl_HashTrieNode *copy_node(GtkMl_HashTrieNode *node) {
     return node;
 }
 
-void del_node(GtkMl_HashTrieNode *node) {
+void del_node(GtkMl_Context *ctx, GtkMl_HashTrieNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
     if (!node) {
         return;
     }
@@ -158,10 +158,12 @@ void del_node(GtkMl_HashTrieNode *node) {
     if (!node->rc) {
         switch (node->kind) {
         case GTKML_HT_LEAF:
+            deleter(ctx, node->value.h_leaf.key);
+            deleter(ctx, node->value.h_leaf.value);
             break;
         case GTKML_HT_BRANCH:
             for (size_t i = 0; i < GTKML_H_SIZE; i++) {
-                del_node(node->value.h_branch.nodes[i]);
+                del_node(ctx, node->value.h_branch.nodes[i], deleter);
             }
             free(node->value.h_branch.nodes);
             break;
@@ -232,7 +234,7 @@ GtkMl_S *delete(GtkMl_HashTrieNode **out, size_t *dec, GtkMl_HashTrieNode *node,
     case GTKML_HT_LEAF:
         if (gtk_ml_equal(node->value.h_leaf.key, key)) {
             --*dec;
-            del_node(*out);
+            del_node(NULL, *out, gtk_ml_nothing);
             *out = NULL;
             return node->value.h_leaf.value;
         } else {

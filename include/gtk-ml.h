@@ -301,13 +301,15 @@ typedef struct GtkMl_SString {
 
 // a regular symbol like x, forty-two, +, if
 typedef struct GtkMl_SSymbol {
-    const char *ptr; // reference
+    gboolean owned;
+    const char *ptr; // reference or heap allocated
     size_t len;
 } GtkMl_SSymbol;
 
 // a keyword like :x, :width, :height
 typedef struct GtkMl_SKeyword {
-    const char *ptr; // reference
+    gboolean owned;
+    const char *ptr; // reference or heap allocated
     size_t len;
 } GtkMl_SKeyword;
 
@@ -641,6 +643,7 @@ GTKML_PUBLIC gboolean gtk_ml_hash(GtkMl_Hash *hash, GtkMl_S *value);
 /* miscelaneous */
 
 GTKML_PUBLIC GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx);
+GTKML_PUBLIC void gtk_ml_nothing(GtkMl_Context *ctx, GtkMl_S *value);
 
 GTKML_PUBLIC void gtk_ml_delete_reference(GtkMl_Context *ctx, void *);
 GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
@@ -670,7 +673,7 @@ typedef GtkMl_VisitResult (*GtkMl_HashSetFn)(GtkMl_HashSet *hs, GtkMl_S *value, 
 typedef GtkMl_VisitResult (*GtkMl_ArrayFn)(GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
 
 GTKML_PUBLIC void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht);
-GTKML_PUBLIC void gtk_ml_del_hash_trie(GtkMl_HashTrie *ht);
+GTKML_PUBLIC void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PUBLIC size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht);
 GTKML_PUBLIC void gtk_ml_hash_trie_concat(GtkMl_HashTrie *out, GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
 GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_insert(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value);
@@ -681,7 +684,7 @@ GTKML_PUBLIC void gtk_ml_hash_trie_foreach(GtkMl_HashTrie *ht, GtkMl_HashTrieFn 
 GTKML_PUBLIC gboolean gtk_ml_hash_trie_equal(GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
 
 GTKML_PUBLIC void gtk_ml_new_hash_set(GtkMl_HashSet *hs);
-GTKML_PUBLIC void gtk_ml_del_hash_set(GtkMl_HashSet *hs);
+GTKML_PUBLIC void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PUBLIC size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs);
 GTKML_PUBLIC void gtk_ml_hash_set_concat(GtkMl_HashSet *out, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
 GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *value);
@@ -692,7 +695,7 @@ GTKML_PUBLIC void gtk_ml_hash_set_foreach(GtkMl_HashSet *ht, GtkMl_HashSetFn fn,
 GTKML_PUBLIC gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
 
 GTKML_PUBLIC void gtk_ml_new_array(GtkMl_Array *array);
-GTKML_PUBLIC void gtk_ml_del_array(GtkMl_Array *array);
+GTKML_PUBLIC void gtk_ml_del_array(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PUBLIC size_t gtk_ml_array_len(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_array_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs);
 GTKML_PUBLIC void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value);

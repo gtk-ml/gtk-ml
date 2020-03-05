@@ -33,11 +33,12 @@ struct GtkMl_ArrayNode {
 GTKML_PRIVATE GtkMl_ArrayNode *new_leaf(GtkMl_S *value);
 GTKML_PRIVATE GtkMl_ArrayNode *new_branch(size_t shift, size_t len);
 GTKML_PRIVATE GtkMl_ArrayNode *copy_node(GtkMl_ArrayNode *node);
-GTKML_PRIVATE void del_node(GtkMl_ArrayNode *node);
+GTKML_PRIVATE void del_node(GtkMl_Context *ctx, GtkMl_ArrayNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PRIVATE gboolean push(GtkMl_ArrayNode **out, GtkMl_ArrayNode *node, size_t *depth, GtkMl_S *value);
 GTKML_PRIVATE GtkMl_S *get(GtkMl_ArrayNode *node, size_t index);
 GTKML_PRIVATE GtkMl_S *delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node, size_t index);
 GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayFn fn, void *data);
+GTKML_PRIVATE gboolean equal(GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs);
 GTKML_PRIVATE GtkMl_VisitResult fn_contains(GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
 
 void gtk_ml_new_array(GtkMl_Array *array) {
@@ -45,8 +46,8 @@ void gtk_ml_new_array(GtkMl_Array *array) {
     array->len = 0;
 }
 
-void gtk_ml_del_array(GtkMl_Array *array) {
-    del_node(array->root);
+void gtk_ml_del_array(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
+    del_node(ctx, array->root, deleter);
 }
 
 size_t gtk_ml_array_len(GtkMl_Array *array) {
@@ -134,6 +135,14 @@ void gtk_ml_array_foreach(GtkMl_Array *array, GtkMl_ArrayFn fn, void *data) {
     foreach(array, array->root, 0, fn, data);
 }
 
+gboolean gtk_ml_array_equal(GtkMl_Array *lhs, GtkMl_Array *rhs) {
+    if (lhs->len != rhs->len) {
+        return 0;
+    }
+
+    return equal(lhs->root, rhs->root);
+}
+
 GtkMl_ArrayNode *new_leaf(GtkMl_S *value) {
     GtkMl_ArrayNode *node = malloc(sizeof(GtkMl_ArrayNode));
     node->rc = 1;
@@ -164,7 +173,7 @@ GtkMl_ArrayNode *copy_node(GtkMl_ArrayNode *node) {
     return node;
 }
 
-void del_node(GtkMl_ArrayNode *node) {
+void del_node(GtkMl_Context *ctx, GtkMl_ArrayNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
     if (!node) {
         return;
     }
@@ -173,10 +182,11 @@ void del_node(GtkMl_ArrayNode *node) {
     if (!node->rc) {
         switch (node->kind) {
         case GTKML_A_LEAF:
+            deleter(ctx, node->value.a_leaf.value);
             break;
         case GTKML_A_BRANCH:
             for (size_t i = 0; i < node->value.a_branch.len; i++) {
-                del_node(node->value.a_branch.nodes[i]);
+                del_node(ctx, node->value.a_branch.nodes[i], deleter);
             }
             free(node->value.a_branch.nodes);
             break;
@@ -254,7 +264,7 @@ GtkMl_S *delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node,
     switch (node->kind) {
     case GTKML_A_LEAF:
         *shiftme = 1;
-        del_node(*out);
+        del_node(NULL, *out, gtk_ml_nothing);
         *out = NULL;
         return node->value.a_leaf.value;
     case GTKML_A_BRANCH: {
@@ -308,5 +318,30 @@ GtkMl_VisitResult fn_contains(GtkMl_Array *array, size_t index, GtkMl_S *value, 
         return GTKML_VISIT_BREAK;
     } else {
         return GTKML_VISIT_RECURSE;
+    }
+}
+
+gboolean equal(GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs) {
+    if (lhs == rhs) {
+        return 1;
+    }
+
+    if (lhs->kind != rhs->kind) {
+        return 0;
+    }
+
+    switch (lhs->kind) {
+    case GTKML_A_LEAF:
+        return gtk_ml_equal(lhs->value.a_leaf.value, rhs->value.a_leaf.value);
+    case GTKML_A_BRANCH:
+        if (lhs->value.a_branch.len != rhs->value.a_branch.len) {
+            return 0;
+        }
+        for (size_t i = 0; i < lhs->value.a_branch.len; i++) {
+            if (!equal(lhs->value.a_branch.nodes[i], rhs->value.a_branch.nodes[i])) {
+                return 0;
+            }
+        }
+        return 1;
     }
 }
