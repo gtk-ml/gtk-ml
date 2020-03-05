@@ -241,9 +241,17 @@ typedef struct GtkMl_Token {
     GtkMl_TokenValue value;
 } GtkMl_Token;
 
+typedef struct GtkMl_Hasher {
+    void (*start)(GtkMl_Hash *);
+    gboolean (*update)(GtkMl_Hash *, void *);
+    void (*finish)(GtkMl_Hash *);
+    gboolean (*equal)(void *, void *);
+} GtkMl_Hasher;
+
 typedef struct GtkMl_HashTrieNode GtkMl_HashTrieNode;
 
 typedef struct GtkMl_HashTrie {
+    GtkMl_Hasher *hasher;
     GtkMl_HashTrieNode *root;
     size_t len;
 } GtkMl_HashTrie;
@@ -251,6 +259,7 @@ typedef struct GtkMl_HashTrie {
 typedef struct GtkMl_HashSetNode GtkMl_HashSetNode;
 
 typedef struct GtkMl_HashSet {
+    GtkMl_Hasher *hasher;
     GtkMl_HashSetNode *root;
     size_t len;
 } GtkMl_HashSet;
@@ -648,7 +657,7 @@ GTKML_PUBLIC char *gtk_ml_dumpsnr_program(GtkMl_Context *ctx, char *ptr, size_t 
 // compares two values for equality
 GTKML_PUBLIC gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs);
 // calculates a hash of a value if possible
-GTKML_PUBLIC gboolean gtk_ml_hash(GtkMl_Hash *hash, GtkMl_S *value);
+GTKML_PUBLIC gboolean gtk_ml_hash(GtkMl_Hasher *hasher, GtkMl_Hash *hash, GtkMl_S *value);
 
 // will set the metamap of a value, if that value is a table
 GTKML_PUBLIC void gtk_ml_setmetamap(GtkMl_S *value, GtkMl_S *mm);
@@ -660,9 +669,9 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_getmetamap(GtkMl_S *value);
 GTKML_PUBLIC GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *desc, gboolean has_loc, int64_t line, int64_t col, size_t n, ...);
 
 GTKML_PUBLIC GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx);
-GTKML_PUBLIC void gtk_ml_nothing(GtkMl_Context *ctx, GtkMl_S *value);
 
-GTKML_PUBLIC void gtk_ml_delete_reference(GtkMl_Context *ctx, void *);
+GTKML_PUBLIC void gtk_ml_delete_value_reference(GtkMl_Context *ctx, GtkMl_S *value);
+GTKML_PUBLIC void gtk_ml_delete_void_reference(GtkMl_Context *ctx, void *);
 GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
 
 /* serialization and deserialization */
@@ -685,31 +694,31 @@ typedef enum GtkMl_VisitResult {
     GTKML_VISIT_BREAK,
 } GtkMl_VisitResult;
 
-typedef GtkMl_VisitResult (*GtkMl_HashTrieFn)(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *data);
-typedef GtkMl_VisitResult (*GtkMl_HashSetFn)(GtkMl_HashSet *hs, GtkMl_S *value, void *data);
+typedef GtkMl_VisitResult (*GtkMl_HashTrieFn)(GtkMl_HashTrie *ht, void *key, void *value, void *data);
+typedef GtkMl_VisitResult (*GtkMl_HashSetFn)(GtkMl_HashSet *hs, void *value, void *data);
 typedef GtkMl_VisitResult (*GtkMl_ArrayFn)(GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
 
-GTKML_PUBLIC void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht);
-GTKML_PUBLIC void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter)(GtkMl_Context *, GtkMl_S *));
+GTKML_PUBLIC void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht, GtkMl_Hasher *hasher);
+GTKML_PUBLIC void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter)(GtkMl_Context *, void *));
 GTKML_PUBLIC void gtk_ml_hash_trie_copy(GtkMl_HashTrie *out, GtkMl_HashTrie *ht);
 GTKML_PUBLIC size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht);
 GTKML_PUBLIC void gtk_ml_hash_trie_concat(GtkMl_HashTrie *out, GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
-GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_insert(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value);
-GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_get(GtkMl_HashTrie *ht, GtkMl_S *key);
-GTKML_PUBLIC gboolean gtk_ml_hash_trie_contains(GtkMl_HashTrie *ht, GtkMl_S *key);
-GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_delete(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, GtkMl_S *key);
+GTKML_PUBLIC void *gtk_ml_hash_trie_insert(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, void *key, void *value);
+GTKML_PUBLIC void *gtk_ml_hash_trie_get(GtkMl_HashTrie *ht, void *key);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_contains(GtkMl_HashTrie *ht, void *key);
+GTKML_PUBLIC void *gtk_ml_hash_trie_delete(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, void *key);
 GTKML_PUBLIC void gtk_ml_hash_trie_foreach(GtkMl_HashTrie *ht, GtkMl_HashTrieFn fn, void *data);
 GTKML_PUBLIC gboolean gtk_ml_hash_trie_equal(GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
 
-GTKML_PUBLIC void gtk_ml_new_hash_set(GtkMl_HashSet *hs);
-GTKML_PUBLIC void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(GtkMl_Context *, GtkMl_S *));
+GTKML_PUBLIC void gtk_ml_new_hash_set(GtkMl_HashSet *hs, GtkMl_Hasher *hasher);
+GTKML_PUBLIC void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(GtkMl_Context *, void *));
 GTKML_PUBLIC void gtk_ml_hash_set_copy(GtkMl_HashSet *out, GtkMl_HashSet *hs);
 GTKML_PUBLIC size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs);
 GTKML_PUBLIC void gtk_ml_hash_set_concat(GtkMl_HashSet *out, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
-GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *value);
-GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_get(GtkMl_HashSet *hs, GtkMl_S *value);
-GTKML_PUBLIC gboolean gtk_ml_hash_set_contains(GtkMl_HashSet *hs, GtkMl_S *value);
-GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_delete(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *value);
+GTKML_PUBLIC void *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC void *gtk_ml_hash_set_get(GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_contains(GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC void *gtk_ml_hash_set_delete(GtkMl_HashSet *out, GtkMl_HashSet *hs, void *value);
 GTKML_PUBLIC void gtk_ml_hash_set_foreach(GtkMl_HashSet *ht, GtkMl_HashSetFn fn, void *data);
 GTKML_PUBLIC gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
 

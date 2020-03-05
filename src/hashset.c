@@ -10,7 +10,7 @@ typedef enum GtkMl_HashSetNodeKind {
 } GtkMl_HashSetNodeKind;
 
 typedef struct GtkMl_HLeaf {
-    GtkMl_S *key;
+    void *key;
 } GtkMl_HLeaf;
 
 typedef struct GtkMl_HBranch {
@@ -28,26 +28,28 @@ struct GtkMl_HashSetNode {
     GtkMl_HUnion value;
 };
 
-GTKML_PRIVATE GtkMl_HashSetNode *new_leaf(GtkMl_S *key);
+GTKML_PRIVATE GtkMl_HashSetNode *new_leaf(void *key);
 GTKML_PRIVATE GtkMl_HashSetNode *new_branch();
 GTKML_PRIVATE GtkMl_HashSetNode *copy_node(GtkMl_HashSetNode *node);
-GTKML_PRIVATE void del_node(GtkMl_Context *ctx, GtkMl_HashSetNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *));
-GTKML_PRIVATE GtkMl_S *insert(GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift);
-GTKML_PRIVATE GtkMl_S *get(GtkMl_HashSetNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift);
-GTKML_PRIVATE GtkMl_S *delete(GtkMl_HashSetNode **out, size_t *dec, GtkMl_HashSetNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift);
+GTKML_PRIVATE void del_node(GtkMl_Context *ctx, GtkMl_HashSetNode *node, void (*deleter)(GtkMl_Context *, void *));
+GTKML_PRIVATE void *insert(GtkMl_Hasher *hasher, GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, void *key, GtkMl_Hash hash, uint32_t shift);
+GTKML_PRIVATE void *get(GtkMl_Hasher *hasher, GtkMl_HashSetNode *node, void *key, GtkMl_Hash hash, uint32_t shift);
+GTKML_PRIVATE void *delete(GtkMl_Hasher *hasher, GtkMl_HashSetNode **out, size_t *dec, GtkMl_HashSetNode *node, void *key, GtkMl_Hash hash, uint32_t shift);
 GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_HashSet *hs, GtkMl_HashSetNode *node, GtkMl_HashSetFn fn, void *data);
-GTKML_PRIVATE gboolean equal(GtkMl_HashSetNode *lhs, GtkMl_HashSetNode *rhs);
+GTKML_PRIVATE gboolean equal(GtkMl_Hasher *hasher, GtkMl_HashSetNode *lhs, GtkMl_HashSetNode *rhs);
 
-void gtk_ml_new_hash_set(GtkMl_HashSet *hs) {
+void gtk_ml_new_hash_set(GtkMl_HashSet *hs, GtkMl_Hasher *hasher) {
+    hs->hasher = hasher;
     hs->root = NULL;
     hs->len = 0;
 }
 
-void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
+void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(GtkMl_Context *, void *)) {
     del_node(ctx, hs->root, deleter);
 }
 
 void gtk_ml_hash_set_copy(GtkMl_HashSet *out, GtkMl_HashSet *hs) {
+    out->hasher = hs->hasher;
     out->root = copy_node(hs->root);
     out->len = hs->len;
 }
@@ -56,61 +58,64 @@ size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs) {
     return hs->len;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult fn_concat(GtkMl_HashSet *ht, GtkMl_S *value, void *data) {
-    (void) ht;
+GTKML_PRIVATE GtkMl_VisitResult fn_concat(GtkMl_HashSet *hs, void *key, void *data) {
+    (void) hs;
 
     GtkMl_HashSet *dest = data;
 
     GtkMl_HashSet new;
-    gtk_ml_hash_set_insert(&new, dest, value);
+    gtk_ml_hash_set_insert(&new, dest, key);
     *dest = new;
     
     return GTKML_VISIT_RECURSE;
 }
 
 void gtk_ml_hash_set_concat(GtkMl_HashSet *out, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs) {
+    out->hasher = lhs->hasher;
     out->root = copy_node(lhs->root);
     out->len = lhs->len;
 
     gtk_ml_hash_set_foreach(rhs, fn_concat, out);
 }
 
-GtkMl_S *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *key) {
+void *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, void *key) {
+    out->hasher = hs->hasher;
     out->root = NULL;
     out->len = hs->len;
 
     GtkMl_Hash hash;
-    if (!gtk_ml_hash(&hash, key)) {
+    if (!gtk_ml_hash(hs->hasher, &hash, key)) {
         return NULL;
     }
-    return insert(&out->root, &out->len, hs->root, key, hash, 0);
+    return insert(out->hasher, &out->root, &out->len, hs->root, key, hash, 0);
 }
 
-GtkMl_S *gtk_ml_hash_set_get(GtkMl_HashSet *hs, GtkMl_S *key) {
+void *gtk_ml_hash_set_get(GtkMl_HashSet *hs, void *key) {
     GtkMl_Hash hash;
-    if (!gtk_ml_hash(&hash, key)) {
+    if (!gtk_ml_hash(hs->hasher, &hash, key)) {
         return NULL;
     }
-    return get(hs->root, key, hash, 0);
+    return get(hs->hasher, hs->root, key, hash, 0);
 }
 
-gboolean gtk_ml_hash_set_contains(GtkMl_HashSet *hs, GtkMl_S *key) {
+gboolean gtk_ml_hash_set_contains(GtkMl_HashSet *hs, void *key) {
     GtkMl_Hash hash;
-    if (!gtk_ml_hash(&hash, key)) {
+    if (!gtk_ml_hash(hs->hasher, &hash, key)) {
         return 0;
     }
-    return get(hs->root, key, hash, 0) != NULL;
+    return get(hs->hasher, hs->root, key, hash, 0) != NULL;
 }
 
-GtkMl_S *gtk_ml_hash_set_delete(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *key) {
+void *gtk_ml_hash_set_delete(GtkMl_HashSet *out, GtkMl_HashSet *hs, void *key) {
+    out->hasher = hs->hasher;
     out->root = NULL;
     out->len = hs->len;
 
     GtkMl_Hash hash;
-    if (!gtk_ml_hash(&hash, key)) {
+    if (!gtk_ml_hash(hs->hasher, &hash, key)) {
         return NULL;
     }
-    return delete(&out->root, &out->len, hs->root, key, hash, 0);
+    return delete(hs->hasher, &out->root, &out->len, hs->root, key, hash, 0);
 }
 
 void gtk_ml_hash_set_foreach(GtkMl_HashSet *hs, GtkMl_HashSetFn fn, void *data) {
@@ -122,10 +127,10 @@ gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *rhs) {
         return 0;
     }
 
-    return equal(lhs->root, rhs->root);
+    return equal(lhs->hasher, lhs->root, rhs->root);
 }
 
-GtkMl_HashSetNode *new_leaf(GtkMl_S *key) {
+GtkMl_HashSetNode *new_leaf(void *key) {
     GtkMl_HashSetNode *node = malloc(sizeof(GtkMl_HashSetNode));
     node->rc = 1;
     node->kind = GTKML_HS_LEAF;
@@ -152,7 +157,7 @@ GtkMl_HashSetNode *copy_node(GtkMl_HashSetNode *node) {
     return node;
 }
 
-void del_node(GtkMl_Context *ctx, GtkMl_HashSetNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
+void del_node(GtkMl_Context *ctx, GtkMl_HashSetNode *node, void (*deleter)(GtkMl_Context *, void *)) {
     if (!node) {
         return;
     }
@@ -174,7 +179,7 @@ void del_node(GtkMl_Context *ctx, GtkMl_HashSetNode *node, void (*deleter)(GtkMl
     }
 }
 
-GtkMl_S *insert(GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift) {
+void *insert(GtkMl_Hasher *hasher, GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, void *key, GtkMl_Hash hash, uint32_t shift) {
     if (!node) {
         ++*inc;
         *out = new_leaf(key);
@@ -183,19 +188,19 @@ GtkMl_S *insert(GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, G
 
     switch (node->kind) {
     case GTKML_HS_LEAF:
-        if (gtk_ml_equal(key, node->value.h_leaf.key)) {
+        if (hasher->equal(key, node->value.h_leaf.key)) {
             *out = new_leaf(key);
             return node->value.h_leaf.key;
         } else {
             *out = new_branch();
 
             GtkMl_Hash _hash;
-            gtk_ml_hash(&_hash, node->value.h_leaf.key);
+            gtk_ml_hash(hasher, &_hash, node->value.h_leaf.key);
             uint32_t _idx = (_hash >> shift) & GTKML_H_MASK;
             (*out)->value.h_branch.nodes[_idx] = copy_node(node);
 
             uint32_t idx = (hash >> shift) & GTKML_H_MASK;
-            return insert(&(*out)->value.h_branch.nodes[idx], inc, (*out)->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
+            return insert(hasher, &(*out)->value.h_branch.nodes[idx], inc, (*out)->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
         }
     case GTKML_HS_BRANCH: {
         *out = new_branch();
@@ -203,40 +208,40 @@ GtkMl_S *insert(GtkMl_HashSetNode **out, size_t *inc, GtkMl_HashSetNode *node, G
             (*out)->value.h_branch.nodes[i] = copy_node(node->value.h_branch.nodes[i]);
         }
         uint32_t idx = (hash >> shift) & GTKML_H_MASK;
-        return insert(&(*out)->value.h_branch.nodes[idx], inc, node->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
+        return insert(hasher, &(*out)->value.h_branch.nodes[idx], inc, node->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
     }
     }
 }
 
-GtkMl_S *get(GtkMl_HashSetNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift) {
+void *get(GtkMl_Hasher *hasher, GtkMl_HashSetNode *node, void *key, GtkMl_Hash hash, uint32_t shift) {
     if (!node) {
         return NULL;
     }
 
     switch (node->kind) {
     case GTKML_HS_LEAF:
-        if (gtk_ml_equal(node->value.h_leaf.key, key)) {
+        if (hasher->equal(node->value.h_leaf.key, key)) {
             return node->value.h_leaf.key;
         } else {
             return NULL;
         }
     case GTKML_HS_BRANCH: {
         uint32_t idx = (hash >> shift) & GTKML_H_MASK;
-        return get(node->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
+        return get(hasher, node->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
     }
     }
 }
 
-GtkMl_S *delete(GtkMl_HashSetNode **out, size_t *dec, GtkMl_HashSetNode *node, GtkMl_S *key, GtkMl_Hash hash, uint32_t shift) {
+void *delete(GtkMl_Hasher *hasher, GtkMl_HashSetNode **out, size_t *dec, GtkMl_HashSetNode *node, void *key, GtkMl_Hash hash, uint32_t shift) {
     if (!node) {
         return NULL;
     }
 
     switch (node->kind) {
     case GTKML_HS_LEAF:
-        if (gtk_ml_equal(node->value.h_leaf.key, key)) {
+        if (hasher->equal(node->value.h_leaf.key, key)) {
             --*dec;
-            del_node(NULL, *out, gtk_ml_nothing);
+            del_node(NULL, *out, gtk_ml_delete_void_reference);
             *out = NULL;
             return node->value.h_leaf.key;
         } else {
@@ -248,7 +253,7 @@ GtkMl_S *delete(GtkMl_HashSetNode **out, size_t *dec, GtkMl_HashSetNode *node, G
             (*out)->value.h_branch.nodes[i] = copy_node(node->value.h_branch.nodes[i]);
         }
         uint32_t idx = (hash >> shift) & GTKML_H_MASK;
-        return delete(&(*out)->value.h_branch.nodes[idx], dec, node->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
+        return delete(hasher, &(*out)->value.h_branch.nodes[idx], dec, node->value.h_branch.nodes[idx], key, hash, shift + GTKML_H_BITS);
     }
     }
 }
@@ -277,7 +282,7 @@ GtkMl_VisitResult foreach(GtkMl_HashSet *hs, GtkMl_HashSetNode *node, GtkMl_Hash
     }
 }
 
-gboolean equal(GtkMl_HashSetNode *lhs, GtkMl_HashSetNode *rhs) {
+gboolean equal(GtkMl_Hasher *hasher, GtkMl_HashSetNode *lhs, GtkMl_HashSetNode *rhs) {
     if (lhs == rhs) {
         return 1;
     }
@@ -288,10 +293,10 @@ gboolean equal(GtkMl_HashSetNode *lhs, GtkMl_HashSetNode *rhs) {
 
     switch (lhs->kind) {
     case GTKML_HS_LEAF:
-        return gtk_ml_equal(lhs->value.h_leaf.key, rhs->value.h_leaf.key);
+        return hasher->equal(lhs->value.h_leaf.key, rhs->value.h_leaf.key);
     case GTKML_HS_BRANCH:
         for (size_t i = 0; i < GTKML_H_SIZE; i++) {
-            if (!equal(lhs->value.h_branch.nodes[i], rhs->value.h_branch.nodes[i])) {
+            if (!equal(hasher, lhs->value.h_branch.nodes[i], rhs->value.h_branch.nodes[i])) {
                 return 0;
             }
         }

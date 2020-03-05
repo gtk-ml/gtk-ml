@@ -151,6 +151,16 @@ GTKML_PRIVATE gboolean gtk_ml_eibr_call_ext(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_I
 GTKML_PRIVATE gboolean gtk_ml_eibr_ret_ext(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 GTKML_PRIVATE gboolean gtk_ml_eibr_call_ext_std(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 
+GTKML_PRIVATE void default_hash_start(GtkMl_Hash *hash);
+GTKML_PRIVATE gboolean default_hash_update(GtkMl_Hash *hash, void *ptr);
+GTKML_PRIVATE void default_hash_finish(GtkMl_Hash *hash);
+GTKML_PRIVATE gboolean default_equal(void *lhs, void *rhs);
+
+GTKML_PRIVATE void ptr_hash_start(GtkMl_Hash *hash);
+GTKML_PRIVATE gboolean ptr_hash_update(GtkMl_Hash *hash, void *ptr);
+GTKML_PRIVATE void ptr_hash_finish(GtkMl_Hash *hash);
+GTKML_PRIVATE gboolean ptr_equal(void *lhs, void *rhs);
+
 GTKML_PRIVATE const char *S_I_ARITH[] = {
     [GTKML_IA_NOP] = GTKML_SIA_NOP,
     [GTKML_IA_HALT] = GTKML_SIA_HALT,
@@ -353,6 +363,20 @@ GTKML_PRIVATE GtkMl_S *(*STD[])(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = {
     [GTKML_STD_ERROR] = vm_std_error,
 };
 
+GTKML_PRIVATE GtkMl_Hasher DEFAULT_HASHER = {
+    default_hash_start,
+    default_hash_update,
+    default_hash_finish,
+    default_equal
+};
+
+GTKML_PRIVATE GtkMl_Hasher PTR_HASHER = {
+    ptr_hash_start,
+    ptr_hash_update,
+    ptr_hash_finish,
+    ptr_equal
+};
+
 GtkMl_Context *gtk_ml_new_context() {
     GtkMl_Context *ctx = malloc(sizeof(GtkMl_Context));
     ctx->gc_enabled = 1;
@@ -417,7 +441,7 @@ GTKML_PRIVATE GtkMl_S *local_scope(GtkMl_Context *ctx) {
         GtkMl_S *scope = gtk_ml_car(bindings);
         GtkMl_HashTrie new;
         gtk_ml_hash_trie_concat(&new, &scope->value.s_map.map, &local->value.s_map.map);
-        gtk_ml_del_hash_trie(ctx, &local->value.s_map.map, gtk_ml_nothing);
+        gtk_ml_del_hash_trie(ctx, &local->value.s_map.map, gtk_ml_delete_void_reference);
         local->value.s_map.map = new;
         bindings = gtk_ml_cdr(bindings);
     }
@@ -1182,14 +1206,14 @@ GTKML_PRIVATE GtkMl_S *new_list(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *c
 
 GTKML_PRIVATE GtkMl_S *new_map(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S *metamap) {
     GtkMl_S *s = new_value(ctx, span, GTKML_S_MAP);
-    gtk_ml_new_hash_trie(&s->value.s_map.map);
+    gtk_ml_new_hash_trie(&s->value.s_map.map, &DEFAULT_HASHER);
     gtk_ml_setmetamap(s, metamap);
     return s;
 }
 
 GTKML_PRIVATE GtkMl_S *new_set(GtkMl_Context *ctx, GtkMl_Span *span) {
     GtkMl_S *s = new_value(ctx, span, GTKML_S_SET);
-    gtk_ml_new_hash_set(&s->value.s_set.set);
+    gtk_ml_new_hash_set(&s->value.s_set.set, &DEFAULT_HASHER);
     return s;
 }
 
@@ -1979,7 +2003,7 @@ struct CompileData {
     gboolean result;
 };
 
-GTKML_PRIVATE GtkMl_VisitResult compile_quasi_map(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult compile_quasi_map(GtkMl_HashTrie *ht, void *key, void *value, void *_data) {
     (void) ht;
 
     struct CompileData *data = _data;
@@ -1994,7 +2018,7 @@ GTKML_PRIVATE GtkMl_VisitResult compile_quasi_map(GtkMl_HashTrie *ht, GtkMl_S *k
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult compile_quasi_set(GtkMl_HashSet *hs, GtkMl_S *key, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult compile_quasi_set(GtkMl_HashSet *hs, void *key, void *_data) {
     (void) hs;
 
     struct CompileData *data = _data;
@@ -2017,8 +2041,10 @@ GTKML_PRIVATE GtkMl_VisitResult compile_quasi_array(GtkMl_Array *array, size_t i
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult compile_map(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult compile_map(GtkMl_HashTrie *ht, void *key_ptr, void *value_ptr, void *_data) {
     (void) ht;
+    GtkMl_S *key = key_ptr;
+    GtkMl_S *value = value_ptr;
 
     struct CompileData *data = _data;
     if (!compile_macro_expression(data->ctx, data->b, data->basic_block, data->err, &key, data->allow_macro, data->allow_runtime, data->allow_macro_expansion)) {
@@ -2032,8 +2058,9 @@ GTKML_PRIVATE GtkMl_VisitResult compile_map(GtkMl_HashTrie *ht, GtkMl_S *key, Gt
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult compile_set(GtkMl_HashSet *hs, GtkMl_S *key, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult compile_set(GtkMl_HashSet *hs, void *key_ptr, void *_data) {
     (void) hs;
+    GtkMl_S *key = key_ptr;
 
     struct CompileData *data = _data;
     if (!compile_macro_expression(data->ctx, data->b, data->basic_block, data->err, &key, data->allow_macro, data->allow_runtime, data->allow_macro_expansion)) {
@@ -2948,7 +2975,7 @@ GtkMl_S *gtk_ml_get(GtkMl_Context *ctx, GtkMl_S *key) {
 
 GTKML_PRIVATE void mark_value(GtkMl_S *s);
 
-GTKML_PRIVATE GtkMl_VisitResult mark_hash_trie(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *data) {
+GTKML_PRIVATE GtkMl_VisitResult mark_hash_trie(GtkMl_HashTrie *ht, void *key, void *value, void *data) {
     (void) ht;
     (void) data;
 
@@ -2958,7 +2985,7 @@ GTKML_PRIVATE GtkMl_VisitResult mark_hash_trie(GtkMl_HashTrie *ht, GtkMl_S *key,
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult mark_hash_set(GtkMl_HashSet *hs, GtkMl_S *key, void *data) {
+GTKML_PRIVATE GtkMl_VisitResult mark_hash_set(GtkMl_HashSet *hs, void *key, void *data) {
     (void) hs;
     (void) data;
 
@@ -3093,10 +3120,10 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
         delete(ctx, gtk_ml_car(s));
         break;
     case GTKML_S_MAP:
-        gtk_ml_del_hash_trie(ctx, &s->value.s_map.map, delete);
+        gtk_ml_del_hash_trie(ctx, &s->value.s_map.map, gtk_ml_delete_value);
         break;
     case GTKML_S_SET:
-        gtk_ml_del_hash_set(ctx, &s->value.s_set.set, delete);
+        gtk_ml_del_hash_set(ctx, &s->value.s_set.set, gtk_ml_delete_value);
         break;
     case GTKML_S_ARRAY:
         gtk_ml_del_array(ctx, &s->value.s_array.array, delete);
@@ -3151,13 +3178,13 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_MACRO:
         break;
     case GTKML_S_MAP:
-        gtk_ml_del_hash_trie(ctx, &s->value.s_map.map, gtk_ml_nothing);
+        gtk_ml_del_hash_trie(ctx, &s->value.s_map.map, gtk_ml_delete_void_reference);
         break;
     case GTKML_S_SET:
-        gtk_ml_del_hash_set(ctx, &s->value.s_set.set, gtk_ml_nothing);
+        gtk_ml_del_hash_set(ctx, &s->value.s_set.set, gtk_ml_delete_void_reference);
         break;
     case GTKML_S_ARRAY:
-        gtk_ml_del_array(ctx, &s->value.s_array.array, gtk_ml_nothing);
+        gtk_ml_del_array(ctx, &s->value.s_array.array, gtk_ml_delete_value_reference);
         break;
     case GTKML_S_STRING:
         // const cast required
@@ -3233,7 +3260,7 @@ struct DumpfData {
     size_t n;
 };
 
-GTKML_PRIVATE GtkMl_VisitResult dumpf_hash_trie(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult dumpf_hash_trie(GtkMl_HashTrie *ht, void *key, void *value, void *_data) {
     struct DumpfData *data = _data;
 
     gtk_ml_dumpf(data->ctx, data->stream, data->err, key);
@@ -3247,7 +3274,7 @@ GTKML_PRIVATE GtkMl_VisitResult dumpf_hash_trie(GtkMl_HashTrie *ht, GtkMl_S *key
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult dumpf_hash_set(GtkMl_HashSet *hs, GtkMl_S *key, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult dumpf_hash_set(GtkMl_HashSet *hs, void *key, void *_data) {
     struct DumpfData *data = _data;
 
     gtk_ml_dumpf(data->ctx, data->stream, data->err, key);
@@ -3701,10 +3728,10 @@ GTKML_PRIVATE void jenkins_finish(GtkMl_Hash *hash) {
 
 struct HashData {
     GtkMl_Hash *hash;
-    gboolean (*hasher)(GtkMl_Hash *hash, GtkMl_S *value);
+    gboolean (*hasher)(GtkMl_Hash *hash, void *value);
 };
 
-GTKML_PRIVATE GtkMl_VisitResult hash_trie_update(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult hash_trie_update(GtkMl_HashTrie *ht, void *key, void *value, void *_data) {
     (void) ht;
 
     struct HashData *data = _data;
@@ -3714,7 +3741,7 @@ GTKML_PRIVATE GtkMl_VisitResult hash_trie_update(GtkMl_HashTrie *ht, GtkMl_S *ke
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult hash_set_update(GtkMl_HashSet *hs, GtkMl_S *value, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult hash_set_update(GtkMl_HashSet *hs, void *value, void *_data) {
     (void) hs;
 
     struct HashData *data = _data;
@@ -3737,7 +3764,9 @@ void default_hash_start(GtkMl_Hash *hash) {
     jenkins_start(hash);
 }
 
-gboolean default_hash_update(GtkMl_Hash *hash, GtkMl_S *value) {
+gboolean default_hash_update(GtkMl_Hash *hash, void *ptr) {
+    GtkMl_S *value = ptr;
+
     jenkins_update(hash, &value->kind, sizeof(GtkMl_SKind));
     switch (value->kind) {
     case GTKML_S_NIL:
@@ -3822,14 +3851,35 @@ void default_hash_finish(GtkMl_Hash *hash) {
     jenkins_finish(hash);
 }
 
-gboolean gtk_ml_hash(GtkMl_Hash *hash, GtkMl_S *value) {
+gboolean default_equal(void *lhs, void *rhs) {
+    return gtk_ml_equal(lhs, rhs);
+}
+
+void ptr_hash_start(GtkMl_Hash *hash) {
+    jenkins_start(hash);
+}
+
+gboolean ptr_hash_update(GtkMl_Hash *hash, void *ptr) {
+    jenkins_update(hash, &ptr, sizeof(void *));
+    return 1;
+}
+
+void ptr_hash_finish(GtkMl_Hash *hash) {
+    jenkins_finish(hash);
+}
+
+gboolean ptr_equal(void *lhs, void *rhs) {
+    return lhs == rhs;
+}
+
+gboolean gtk_ml_hash(GtkMl_Hasher *hasher, GtkMl_Hash *hash, GtkMl_S *value) {
     if (value->hashed) {
         *hash = value->hash;
         return 1;
     } else {
-        default_hash_start(hash);
-        if (default_hash_update(hash, value)) {
-            default_hash_finish(hash);
+        hasher->start(hash);
+        if (hasher->update(hash, value)) {
+            hasher->finish(hash);
             value->hashed = 1;
             value->hash = *hash;
             return 1;
@@ -3909,13 +3959,14 @@ GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx) {
     return new_nil(ctx, NULL);
 }
 
-void gtk_ml_nothing(GtkMl_Context *ctx, GtkMl_S *value) {
+void gtk_ml_delete_value_reference(GtkMl_Context *ctx, GtkMl_S *value) {
     (void) ctx;
     (void) value;
 }
 
-void gtk_ml_delete_reference(GtkMl_Context *ctx, void *reference) {
-    gtk_ml_nothing(ctx, reference);
+void gtk_ml_delete_void_reference(GtkMl_Context *ctx, void *reference) {
+    (void) ctx;
+    (void) reference;
 }
 
 void gtk_ml_delete_value(GtkMl_Context *ctx, void *s) {
@@ -4436,7 +4487,7 @@ gboolean gtk_ml_ii_setmm_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction inst
     GtkMl_S *map = gtk_ml_pop(vm->ctx);
 
     GtkMl_S *result = new_map(vm->ctx, NULL, metamap);
-    gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_nothing);
+    gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_void_reference);
     gtk_ml_hash_trie_copy(&result->value.s_map.map, &map->value.s_map.map);
 
     gtk_ml_push(vm->ctx, result);
@@ -4677,7 +4728,7 @@ struct SerfData {
     gboolean result;
 };
 
-GTKML_PRIVATE GtkMl_VisitResult serf_hash_trie(GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult serf_hash_trie(GtkMl_HashTrie *ht, void *key, void *value, void *_data) {
     struct SerfData *data = _data;
     if (!gtk_ml_serf_value(data->ctx, data->stream, data->err, key)) {
         data->result = 0;
@@ -4696,7 +4747,7 @@ GTKML_PRIVATE GtkMl_VisitResult serf_hash_trie(GtkMl_HashTrie *ht, GtkMl_S *key,
     return GTKML_VISIT_RECURSE;
 }
 
-GTKML_PRIVATE GtkMl_VisitResult serf_hash_set(GtkMl_HashSet *hs, GtkMl_S *key, void *_data) {
+GTKML_PRIVATE GtkMl_VisitResult serf_hash_set(GtkMl_HashSet *hs, void *key, void *_data) {
     struct SerfData *data = _data;
     if (!gtk_ml_serf_value(data->ctx, data->stream, data->err, key)) {
         data->result = 0;
@@ -4726,6 +4777,7 @@ GTKML_PRIVATE GtkMl_VisitResult serf_array(GtkMl_Array *array, size_t idx, GtkMl
 }
 
 gboolean gtk_ml_serf_value(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *value) {
+    (void) PTR_HASHER;
     fprintf(stream, "GTKML-V(");
     uint32_t kind = value->kind;
     fwrite(&kind, sizeof(uint32_t), 1, stream);
@@ -4938,7 +4990,7 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err) {
         if (next != ')') {
             fseek(stream, -1, SEEK_CUR);
         }
-        gtk_ml_new_hash_trie(&result->value.s_map.map);
+        gtk_ml_new_hash_trie(&result->value.s_map.map, &DEFAULT_HASHER);
         while (next != ')') {
             GtkMl_S *key = gtk_ml_deserf_value(ctx, stream, err);
             if (!key) {
@@ -4968,7 +5020,7 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err) {
         if (next != ')') {
             fseek(stream, -1, SEEK_CUR);
         }
-        gtk_ml_new_hash_set(&result->value.s_set.set);
+        gtk_ml_new_hash_set(&result->value.s_set.set, &DEFAULT_HASHER);
         while (next != ')') {
             GtkMl_S *key = gtk_ml_deserf_value(ctx, stream, err);
             if (!key) {

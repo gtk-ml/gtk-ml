@@ -269,7 +269,7 @@ GtkMl_S *delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node,
     switch (node->kind) {
     case GTKML_A_LEAF:
         *shiftme = 1;
-        del_node(NULL, *out, gtk_ml_nothing);
+        del_node(NULL, *out, gtk_ml_delete_value_reference);
         *out = NULL;
         return node->value.a_leaf.value;
     case GTKML_A_BRANCH: {
