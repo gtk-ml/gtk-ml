@@ -48,6 +48,11 @@ void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter
     del_node(ctx, ht->root, deleter);
 }
 
+void gtk_ml_hash_trie_copy(GtkMl_HashTrie *out, GtkMl_HashTrie *ht) {
+    out->root = copy_node(ht->root);
+    out->len = ht->len;
+}
+
 size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht) {
     return ht->len;
 }

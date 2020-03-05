@@ -47,6 +47,11 @@ void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(
     del_node(ctx, hs->root, deleter);
 }
 
+void gtk_ml_hash_set_copy(GtkMl_HashSet *out, GtkMl_HashSet *hs) {
+    out->root = copy_node(hs->root);
+    out->len = hs->len;
+}
+
 size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs) {
     return hs->len;
 }

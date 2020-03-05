@@ -77,6 +77,8 @@
 #define GTKML_II_MAP_IMM 0x11
 #define GTKML_II_SET_IMM 0x12
 #define GTKML_II_ARRAY_IMM 0x13
+#define GTKML_II_SETMM_IMM 0x14
+#define GTKML_II_GETMM_IMM 0x15
 
 #define GTKML_IBR_CALL 0x1
 #define GTKML_IBR_RET 0x2
@@ -128,6 +130,8 @@
 #define GTKML_SII_MAP_IMM "MAP_IMM"
 #define GTKML_SII_SET_IMM "SET_IMM"
 #define GTKML_SII_ARRAY_IMM "ARRAY_IMM"
+#define GTKML_SII_SETMM_IMM "SETMM_IMM"
+#define GTKML_SII_GETMM_IMM "GETMM_IMM"
 
 #define GTKML_SIBR_CALL_STD "CALL_STD"
 #define GTKML_SIBR_CALL "CALL"
@@ -322,6 +326,7 @@ typedef struct GtkMl_SList {
 // a map like {:width 640 :height 480}
 typedef struct GtkMl_SMap {
     GtkMl_HashTrie map;
+    GtkMl_S *metamap;
 } GtkMl_SMap;
 
 // a set like #{:a :b :c}
@@ -568,6 +573,10 @@ GTKML_PUBLIC gboolean gtk_ml_build_set_imm(GtkMl_Context *ctx, GtkMl_Builder *b,
 GTKML_PUBLIC gboolean gtk_ml_build_array_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_array_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_setmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_getmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err);
 // builds a call to C in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_call_extended_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, const char **err, GtkMl_Static imm64);
 // builds a call to C in the chosen basic_block
@@ -640,6 +649,11 @@ GTKML_PUBLIC gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs);
 // calculates a hash of a value if possible
 GTKML_PUBLIC gboolean gtk_ml_hash(GtkMl_Hash *hash, GtkMl_S *value);
 
+// will set the metamap of a value, if that value is a table
+GTKML_PUBLIC void gtk_ml_setmetamap(GtkMl_S *value, GtkMl_S *mm);
+// will get the metamap of a value, or NULL if that value is not a table
+GTKML_PUBLIC GtkMl_S *gtk_ml_getmetamap(GtkMl_S *value);
+
 /* miscelaneous */
 
 GTKML_PUBLIC GtkMl_S *gtk_ml_nil(GtkMl_Context *ctx);
@@ -674,6 +688,7 @@ typedef GtkMl_VisitResult (*GtkMl_ArrayFn)(GtkMl_Array *array, size_t index, Gtk
 
 GTKML_PUBLIC void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht);
 GTKML_PUBLIC void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter)(GtkMl_Context *, GtkMl_S *));
+GTKML_PUBLIC void gtk_ml_hash_trie_copy(GtkMl_HashTrie *out, GtkMl_HashTrie *ht);
 GTKML_PUBLIC size_t gtk_ml_hash_trie_len(GtkMl_HashTrie *ht);
 GTKML_PUBLIC void gtk_ml_hash_trie_concat(GtkMl_HashTrie *out, GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
 GTKML_PUBLIC GtkMl_S *gtk_ml_hash_trie_insert(GtkMl_HashTrie *out, GtkMl_HashTrie *ht, GtkMl_S *key, GtkMl_S *value);
@@ -685,6 +700,7 @@ GTKML_PUBLIC gboolean gtk_ml_hash_trie_equal(GtkMl_HashTrie *lhs, GtkMl_HashTrie
 
 GTKML_PUBLIC void gtk_ml_new_hash_set(GtkMl_HashSet *hs);
 GTKML_PUBLIC void gtk_ml_del_hash_set(GtkMl_Context *ctx, GtkMl_HashSet *hs, void (*deleter)(GtkMl_Context *, GtkMl_S *));
+GTKML_PUBLIC void gtk_ml_hash_set_copy(GtkMl_HashSet *out, GtkMl_HashSet *hs);
 GTKML_PUBLIC size_t gtk_ml_hash_set_len(GtkMl_HashSet *hs);
 GTKML_PUBLIC void gtk_ml_hash_set_concat(GtkMl_HashSet *out, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
 GTKML_PUBLIC GtkMl_S *gtk_ml_hash_set_insert(GtkMl_HashSet *out, GtkMl_HashSet *hs, GtkMl_S *value);
@@ -696,6 +712,7 @@ GTKML_PUBLIC gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *r
 
 GTKML_PUBLIC void gtk_ml_new_array(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_del_array(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *));
+GTKML_PUBLIC void gtk_ml_array_copy(GtkMl_Array *out, GtkMl_Array *array);
 GTKML_PUBLIC size_t gtk_ml_array_len(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_array_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs);
 GTKML_PUBLIC void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value);

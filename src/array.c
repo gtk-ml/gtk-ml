@@ -50,6 +50,11 @@ void gtk_ml_del_array(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(Gt
     del_node(ctx, array->root, deleter);
 }
 
+void gtk_ml_array_copy(GtkMl_Array *out, GtkMl_Array *array) {
+    out->root = copy_node(array->root);
+    out->len = array->len;
+}
+
 size_t gtk_ml_array_len(GtkMl_Array *array) {
     return array->len;
 }
