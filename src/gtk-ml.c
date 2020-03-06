@@ -46,6 +46,7 @@ GTKML_PRIVATE GtkMl_S *parse_quote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Toke
 GTKML_PRIVATE GtkMl_S *parse_quasiquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc);
 GTKML_PRIVATE GtkMl_S *parse_unquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc);
 GTKML_PRIVATE GtkMl_S *parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc);
+GTKML_PRIVATE GtkMl_S *parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc);
 
 GTKML_PRIVATE GtkMl_S *new_value(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKind kind);
 GTKML_PRIVATE GtkMl_S *new_nil(GtkMl_Context *ctx, GtkMl_Span *span);
@@ -429,6 +430,10 @@ GtkMl_Context *gtk_ml_new_context() {
 
     ctx->parser.readers[ctx->parser.len_reader].token = GTKML_TOK_POUND;
     ctx->parser.readers[ctx->parser.len_reader].fn = parse_alternative;
+    ++ctx->parser.len_reader;
+
+    ctx->parser.readers[ctx->parser.len_reader].token = GTKML_TOK_AT;
+    ctx->parser.readers[ctx->parser.len_reader].fn = parse_get;
     ++ctx->parser.len_reader;
 
     return ctx;
@@ -870,7 +875,7 @@ GTKML_PRIVATE gboolean IDENT_BEGIN[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
@@ -889,7 +894,7 @@ GTKML_PRIVATE gboolean IDENT_CONT[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
@@ -945,6 +950,14 @@ GTKML_PRIVATE gboolean lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tok
                 ++src;
             }
             continue;
+        case '@':
+            (*tokenv)[*tokenc].kind = GTKML_TOK_AT;
+            (*tokenv)[*tokenc].span.ptr = src;
+            (*tokenv)[*tokenc].span.len = 1;
+            (*tokenv)[*tokenc].span.line = line;
+            (*tokenv)[*tokenc].span.col = col;
+            ++*tokenc;
+            break;
         case '#':
             (*tokenv)[*tokenc].kind = GTKML_TOK_POUND;
             (*tokenv)[*tokenc].span.ptr = src;
@@ -1521,6 +1534,29 @@ GTKML_PRIVATE GtkMl_S *parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkM
     }
 
     return expr;
+}
+
+GtkMl_S *parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+    if ((*tokenv)[0].kind != GTKML_TOK_AT) {
+        *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+        return NULL;
+    }
+
+    GtkMl_Span span = (*tokenv)[0].span;
+
+    GtkMl_S *get = new_symbol(ctx, &span, 0, "get", strlen("get"));
+
+    ++*tokenv;
+    --*tokenc;
+
+    GtkMl_S *expr = parse(ctx, err, tokenv, tokenc);
+    if (!expr) {
+        return NULL;
+    }
+
+    span_add(&span, &span, &expr->span);
+
+    return new_list(ctx, &span, get, new_list(ctx, &span, expr, new_nil(ctx, &span)));
 }
 
 GTKML_PRIVATE GtkMl_S *parse_list_rest(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
