@@ -47,19 +47,14 @@
 
 #define GTKML_IA_NOP 0x0
 #define GTKML_IA_HALT 0x1
-#define GTKML_IA_INTEGER_ADD 0x4
-#define GTKML_IA_INTEGER_SUBTRACT 0x5
-#define GTKML_IA_INTEGER_SIGNED_MULTIPLY 0x6
-#define GTKML_IA_INTEGER_UNSIGNED_MULTIPLY 0x7
-#define GTKML_IA_INTEGER_SIGNED_DIVIDE 0x8
-#define GTKML_IA_INTEGER_UNSIGNED_DIVIDE 0x9
-#define GTKML_IA_INTEGER_SIGNED_MODULO 0xa
-#define GTKML_IA_INTEGER_UNSIGNED_MODULO 0xb
-#define GTKML_IA_FLOAT_ADD 0x14
-#define GTKML_IA_FLOAT_SUBTRACT 0x15
-#define GTKML_IA_FLOAT_MULTIPLY 0x16
-#define GTKML_IA_FLOAT_DIVIDE 0x18
-#define GTKML_IA_FLOAT_MODULO 0x19
+#define GTKML_IA_ADD 0x4
+#define GTKML_IA_SUBTRACT 0x5
+#define GTKML_IA_SIGNED_MULTIPLY 0x6
+#define GTKML_IA_UNSIGNED_MULTIPLY 0x7
+#define GTKML_IA_SIGNED_DIVIDE 0x8
+#define GTKML_IA_UNSIGNED_DIVIDE 0x9
+#define GTKML_IA_SIGNED_MODULO 0xa
+#define GTKML_IA_UNSIGNED_MODULO 0xb
 #define GTKML_IA_BIT_AND 0x20
 #define GTKML_IA_BIT_OR 0x21
 #define GTKML_IA_BIT_XOR 0x22
@@ -102,19 +97,14 @@
 
 #define GTKML_SIA_NOP "NOP"
 #define GTKML_SIA_HALT "HALT"
-#define GTKML_SIA_INTEGER_ADD "INTEGER_ADD"
-#define GTKML_SIA_INTEGER_SUBTRACT "INTEGER_SUBTRACT"
-#define GTKML_SIA_INTEGER_SIGNED_MULTIPLY "INTEGER_SIGNED_MULTIPLY"
-#define GTKML_SIA_INTEGER_UNSIGNED_MULTIPLY "INTEGER_UNSIGNED_MULTIPLY"
-#define GTKML_SIA_INTEGER_SIGNED_DIVIDE "INTEGER_SIGNED_DIVIDE"
-#define GTKML_SIA_INTEGER_UNSIGNED_DIVIDE "INTEGER_UNSIGNED_DIVIDE"
-#define GTKML_SIA_INTEGER_SIGNED_MODULO "INTEGER_SIGNED_MODULO"
-#define GTKML_SIA_INTEGER_UNSIGNED_MODULO "INTEGER_UNSIGNED_MODULO"
-#define GTKML_SIA_FLOAT_ADD "FLOAT_ADD"
-#define GTKML_SIA_FLOAT_SUBTRACT "FLOAT_SUBTRACT"
-#define GTKML_SIA_FLOAT_MULTIPLY "FLOAT_MULTIPLY"
-#define GTKML_SIA_FLOAT_DIVIDE "FLOAT_DIVIDE"
-#define GTKML_SIA_FLOAT_MODULO "FLOAT_MODULO"
+#define GTKML_SIA_ADD "ADD"
+#define GTKML_SIA_SUBTRACT "SUBTRACT"
+#define GTKML_SIA_SIGNED_MULTIPLY "SIGNED_MULTIPLY"
+#define GTKML_SIA_UNSIGNED_MULTIPLY "UNSIGNED_MULTIPLY"
+#define GTKML_SIA_SIGNED_DIVIDE "SIGNED_DIVIDE"
+#define GTKML_SIA_UNSIGNED_DIVIDE "UNSIGNED_DIVIDE"
+#define GTKML_SIA_SIGNED_MODULO "SIGNED_MODULO"
+#define GTKML_SIA_UNSIGNED_MODULO "UNSIGNED_MODULO"
 #define GTKML_SIA_BIT_AND "BIT_AND"
 #define GTKML_SIA_BIT_OR "BIT_OR"
 #define GTKML_SIA_BIT_XOR "BIT_XOR"
@@ -180,6 +170,7 @@
 #define GTKML_ERR_UNQUOTE_ERROR "free-standing unquote expression"
 #define GTKML_ERR_CATEGORY_ERROR "invalid category"
 #define GTKML_ERR_OPCODE_ERROR "invalid opcode"
+#define GTKML_ERR_ARITH_ERROR "attempt to perform arithmetic on something not a number"
 #define GTKML_ERR_PROGRAM_ERROR "not a program"
 #define GTKML_ERR_LINKAGE_ERROR "symbol not found while linking"
 #define GTKML_ERR_SER_ERROR "serialization error"
@@ -514,6 +505,7 @@ struct GtkMl_Builder {
     size_t cap_static;
 
     unsigned int counter;
+    unsigned int flags;
 
     GtkMl_Context *macro_ctx;
     GtkMl_Vm *macro_vm;
@@ -576,6 +568,10 @@ GTKML_PUBLIC GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const
 // appends a static value and returns a handle to it
 GTKML_PUBLIC GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value);
 
+// sets the conditional flags of the next instruction
+GTKML_PUBLIC void gtk_ml_builder_set_cond(GtkMl_Builder *b, unsigned int flags);
+// clears and returns the currently set conditional flags
+GTKML_PUBLIC unsigned int gtk_ml_builder_clear_cond(GtkMl_Builder *b);
 // builds a halt instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
@@ -626,6 +622,22 @@ GTKML_PUBLIC gboolean gtk_ml_build_call_extended(GtkMl_Context *ctx, GtkMl_Build
 GTKML_PUBLIC gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static program);
 // builds a ret instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds an add instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_add(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a sub instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_sub(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a mul instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_mul(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a div instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_div(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a mod instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_mod(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a bitand instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_bitand(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a bitor instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_bitor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a bitxor instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 
 // creates a new virtual machine on the heap
 // must be deleted with `gtk_ml_del_vm`
