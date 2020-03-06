@@ -824,6 +824,7 @@ gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **err, GtkMl_Buil
                 addr->value.s_address.addr = 8 * i;
             } else {
                 *err = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 0);
+                return 0;
             }
         }
         if (instr.gen.category & GTKML_I_EXTENDED) {
@@ -861,6 +862,7 @@ gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **err, GtkMl_Buil
                         bb2 = addr->value.s_address.linkage_name;
                     } else {
                         *err = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 0);
+                        return 0;
                     }
                     if (strcmp(bb1, bb2) == 0) {
                         result[i].gen.category &= ~GTKML_EI_IMM_EXTERN;
@@ -1634,6 +1636,7 @@ GTKML_PRIVATE GtkMl_S *parse_constant(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_T
         result = new_false(ctx, &(*tokenv)[0].span);
     } else {
         *err = gtk_ml_error(ctx, "constant-error", GTKML_ERR_CONSTANT_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+        return NULL;
     }
     ++*tokenv;
     --*tokenc;
