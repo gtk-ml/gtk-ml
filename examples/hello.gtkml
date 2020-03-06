@@ -9,4 +9,4 @@
     (cond
       #f    (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
       :else 640)
-    480)})
+    (do 0 480))})

@@ -76,6 +76,7 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PRIVATE void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
 
+GTKML_PRIVATE gboolean builder_do(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_lambda(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_macro(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_cond(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
@@ -580,6 +581,14 @@ GtkMl_Builder *gtk_ml_new_builder() {
     b->builders = malloc(sizeof(GtkMl_BuilderMacro) * 64);
     b->len_builder = 0;
     b->cap_builder = 64;
+
+    char *name_do = malloc(strlen("do") + 1);
+    strcpy(name_do, "do");
+    b->builders[b->len_builder].name = name_do;
+    b->builders[b->len_builder].fn = builder_do;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
 
     char *name_lambda = malloc(strlen("lambda") + 1);
     strcpy(name_lambda, "lambda");
@@ -2102,6 +2111,29 @@ gboolean builder_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *
     return 0;
 }
 
+gboolean builder_do(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL) {
+        GtkMl_S *nil = new_nil(ctx, &(*stmt)->span);
+        return compile_macro_expression(ctx, b, basic_block, err, &nil, allow_macro, allow_runtime, allow_macro_expansion);
+    }
+
+    while (args->kind != GTKML_S_NIL) {
+        if (!compile_macro_expression(ctx, b, basic_block, err, &gtk_ml_car(args), allow_macro, allow_runtime, allow_macro_expansion)) {
+            return 0;
+        }
+        args = gtk_ml_cdr(args);
+        if (args->kind != GTKML_S_NIL) {
+            if (!gtk_ml_build_pop(ctx, b, *basic_block, err)) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
 gboolean builder_lambda(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_S *args = gtk_ml_cdr(*stmt);
 
@@ -3187,6 +3219,24 @@ gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_PUSH_IMM;
 
     basic_block->exec[basic_block->len_exec].imm.imm = linkage_name;
+    ++basic_block->len_exec;
+
+    return 1;
+}
+
+gboolean gtk_ml_build_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+    (void) ctx;
+    (void) err;
+
+    if (basic_block->len_exec == basic_block->cap_exec) {
+        basic_block->cap_exec *= 2;
+        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    }
+
+    basic_block->exec[basic_block->len_exec].instr = 0;
+    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
+    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_POP;
     ++basic_block->len_exec;
 
     return 1;
