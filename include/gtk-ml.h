@@ -39,11 +39,16 @@
 #define GTKML_I_IMM 0x2
 #define GTKML_I_IMM_EXTERN 0x4
 #define GTKML_I_BR 0x3
+#define GTKML_I_BR_EXTERN 0x4
 #define GTKML_EI_IMM 0xa
 #define GTKML_EI_IMM_EXTERN 0x4
 #define GTKML_EI_BR 0xb
+#define GTKML_EI_BR_EXTERN 0x4
 #define GTKML_EI_EXPORT 0xc
 #define GTKML_I_EXTENDED 0x8
+
+#define GTKML_EI_EXPORT_FLAG_NONE 0x0
+#define GTKML_EI_EXPORT_FLAG_LOCAL 0x1
 
 #define GTKML_IA_NOP 0x0
 #define GTKML_IA_HALT 0x1
@@ -61,14 +66,14 @@
 #define GTKML_IA_BIT_NAND 0x24
 #define GTKML_IA_BIT_NOR 0x25
 #define GTKML_IA_BIT_XNOR 0x26
-#define GTKML_IA_BRANCH_ABSOLUTE 0x40
-#define GTKML_IA_BRANCH_RELATIVE 0x41
 #define GTKML_IA_BIND 0x50
 #define GTKML_IA_DEFINE 0x51
 
 #define GTKML_II_PUSH_IMM 0x0
 #define GTKML_II_POP 0x1
-#define GTKML_II_GET_IMM 0x2
+#define GTKML_II_SETF_IMM 0x2
+#define GTKML_II_POPF 0x3
+#define GTKML_II_GET_IMM 0x4
 #define GTKML_II_LIST_IMM 0x10
 #define GTKML_II_MAP_IMM 0x11
 #define GTKML_II_SET_IMM 0x12
@@ -82,10 +87,14 @@
 #define GTKML_IBR_CALL 0x1
 #define GTKML_IBR_RET 0x2
 #define GTKML_IBR_CALL_STD 0x3
+#define GTKML_IBR_BRANCH_ABSOLUTE 0x4
+#define GTKML_IBR_BRANCH_RELATIVE 0x5
 
 #define GTKML_EII_PUSH_EXT_IMM 0x0
 #define GTKML_EII_POP_EXT 0x1
-#define GTKML_EII_GET_EXT_IMM 0x2
+#define GTKML_EII_SETF_EXT_IMM 0x2
+#define GTKML_EII_POPF_EXT 0x3
+#define GTKML_EII_GET_EXT_IMM 0x4
 #define GTKML_EII_LIST_EXT_IMM 0x10
 #define GTKML_EII_MAP_EXT_IMM 0x11
 #define GTKML_EII_SET_EXT_IMM 0x12
@@ -94,6 +103,8 @@
 #define GTKML_EIBR_CALL_EXT 0x1
 #define GTKML_EIBR_RET_EXT 0x2
 #define GTKML_EIBR_CALL_EXT_STD 0x3
+#define GTKML_EIBR_BRANCH_ABSOLUTE_EXT 0x4
+#define GTKML_EIBR_BRANCH_RELATIVE_EXT 0x5
 
 #define GTKML_SIA_NOP "NOP"
 #define GTKML_SIA_HALT "HALT"
@@ -111,14 +122,14 @@
 #define GTKML_SIA_BIT_NAND "BIT_NAND"
 #define GTKML_SIA_BIT_NOR "BIT_NOR"
 #define GTKML_SIA_BIT_XNOR "BIT_XNOR"
-#define GTKML_SIA_BRANCH_ABSOLUTE "BRANCH_ABSOLUTE"
-#define GTKML_SIA_BRANCH_RELATIVE "BRANCH_RELATIVE"
 #define GTKML_SIA_BIND "BIND"
 #define GTKML_SIA_DEFINE "DEFINE"
 
 #define GTKML_SII_PUSH_IMM_EXTERN "PUSH_IMM EXTERN"
 #define GTKML_SII_PUSH_IMM "PUSH_IMM"
 #define GTKML_SII_POP "POP"
+#define GTKML_SII_SETF_IMM "SETF_IMM"
+#define GTKML_SII_POPF "POPF"
 #define GTKML_SII_GET_IMM "GET_IMM"
 #define GTKML_SII_LIST_IMM "LIST_IMM"
 #define GTKML_SII_MAP_IMM "MAP_IMM"
@@ -133,10 +144,14 @@
 #define GTKML_SIBR_CALL_STD "CALL_STD"
 #define GTKML_SIBR_CALL "CALL"
 #define GTKML_SIBR_RET "RET"
+#define GTKML_SIBR_BRANCH_ABSOLUTE "BRANCH_ABSOLUTE"
+#define GTKML_SIBR_BRANCH_RELATIVE "BRANCH_RELATIVE"
 
 #define GTKML_SEII_PUSH_EXT_IMM_EXTERN "PUSH_EXT_IMM EXTERN"
 #define GTKML_SEII_PUSH_EXT_IMM "PUSH_EXT_IMM"
 #define GTKML_SEII_POP_EXT "POP_EXT"
+#define GTKML_SEII_SETF_EXT_IMM "SETF_EXT_IMM"
+#define GTKML_SEII_POPF_EXT "POPF_EXT"
 #define GTKML_SEII_GET_EXT_IMM "GET_EXT_IMM"
 #define GTKML_SEII_LIST_EXT_IMM "LIST_EXT_IMM"
 #define GTKML_SEII_MAP_EXT_IMM "MAP_EXT_IMM"
@@ -146,6 +161,8 @@
 #define GTKML_SEIBR_CALL_EXT_STD "CALL_EXT_STD"
 #define GTKML_SEIBR_CALL_EXT "CALL_EXT"
 #define GTKML_SEIBR_RET_EXT "RET_EXT"
+#define GTKML_SEIBR_BRANCH_ABSOLUTE_EXT "BRANCH_ABSOLUTE_EXT"
+#define GTKML_SEIBR_BRANCH_RELATIVE_EXT "BRANCH_RELATIVE_EXT"
 
 #define GTKML_R_ZERO 0
 #define GTKML_R_FLAGS 1
@@ -163,6 +180,7 @@
 #define GTKML_ERR_INVALID_SEXPR "invalid s-expression"
 #define GTKML_ERR_ARGUMENT_ERROR "invalid arguments"
 #define GTKML_ERR_TYPE_ERROR "invalid type for expression"
+#define GTKML_ERR_BOOLEAN_ERROR "expected a boolean expression"
 #define GTKML_ERR_ARITY_ERROR "invalid argument count"
 #define GTKML_ERR_BINDING_ERROR "binding not found"
 #define GTKML_ERR_CONSTANT_ERROR "constant not found"
@@ -386,6 +404,7 @@ typedef struct GtkMl_SProgram {
 
 // a compiled closure
 typedef struct GtkMl_SAddress {
+    const char *linkage_name;
     uint64_t addr;
 } GtkMl_SAddress;
 
@@ -486,7 +505,7 @@ typedef struct GtkMl_BasicBlock {
     size_t cap_exec;
 } GtkMl_BasicBlock;
 
-typedef gboolean (*GtkMl_BuilderFn)(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+typedef gboolean (*GtkMl_BuilderFn)(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 
 typedef struct GtkMl_BuilderMacro {
     const char *name;
@@ -583,6 +602,12 @@ GTKML_PUBLIC gboolean gtk_ml_build_push_extended_addr(GtkMl_Context *ctx, GtkMl_
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static linkage_name);
 // builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_setf_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_setf_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_popf(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
@@ -620,6 +645,10 @@ GTKML_PUBLIC gboolean gtk_ml_build_call_std(GtkMl_Context *ctx, GtkMl_Builder *b
 GTKML_PUBLIC gboolean gtk_ml_build_call_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static program);
 // builds a call instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static program);
+// builds a call instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_branch_absolute_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static address);
+// builds a call instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_branch_absolute(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static address);
 // builds a ret instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds an add instruction in the chosen basic_block
