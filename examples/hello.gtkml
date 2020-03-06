@@ -2,6 +2,7 @@
 (define-macro (Window title width height)
   `(lambda (app)
     (new-window app ,title ,width ,height)))
+(define (add a b) (+ a b))
 ; run the application
 (Application "de.walterpi.example" flags-none {
   :activate (Window
@@ -9,4 +10,4 @@
     (cond
       #f    (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
       :else 640)
-    (do 0 480))})
+    (do 0 (add 240 240)))})
