@@ -83,6 +83,7 @@ GTKML_PRIVATE gboolean builder_do(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
 GTKML_PRIVATE gboolean builder_lambda(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_macro(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_cond(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_while(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_add(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_sub(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_mul(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
@@ -614,7 +615,15 @@ GtkMl_Builder *gtk_ml_new_builder() {
     b->builders[b->len_builder].name = name_cond;
     b->builders[b->len_builder].fn = builder_cond;
     b->builders[b->len_builder].require_macro = 0;
-    b->builders[b->len_builder].require_runtime = 1;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_while = malloc(strlen("while") + 1);
+    strcpy(name_while, "while");
+    b->builders[b->len_builder].name = name_while;
+    b->builders[b->len_builder].fn = builder_while;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
     ++b->len_builder;
 
     char *name_add = malloc(strlen("+") + 1);
@@ -2385,6 +2394,122 @@ gboolean builder_cond(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **b
     }
 
     *basic_block = branches[n];
+    free(branches);
+
+    return 1;
+}
+
+gboolean builder_while(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    uint32_t while_number = b->counter++;
+
+    char *linkage_name = malloc(strlen("while$$cond") + 16);
+    snprintf(linkage_name, strlen("while$$cond") + 16, "while$%u$cond", while_number);
+    GtkMl_BasicBlock *cond = gtk_ml_append_basic_block(b, linkage_name);
+
+    if (cond->len_exec == cond->cap_exec) {
+        cond->cap_exec *= 2;
+        cond->exec = realloc(cond->exec, sizeof(GtkMl_Instruction) * cond->cap_exec);
+    }
+
+    cond->exec[cond->len_exec].instr = 0;
+    cond->exec[cond->len_exec].imm.cond = 0;
+    cond->exec[cond->len_exec].imm.category = GTKML_EI_EXPORT;
+    cond->exec[cond->len_exec].imm.imm = GTKML_EI_EXPORT_FLAG_LOCAL;
+    ++cond->len_exec;
+
+    if (cond->len_exec == cond->cap_exec) {
+        cond->cap_exec *= 2;
+        cond->exec = realloc(cond->exec, sizeof(GtkMl_Instruction) * cond->cap_exec);
+    }
+
+    char *name = malloc(strlen(linkage_name) + 1);
+    strcpy(name, linkage_name);
+    GtkMl_S *cond_addr = new_address(ctx, NULL, name, 0);
+    cond->exec[cond->len_exec].imm64 = gtk_ml_append_static(b, cond_addr);
+    ++cond->len_exec;
+
+    linkage_name = malloc(strlen("while$$end") + 16);
+    snprintf(linkage_name, strlen("while$$end") + 16, "while$%u$end", while_number);
+    GtkMl_BasicBlock *end = gtk_ml_append_basic_block(b, linkage_name);
+
+    if (end->len_exec == end->cap_exec) {
+        end->cap_exec *= 2;
+        end->exec = realloc(end->exec, sizeof(GtkMl_Instruction) * end->cap_exec);
+    }
+
+    end->exec[end->len_exec].instr = 0;
+    end->exec[end->len_exec].imm.cond = 0;
+    end->exec[end->len_exec].imm.category = GTKML_EI_EXPORT;
+    end->exec[end->len_exec].imm.imm = GTKML_EI_EXPORT_FLAG_LOCAL;
+    ++end->len_exec;
+
+    if (end->len_exec == end->cap_exec) {
+        end->cap_exec *= 2;
+        end->exec = realloc(end->exec, sizeof(GtkMl_Instruction) * end->cap_exec);
+    }
+
+    name = malloc(strlen(linkage_name) + 1);
+    strcpy(name, linkage_name);
+    GtkMl_S *end_addr = new_address(ctx, NULL, name, 0);
+    end->exec[end->len_exec].imm64 = gtk_ml_append_static(b, end_addr);
+    ++end->len_exec;
+
+    linkage_name = malloc(strlen("while$$") + 32);
+    snprintf(linkage_name, strlen("while$$") + 32, "while$%u$body", while_number);
+    GtkMl_BasicBlock *body = gtk_ml_append_basic_block(b, linkage_name);
+
+    if (body->len_exec == body->cap_exec) {
+        body->cap_exec *= 2;
+        body->exec = realloc(body->exec, sizeof(GtkMl_Instruction) * body->cap_exec);
+    }
+
+    body->exec[body->len_exec].instr = 0;
+    body->exec[body->len_exec].imm.cond = 0;
+    body->exec[body->len_exec].imm.category = GTKML_EI_EXPORT;
+    body->exec[body->len_exec].imm.imm = GTKML_EI_EXPORT_FLAG_LOCAL;
+    ++body->len_exec;
+
+    if (body->len_exec == body->cap_exec) {
+        body->cap_exec *= 2;
+        body->exec = realloc(body->exec, sizeof(GtkMl_Instruction) * body->cap_exec);
+    }
+
+    name = malloc(strlen(linkage_name) + 1);
+    strcpy(name, linkage_name);
+    GtkMl_S *body_addr = new_address(ctx, NULL, name, 0);
+    body->exec[body->len_exec].imm64 = gtk_ml_append_static(b, body_addr);
+    ++body->len_exec;
+
+    char *body_name = malloc(strlen("while$$body") + 16);
+    snprintf(body_name, strlen("while$$body") + 16, "while$%u$body", while_number);
+    char *end_name = malloc(strlen("while$$end") + 16);
+    snprintf(end_name, strlen("while$$end") + 16, "while$%u$end", while_number);
+
+    compile_cond_expression(ctx, b, &cond, err, &gtk_ml_car(args), allow_macro, allow_runtime, allow_macro_expansion);
+    // if true: jump to body
+    gtk_ml_builder_set_cond(b, GTKML_F_ZERO);
+    gtk_ml_build_branch_absolute_extended(ctx, b, cond, err, gtk_ml_append_static(b, new_string(ctx, NULL, body_name, strlen(body_name))));
+    // else: jump to end
+    gtk_ml_build_branch_absolute_extended(ctx, b, cond, err, gtk_ml_append_static(b, new_string(ctx, NULL, end_name, strlen(end_name))));
+
+    args = gtk_ml_cdr(args);
+    while (args->kind != GTKML_S_NIL) {
+        char *cond_name = malloc(strlen("while$$cond") + 16);
+        snprintf(cond_name, strlen("while$$cond") + 16, "while$%u$cond", while_number);
+
+        compile_macro_expression(ctx, b, &body, err, &gtk_ml_car(args), allow_macro, allow_runtime, allow_macro_expansion);
+        gtk_ml_build_branch_absolute_extended(ctx, b, body, err, gtk_ml_append_static(b, new_string(ctx, NULL, cond_name, strlen(cond_name))));
+        args = gtk_ml_cdr(args);
+    }
+
+    *basic_block = end;
 
     return 1;
 }
