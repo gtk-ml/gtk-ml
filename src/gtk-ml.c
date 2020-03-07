@@ -5377,7 +5377,7 @@ GTKML_PRIVATE GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, G
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_branch_extended_absolute(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_branch_absolute_extended(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_ret) == bc_len && strncmp(bc_ptr, bc_ret, bc_len) == 0) {
         return gtk_ml_build_ret(arg_ctx, arg_b, *arg_basic_block, err)? new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_add) == bc_len && strncmp(bc_ptr, bc_add, bc_len) == 0) {
