@@ -52,6 +52,15 @@
 #define GTKML_EI_EXPORT_FLAG_NONE 0x0
 #define GTKML_EI_EXPORT_FLAG_LOCAL 0x1
 
+typedef enum GtkMl_Cmp {
+    GTKML_CMP_EQUAL,
+    GTKML_CMP_NOT_EQUAL,
+    GTKML_CMP_LESS,
+    GTKML_CMP_GREATER,
+    GTKML_CMP_LESS_EQUAL,
+    GTKML_CMP_GREATER_EQUAL,
+} GtkMl_Cmp;
+
 #define GTKML_IA_NOP 0x0
 #define GTKML_IA_HALT 0x1
 #define GTKML_IA_ADD 0x4
@@ -102,6 +111,7 @@
 #define GTKML_EII_MAP_EXT_IMM 0x11
 #define GTKML_EII_SET_EXT_IMM 0x12
 #define GTKML_EII_ARRAY_EXT_IMM 0x13
+#define GTKML_EII_CMP_EXT_IMM 0xf0
 
 #define GTKML_EIBR_CALL_EXT_STD 0x3
 #define GTKML_EIBR_BRANCH_ABSOLUTE_EXT 0x4
@@ -159,6 +169,7 @@
 #define GTKML_SEII_MAP_EXT_IMM "MAP_EXT_IMM"
 #define GTKML_SEII_SET_EXT_IMM "SET_EXT_IMM"
 #define GTKML_SEII_ARRAY_EXT_IMM "ARRAY_EXT_IMM"
+#define GTKML_SEII_CMP_EXT_IMM "CMP_EXT_IMM"
 
 #define GTKML_SEIBR_CALL_EXT_STD "CALL_EXT_STD"
 #define GTKML_SEIBR_CALL_EXT "CALL_EXT"
@@ -182,6 +193,7 @@
 #define GTKML_ERR_INVALID_SEXPR "invalid s-expression"
 #define GTKML_ERR_ARGUMENT_ERROR "invalid arguments"
 #define GTKML_ERR_TYPE_ERROR "invalid type for expression"
+#define GTKML_ERR_CMP_ERROR "invalid comparison enum"
 #define GTKML_ERR_BOOLEAN_ERROR "expected a boolean expression"
 #define GTKML_ERR_ARITY_ERROR "invalid argument count"
 #define GTKML_ERR_BINDING_ERROR "binding not found"
@@ -675,6 +687,8 @@ GTKML_PUBLIC gboolean gtk_ml_build_bitand(GtkMl_Context *ctx, GtkMl_Builder *b, 
 GTKML_PUBLIC gboolean gtk_ml_build_bitor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a bitxor instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a cmp instruction in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
 
 // creates a new virtual machine on the heap
 // must be deleted with `gtk_ml_del_vm`

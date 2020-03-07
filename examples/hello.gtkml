@@ -8,6 +8,7 @@
   :activate (Window
     "gtk-ml example"
     (cond
-      #f    (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
-      :else 640)
+      #f         (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
+     (cmp 0 1 2) (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
+      :else      640)
     (do 0 (add 240 240)))})

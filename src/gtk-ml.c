@@ -93,6 +93,7 @@ GTKML_PRIVATE gboolean builder_bitnot(GtkMl_Context *ctx, GtkMl_Builder *b, GtkM
 GTKML_PRIVATE gboolean builder_bitand(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_bitor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PRIVATE gboolean builder_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_var(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_vararg(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean builder_quote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
@@ -171,6 +172,7 @@ GTKML_PRIVATE gboolean gtk_ml_eii_list_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkM
 GTKML_PRIVATE gboolean gtk_ml_eii_map_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 GTKML_PRIVATE gboolean gtk_ml_eii_set_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 GTKML_PRIVATE gboolean gtk_ml_eii_array_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
+GTKML_PRIVATE gboolean gtk_ml_eii_cmp_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 
 GTKML_PRIVATE gboolean gtk_ml_eibr_call_ext_std(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
 GTKML_PRIVATE gboolean gtk_ml_eibr_branch_absolute_ext(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64);
@@ -264,6 +266,7 @@ GTKML_PRIVATE const char *S_EI_IMM[] = {
     [GTKML_EII_MAP_EXT_IMM] = GTKML_SEII_MAP_EXT_IMM,
     [GTKML_EII_SET_EXT_IMM] = GTKML_SEII_SET_EXT_IMM,
     [GTKML_EII_ARRAY_EXT_IMM] = GTKML_SEII_ARRAY_EXT_IMM,
+    [GTKML_EII_CMP_EXT_IMM] = GTKML_SEII_CMP_EXT_IMM,
     [255] = NULL,
 };
 
@@ -277,6 +280,7 @@ GTKML_PRIVATE const char *S_EI_IMM_EXTERN[] = {
     [GTKML_EII_MAP_EXT_IMM] = GTKML_SEII_MAP_EXT_IMM,
     [GTKML_EII_SET_EXT_IMM] = GTKML_SEII_SET_EXT_IMM,
     [GTKML_EII_ARRAY_EXT_IMM] = GTKML_SEII_ARRAY_EXT_IMM,
+    [GTKML_EII_CMP_EXT_IMM] = GTKML_SEII_CMP_EXT_IMM,
     [255] = NULL,
 };
 
@@ -385,6 +389,7 @@ GTKML_PRIVATE gboolean (*EI_IMM[])(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction, Gt
     [GTKML_EII_MAP_EXT_IMM] = gtk_ml_eii_map_ext_imm,
     [GTKML_EII_SET_EXT_IMM] = gtk_ml_eii_set_ext_imm,
     [GTKML_EII_ARRAY_EXT_IMM] = gtk_ml_eii_array_ext_imm,
+    [GTKML_EII_CMP_EXT_IMM] = gtk_ml_eii_cmp_ext_imm,
     [255] = (gboolean (*)(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction, GtkMl_S *)) NULL,
 };
 
@@ -695,6 +700,14 @@ GtkMl_Builder *gtk_ml_new_builder() {
     strcpy(name_bitxor, "bit-xor");
     b->builders[b->len_builder].name = name_bitxor;
     b->builders[b->len_builder].fn = builder_bitxor;
+    b->builders[b->len_builder].require_macro = 0;
+    b->builders[b->len_builder].require_runtime = 0;
+    ++b->len_builder;
+
+    char *name_cmp = malloc(strlen("cmp") + 1);
+    strcpy(name_cmp, "cmp");
+    b->builders[b->len_builder].name = name_cmp;
+    b->builders[b->len_builder].fn = builder_cmp;
     b->builders[b->len_builder].require_macro = 0;
     b->builders[b->len_builder].require_runtime = 0;
     ++b->len_builder;
@@ -2729,6 +2742,46 @@ gboolean builder_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *
     return gtk_ml_build_bitxor(ctx, b, *basic_block, err);
 }
 
+gboolean builder_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL
+            && gtk_ml_cdr(args)->kind == GTKML_S_NIL
+            && gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    GtkMl_S *cmp = gtk_ml_car(args);
+    GtkMl_S **lhs = &gtk_ml_cdar(args);
+    GtkMl_S **rhs = &gtk_ml_cddar(args);
+
+    if (cmp->kind != GTKML_S_INT) {
+        *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+    switch ((GtkMl_Cmp) cmp->value.s_int.value) {
+    case GTKML_CMP_EQUAL:
+    case GTKML_CMP_NOT_EQUAL:
+    case GTKML_CMP_LESS:
+    case GTKML_CMP_GREATER:
+    case GTKML_CMP_LESS_EQUAL:
+    case GTKML_CMP_GREATER_EQUAL:
+        break;
+    default:
+        *err = gtk_ml_error(ctx, "cmp-error", GTKML_ERR_CMP_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    if (!compile_macro_expression(ctx, b, basic_block, err, rhs, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    if (!compile_macro_expression(ctx, b, basic_block, err, lhs, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    return gtk_ml_build_cmp(ctx, b, *basic_block, err, gtk_ml_append_static(b, cmp));
+}
+
 gboolean builder_var(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_S *args = gtk_ml_cdr(*stmt);
 
@@ -4054,6 +4107,32 @@ gboolean gtk_ml_build_mod(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
     basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
     basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_SIGNED_MODULO;
+    ++basic_block->len_exec;
+
+    return 1;
+}
+
+gboolean gtk_ml_build_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+    (void) ctx;
+    (void) err;
+
+    if (basic_block->len_exec == basic_block->cap_exec) {
+        basic_block->cap_exec *= 2;
+        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    }
+
+    basic_block->exec[basic_block->len_exec].instr = 0;
+    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
+    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_CMP_EXT_IMM;
+    ++basic_block->len_exec;
+
+    if (basic_block->len_exec == basic_block->cap_exec) {
+        basic_block->cap_exec *= 2;
+        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    }
+
+    basic_block->exec[basic_block->len_exec].imm64 = imm64;
     ++basic_block->len_exec;
 
     return 1;
@@ -6178,6 +6257,95 @@ gboolean gtk_ml_eii_array_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction
     }
 
     gtk_ml_push(vm->ctx, array);
+
+    PC_INCREMENT_EXTENDED;
+    return 1;
+}
+
+gboolean gtk_ml_eii_cmp_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr, GtkMl_S *imm64) {
+    (void) err;
+    (void) instr;
+
+    GtkMl_Cmp cmp = imm64->value.s_int.value;
+
+    GtkMl_S *lhs = gtk_ml_pop(vm->ctx);
+    GtkMl_S *rhs = gtk_ml_pop(vm->ctx);
+
+    printf("(cmp ");
+    gtk_ml_dumpf(vm->ctx, stdout, NULL, imm64);
+    printf(" ");
+    gtk_ml_dumpf(vm->ctx, stdout, NULL, lhs);
+    printf(" ");
+    gtk_ml_dumpf(vm->ctx, stdout, NULL, rhs);
+    printf(")\n");
+
+    switch (cmp) {
+    case GTKML_CMP_EQUAL:
+        gtk_ml_push(vm->ctx, gtk_ml_equal(lhs, rhs)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        break;
+    case GTKML_CMP_NOT_EQUAL:
+        gtk_ml_push(vm->ctx, (!gtk_ml_equal(lhs, rhs))? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        break;
+    case GTKML_CMP_LESS:
+        if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_int.value < rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, ((double) lhs->value.s_int.value < rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value < (double) rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value < rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else {
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            return 0;
+        }
+        break;
+    case GTKML_CMP_GREATER:
+        if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_int.value > rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, ((double) lhs->value.s_int.value > rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value > (double) rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value > rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else {
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            return 0;
+        }
+        break;
+    case GTKML_CMP_LESS_EQUAL:
+        if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_int.value <= rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, ((double) lhs->value.s_int.value <= rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value <= (double) rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value <= rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else {
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            return 0;
+        }
+        break;
+    case GTKML_CMP_GREATER_EQUAL:
+        if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_int.value >= rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, ((double) lhs->value.s_int.value >= rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_INT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value >= (double) rhs->value.s_int.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
+            gtk_ml_push(vm->ctx, (lhs->value.s_float.value >= rhs->value.s_float.value)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
+        } else {
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            return 0;
+        }
+        break;
+    default:
+        *err = gtk_ml_error(vm->ctx, "cmp-error", GTKML_ERR_CMP_ERROR, 0, 0, 0, 0);
+        return 0;
+    }
 
     PC_INCREMENT_EXTENDED;
     return 1;
