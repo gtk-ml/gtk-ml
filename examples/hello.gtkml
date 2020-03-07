@@ -1,8 +1,13 @@
+(define (number? expr) #t)
+
 ; define an intrinsical operator
 (define-intrinsic (intr-add a b)
-  (compile-expr CTX CODE-BUILDER BASIC-BLOCK b)
-  (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
-  (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add))
+  (cond
+    (number? a) (do
+      (compile-expr CTX CODE-BUILDER BASIC-BLOCK b)
+      (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
+      (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add))
+    :else (error {:err 'number-error :desc "not a number"})))
 
 ; define a Window macro
 (define-macro (Window title width height)

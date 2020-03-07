@@ -559,6 +559,9 @@ struct GtkMl_Builder {
     GtkMl_BuilderMacro *builders;
     size_t len_builder;
     size_t cap_builder;
+
+    GtkMl_HashSet intr_fns;
+    GtkMl_HashSet macro_fns;
 };
 
 union GtkMl_Register {
