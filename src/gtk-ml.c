@@ -7362,10 +7362,17 @@ gboolean gtk_ml_ia_car(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     GtkMl_S *list = gtk_ml_pop(vm->ctx);
     if (list->kind != GTKML_S_LIST) {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "list", strlen("list")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), list);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7380,10 +7387,17 @@ gboolean gtk_ml_ia_cdr(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     GtkMl_S *list = gtk_ml_pop(vm->ctx);
     if (list->kind != GTKML_S_LIST) {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "list", strlen("list")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), list);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7707,10 +7721,17 @@ gboolean gtk_ml_ii_array_index(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction in
 
     if (index->kind != GTKML_S_INT) {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "int", strlen("int")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), index);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7721,10 +7742,17 @@ gboolean gtk_ml_ii_array_index(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction in
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "array", strlen("array")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7750,10 +7778,17 @@ gboolean gtk_ml_ii_array_push(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "array", strlen("array")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7778,10 +7813,17 @@ gboolean gtk_ml_ii_array_pop(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction inst
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "array", strlen("array")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7804,10 +7846,17 @@ gboolean gtk_ml_ii_map_get(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "map", strlen("map")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7834,10 +7883,17 @@ gboolean gtk_ml_ii_map_insert(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "map", strlen("map")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7863,10 +7919,17 @@ gboolean gtk_ml_ii_map_delete(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "map", strlen("map")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7889,10 +7952,17 @@ gboolean gtk_ml_ii_set_contains(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction i
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "set", strlen("set")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7918,10 +7988,17 @@ gboolean gtk_ml_ii_set_insert(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "set", strlen("set")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
@@ -7947,10 +8024,17 @@ gboolean gtk_ml_ii_set_delete(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         break;
     default: {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+
         GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
         gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "set", strlen("set")));
         error = new;
+
+        new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "got-value", strlen("got-value")), container);
+        error = new;
+
         *err = error;
         return 0;
     }
