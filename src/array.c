@@ -131,7 +131,7 @@ GtkMl_S *gtk_ml_array_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index)
     if (shiftme) {
         size_t len = out->root->value.a_branch.len;
         size_t idx = index;
-        memmove(&out->root->value.a_branch.nodes[idx], &out->root->value.a_branch.nodes[idx + 1], sizeof(GtkMl_ArrayNode*) * (len - idx - 1));
+        memmove(&out->root->value.a_branch.nodes[idx], &out->root->value.a_branch.nodes[idx + 1], sizeof(GtkMl_ArrayNode *) * (len - idx - 1));
     }
     return result;
 }
@@ -151,7 +151,7 @@ gboolean gtk_ml_array_equal(GtkMl_Array *lhs, GtkMl_Array *rhs) {
 GtkMl_ArrayNode *new_leaf(GtkMl_S *value) {
     GtkMl_ArrayNode *node = malloc(sizeof(GtkMl_ArrayNode));
     node->rc = 1;
-    node->shift = 0;
+    node->shift = -GTKML_A_BITS;
     node->kind = GTKML_A_LEAF;
     node->value.a_leaf.value = value;
     return node;
@@ -273,7 +273,7 @@ GtkMl_S *delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node,
         *out = NULL;
         return node->value.a_leaf.value;
     case GTKML_A_BRANCH: {
-        *out = new_branch(node->shift, node->value.a_branch.len - 1);
+        *out = new_branch(node->shift, node->value.a_branch.len);
         for (size_t i = 0; i < node->value.a_branch.len; i++) {
             (*out)->value.a_branch.nodes[i] = copy_node(node->value.a_branch.nodes[i]);
         }
@@ -281,8 +281,11 @@ GtkMl_S *delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node,
         gboolean shiftme = 0;
         GtkMl_S *result = delete(&(*out)->value.a_branch.nodes[idx], &shiftme, node->value.a_branch.nodes[idx], index);
         if (shiftme) {
+            --(*out)->value.a_branch.len;
             size_t len = (*out)->value.a_branch.len;
-            memmove(&(*out)->value.a_branch.nodes[idx], &(*out)->value.a_branch.nodes[idx + 1], sizeof(GtkMl_ArrayNode*) * (len - idx - 1));
+            for (size_t i = idx; i < len; i++) {
+                (*out)->value.a_branch.nodes[i] = node->value.a_branch.nodes[i + 1];
+            }
         }
         return result;
     }

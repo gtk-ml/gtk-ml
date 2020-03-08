@@ -2197,8 +2197,7 @@ GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, GtkMl_S **err, const char *src) {
     return result;
 }
 
-GTKML_PRIVATE gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, uint64_t function, GtkMl_S *args, gboolean compile_first);
-GTKML_PRIVATE gboolean compile_runtime_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt);
+GTKML_PRIVATE gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, uint64_t function, GtkMl_S *args, gboolean compile_first, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean compile_runtime_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, const char *linkage_name, GtkMl_S *stmt, gboolean ret);
 
 GTKML_PRIVATE gboolean compile_cond_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
@@ -2208,11 +2207,6 @@ GTKML_PRIVATE gboolean compile_body(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_
 GTKML_PRIVATE gboolean compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, const char *linkage_name, GtkMl_S *stmt, gboolean ret, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 
 gboolean builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
-    (void) allow_intr;
-    (void) allow_macro;
-    (void) allow_runtime;
-    (void) allow_macro_expansion;
-
     GtkMl_S *args = gtk_ml_cdr(*stmt);
     if (args->kind == GTKML_S_NIL
             || gtk_ml_cdr(args)->kind == GTKML_S_NIL
@@ -2221,7 +2215,7 @@ gboolean builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
         return 0;
     }
 
-    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_APPLICATION, *stmt, 0);
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_APPLICATION, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -2238,7 +2232,7 @@ gboolean builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
         return 0;
     }
 
-    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_NEW_WINDOW, *stmt, 0);
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_NEW_WINDOW, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean builder_setmetamap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -2325,7 +2319,7 @@ gboolean builder_error(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **
         return 0;
     }
 
-    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_ERROR, *stmt, 0);
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_ERROR, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean builder_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -2426,7 +2420,7 @@ gboolean builder_compile_expr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
         return 0;
     }
 
-    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_COMPILE_EXPR, *stmt, 0);
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_COMPILE_EXPR, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean builder_emit_bytecode(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -2447,7 +2441,7 @@ gboolean builder_emit_bytecode(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basic
         return 0;
     }
 
-    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_EMIT_BYTECODE, *stmt, 0);
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_EMIT_BYTECODE, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean builder_do(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -3231,7 +3225,7 @@ gboolean compile_cond_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     }
 }
 
-gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, uint64_t function, GtkMl_S *args, gboolean compile_first) {
+gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, uint64_t function, GtkMl_S *args, gboolean compile_first, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     int64_t n = 0;
     if (!compile_first) {
         if (!gtk_ml_build_push_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, gtk_ml_car(args)))) {
@@ -3241,7 +3235,7 @@ gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
         ++n;
     }
     while (args->kind != GTKML_S_NIL) {
-        if (!compile_runtime_expression(ctx, b, basic_block, err, &gtk_ml_car(args))) {
+        if (!compile_expression(ctx, b, basic_block, err, &gtk_ml_car(args), allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
             return 0;
         }
         args = gtk_ml_cdr(args);
@@ -3348,10 +3342,6 @@ GTKML_PRIVATE GtkMl_VisitResult compile_array(GtkMl_Array *array, size_t idx, Gt
         return GTKML_VISIT_BREAK;
     }
     return GTKML_VISIT_RECURSE;
-}
-
-gboolean compile_runtime_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt) {
-    return compile_expression(ctx, b, basic_block, err, stmt, 0, 0, 1, 1);
 }
 
 gboolean compile_runtime_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, const char *linkage_name, GtkMl_S *lambda, gboolean ret) {
@@ -4718,17 +4708,18 @@ struct CollectData {
     gboolean change;
     GtkMl_Context *ctx;
     GtkMl_Builder *b;
+    gboolean *has_intr;
 };
 
-GTKML_PRIVATE gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr);
+GTKML_PRIVATE gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr, gboolean *has_intr);
 
 GTKML_PRIVATE GtkMl_VisitResult collect_intrinsics_map(GtkMl_HashTrie *ht, void *key, void *value, void *data) {
     (void) ht;
 
     struct CollectData *col = data;
 
-    col->change |= collect_intrinsics_inner(col->ctx, col->b, key);
-    col->change |= collect_intrinsics_inner(col->ctx, col->b, value);
+    col->change |= collect_intrinsics_inner(col->ctx, col->b, key, col->has_intr);
+    col->change |= collect_intrinsics_inner(col->ctx, col->b, value, col->has_intr);
 
     return GTKML_VISIT_RECURSE;
 }
@@ -4738,7 +4729,7 @@ GTKML_PRIVATE GtkMl_VisitResult collect_intrinsics_set(GtkMl_HashSet *hs, void *
 
     struct CollectData *col = data;
 
-    col->change |= collect_intrinsics_inner(col->ctx, col->b, key);
+    col->change |= collect_intrinsics_inner(col->ctx, col->b, key, col->has_intr);
 
     return GTKML_VISIT_RECURSE;
 }
@@ -4749,18 +4740,18 @@ GTKML_PRIVATE GtkMl_VisitResult collect_intrinsics_array(GtkMl_Array *array, siz
 
     struct CollectData *col = data;
 
-    col->change |= collect_intrinsics_inner(col->ctx, col->b, value);
+    col->change |= collect_intrinsics_inner(col->ctx, col->b, value, col->has_intr);
 
     return GTKML_VISIT_RECURSE;
 }
 
-gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr) {
+gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr, gboolean *has_intr) {
     switch (expr->kind) {
     case GTKML_S_LAMBDA: {
         gboolean change = 0;
         GtkMl_S *body = expr->value.s_lambda.body;
         while (body->kind != GTKML_S_NIL) {
-            change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body));
+            change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body), has_intr);
             body = gtk_ml_cdr(body);
         }
         return change;
@@ -4769,7 +4760,7 @@ gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S 
         gboolean change = 0;
         GtkMl_S *body = expr->value.s_macro.body;
         while (body->kind != GTKML_S_NIL) {
-            change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body));
+            change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body), has_intr);
             body = gtk_ml_cdr(body);
         }
         return change;
@@ -4796,10 +4787,11 @@ gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S 
                 gtk_ml_hash_set_insert(&new, &b->intr_fns, name);
                 gtk_ml_del_hash_set(ctx, &b->intr_fns, gtk_ml_delete_void_reference);
                 b->intr_fns = new;
+                *has_intr = 1;
                 change = 1;
 
                 while (body->kind != GTKML_S_NIL) {
-                    collect_intrinsics_inner(ctx, b, gtk_ml_car(body));
+                    collect_intrinsics_inner(ctx, b, gtk_ml_car(body), has_intr);
                     body = gtk_ml_cdr(body);
                 }
             } else if (fn->value.s_symbol.len == strlen(symbol_define_macro)
@@ -4813,7 +4805,7 @@ gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S 
                 }
 
                 while (body->kind != GTKML_S_NIL) {
-                    change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body));
+                    change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body), has_intr);
                     body = gtk_ml_cdr(body);
                 }
 
@@ -4822,6 +4814,7 @@ gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S 
                     gtk_ml_hash_set_insert(&new, &b->intr_fns, name);
                     gtk_ml_del_hash_set(ctx, &b->intr_fns, gtk_ml_delete_void_reference);
                     b->intr_fns = new;
+                    *has_intr = 1;
                 }
             } else if (fn->value.s_symbol.len == strlen(symbol_define)
                     && memcmp(fn->value.s_symbol.ptr, symbol_define, fn->value.s_symbol.len) == 0) {
@@ -4834,7 +4827,7 @@ gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S 
                 }
 
                 while (body->kind != GTKML_S_NIL) {
-                    change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body));
+                    change |= collect_intrinsics_inner(ctx, b, gtk_ml_car(body), has_intr);
                     body = gtk_ml_cdr(body);
                 }
 
@@ -4843,58 +4836,60 @@ gboolean collect_intrinsics_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S 
                     gtk_ml_hash_set_insert(&new, &b->intr_fns, name);
                     gtk_ml_del_hash_set(ctx, &b->intr_fns, gtk_ml_delete_void_reference);
                     b->intr_fns = new;
+                    *has_intr = 1;
                 }
             } else {
                 if (gtk_ml_hash_set_contains(&b->intr_fns, fn)) {
-                    return 1;
+                    return 0;
                 }
             }
         }
         return change;
     }
     case GTKML_S_ARRAY: {
-        struct CollectData col = { 0, ctx, b };
+        struct CollectData col = { 0, ctx, b, has_intr };
         gtk_ml_array_foreach(&expr->value.s_array.array, collect_intrinsics_array, &col);
         return col.change;
     }
     case GTKML_S_MAP: {
-        struct CollectData col = { 0, ctx, b };
+        struct CollectData col = { 0, ctx, b, has_intr };
         gtk_ml_hash_trie_foreach(&expr->value.s_map.map, collect_intrinsics_map, &col);
         return col.change;
     }
     case GTKML_S_SET: {
-        struct CollectData col = { 0, ctx, b };
+        struct CollectData col = { 0, ctx, b, has_intr };
         gtk_ml_hash_set_foreach(&expr->value.s_set.set, collect_intrinsics_set, &col);
         return col.change;
     }
     case GTKML_S_VAR:
-        return collect_intrinsics_inner(ctx, b, expr->value.s_var.expr);
+        return collect_intrinsics_inner(ctx, b, expr->value.s_var.expr, has_intr);
     case GTKML_S_VARARG:
-        return collect_intrinsics_inner(ctx, b, expr->value.s_vararg.expr);
+        return collect_intrinsics_inner(ctx, b, expr->value.s_vararg.expr, has_intr);
     case GTKML_S_QUOTE:
-        return collect_intrinsics_inner(ctx, b, expr->value.s_quote.expr);
+        return collect_intrinsics_inner(ctx, b, expr->value.s_quote.expr, has_intr);
     case GTKML_S_QUASIQUOTE:
-        return collect_intrinsics_inner(ctx, b, expr->value.s_quasiquote.expr);
+        return collect_intrinsics_inner(ctx, b, expr->value.s_quasiquote.expr, has_intr);
     case GTKML_S_UNQUOTE:
-        return collect_intrinsics_inner(ctx, b, expr->value.s_unquote.expr);
+        return collect_intrinsics_inner(ctx, b, expr->value.s_unquote.expr, has_intr);
     default:
         return 0;
     }
 }
 
 GTKML_PRIVATE void collect_intrinsics(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr) {
-    while (collect_intrinsics_inner(ctx, b, expr)) {}
+    gboolean has_intr = 0;
+    while (collect_intrinsics_inner(ctx, b, expr, &has_intr)) {}
 }
 
-GTKML_PRIVATE gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr);
+GTKML_PRIVATE gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr, gboolean *has_macro);
 
 GTKML_PRIVATE GtkMl_VisitResult collect_macros_map(GtkMl_HashTrie *ht, void *key, void *value, void *data) {
     (void) ht;
 
     struct CollectData *col = data;
 
-    col->change |= collect_macros_inner(col->ctx, col->b, key);
-    col->change |= collect_macros_inner(col->ctx, col->b, value);
+    col->change |= collect_macros_inner(col->ctx, col->b, key, col->has_intr);
+    col->change |= collect_macros_inner(col->ctx, col->b, value, col->has_intr);
 
     return GTKML_VISIT_RECURSE;
 }
@@ -4904,7 +4899,7 @@ GTKML_PRIVATE GtkMl_VisitResult collect_macros_set(GtkMl_HashSet *hs, void *key,
 
     struct CollectData *col = data;
 
-    col->change |= collect_macros_inner(col->ctx, col->b, key);
+    col->change |= collect_macros_inner(col->ctx, col->b, key, col->has_intr);
 
     return GTKML_VISIT_RECURSE;
 }
@@ -4915,18 +4910,18 @@ GTKML_PRIVATE GtkMl_VisitResult collect_macros_array(GtkMl_Array *array, size_t 
 
     struct CollectData *col = data;
 
-    col->change |= collect_macros_inner(col->ctx, col->b, value);
+    col->change |= collect_macros_inner(col->ctx, col->b, value, col->has_intr);
 
     return GTKML_VISIT_RECURSE;
 }
 
-gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr) {
+gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr, gboolean *has_macro) {
     switch (expr->kind) {
     case GTKML_S_LAMBDA: {
         gboolean change = 0;
         GtkMl_S *body = expr->value.s_lambda.body;
         while (body->kind != GTKML_S_NIL) {
-            change |= collect_macros_inner(ctx, b, gtk_ml_car(body));
+            change |= collect_macros_inner(ctx, b, gtk_ml_car(body), has_macro);
             body = gtk_ml_cdr(body);
         }
         return change;
@@ -4935,7 +4930,7 @@ gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *exp
         gboolean change = 0;
         GtkMl_S *body = expr->value.s_macro.body;
         while (body->kind != GTKML_S_NIL) {
-            change |= collect_macros_inner(ctx, b, gtk_ml_car(body));
+            change |= collect_macros_inner(ctx, b, gtk_ml_car(body), has_macro);
             body = gtk_ml_cdr(body);
         }
         return change;
@@ -4958,7 +4953,7 @@ gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *exp
                 }
 
                 while (body->kind != GTKML_S_NIL) {
-                    change |= collect_macros_inner(ctx, b, gtk_ml_car(body));
+                    change |= collect_macros_inner(ctx, b, gtk_ml_car(body), has_macro);
                     body = gtk_ml_cdr(body);
                 }
 
@@ -4967,6 +4962,7 @@ gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *exp
                     gtk_ml_hash_set_insert(&new, &b->macro_fns, name);
                     gtk_ml_del_hash_set(ctx, &b->macro_fns, gtk_ml_delete_void_reference);
                     b->macro_fns = new;
+                    *has_macro = 1;
                 }
             } else if (fn->value.s_symbol.len == strlen(symbol_define)
                     && memcmp(fn->value.s_symbol.ptr, symbol_define, fn->value.s_symbol.len) == 0) {
@@ -4979,7 +4975,7 @@ gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *exp
                 }
 
                 while (body->kind != GTKML_S_NIL) {
-                    change |= collect_macros_inner(ctx, b, gtk_ml_car(body));
+                    change |= collect_macros_inner(ctx, b, gtk_ml_car(body), has_macro);
                     body = gtk_ml_cdr(body);
                 }
 
@@ -4988,47 +4984,49 @@ gboolean collect_macros_inner(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *exp
                     gtk_ml_hash_set_insert(&new, &b->macro_fns, name);
                     gtk_ml_del_hash_set(ctx, &b->macro_fns, gtk_ml_delete_void_reference);
                     b->macro_fns = new;
+                    *has_macro = 1;
                 }
             } else {
                 if (gtk_ml_hash_set_contains(&b->macro_fns, fn)) {
-                    return 1;
+                    return 0;
                 }
             }
         }
         return change;
     }
     case GTKML_S_ARRAY: {
-        struct CollectData col = { 0, ctx, b };
+        struct CollectData col = { 0, ctx, b, has_macro };
         gtk_ml_array_foreach(&expr->value.s_array.array, collect_macros_array, &col);
         return col.change;
     }
     case GTKML_S_MAP: {
-        struct CollectData col = { 0, ctx, b };
+        struct CollectData col = { 0, ctx, b, has_macro };
         gtk_ml_hash_trie_foreach(&expr->value.s_map.map, collect_macros_map, &col);
         return col.change;
     }
     case GTKML_S_SET: {
-        struct CollectData col = { 0, ctx, b };
+        struct CollectData col = { 0, ctx, b, has_macro };
         gtk_ml_hash_set_foreach(&expr->value.s_set.set, collect_macros_set, &col);
         return col.change;
     }
     case GTKML_S_VAR:
-        return collect_macros_inner(ctx, b, expr->value.s_var.expr);
+        return collect_macros_inner(ctx, b, expr->value.s_var.expr, has_macro);
     case GTKML_S_VARARG:
-        return collect_macros_inner(ctx, b, expr->value.s_vararg.expr);
+        return collect_macros_inner(ctx, b, expr->value.s_vararg.expr, has_macro);
     case GTKML_S_QUOTE:
-        return collect_macros_inner(ctx, b, expr->value.s_quote.expr);
+        return collect_macros_inner(ctx, b, expr->value.s_quote.expr, has_macro);
     case GTKML_S_QUASIQUOTE:
-        return collect_macros_inner(ctx, b, expr->value.s_quasiquote.expr);
+        return collect_macros_inner(ctx, b, expr->value.s_quasiquote.expr, has_macro);
     case GTKML_S_UNQUOTE:
-        return collect_macros_inner(ctx, b, expr->value.s_unquote.expr);
+        return collect_macros_inner(ctx, b, expr->value.s_unquote.expr, has_macro);
     default:
         return 0;
     }
 }
 
 GTKML_PRIVATE void collect_macros(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S *expr) {
-    while (collect_macros_inner(ctx, b, expr)) {}
+    gboolean has_macro = 0;
+    while (collect_macros_inner(ctx, b, expr, &has_macro)) {}
 }
 
 gboolean gtk_ml_compile_intrinsics(GtkMl_Builder *b, GtkMl_BasicBlock **start, GtkMl_S **err, GtkMl_S *lambda) {
@@ -7338,11 +7336,17 @@ gboolean gtk_ml_ii_array_index(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction in
     (void) err;
     (void) instr;
 
-    GtkMl_S *index = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *index = gtk_ml_pop(vm->ctx);
 
     if (index->kind != GTKML_S_INT) {
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        gtk_ml_dumpf(vm->ctx, stdout, NULL, index);
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "int", strlen("int")));
+        error = new;
+        *err = error;
         return 0;
     }
 
@@ -7350,9 +7354,15 @@ gboolean gtk_ml_ii_array_index(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction in
     case GTKML_S_ARRAY:
         gtk_ml_push(vm->ctx, gtk_ml_array_get(&container->value.s_array.array, index->value.s_int.value));
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "array", strlen("array")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7363,8 +7373,8 @@ gboolean gtk_ml_ii_array_push(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
     (void) err;
     (void) instr;
 
-    GtkMl_S *value = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *value = gtk_ml_pop(vm->ctx);
     GtkMl_S *result = new_array(vm->ctx, NULL);
     gtk_ml_del_array(vm->ctx, &result->value.s_array.array, gtk_ml_delete_value_reference);
 
@@ -7373,9 +7383,15 @@ gboolean gtk_ml_ii_array_push(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         gtk_ml_array_push(&result->value.s_array.array, &container->value.s_array.array, value);
         gtk_ml_push(vm->ctx, result);
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "array", strlen("array")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7395,9 +7411,15 @@ gboolean gtk_ml_ii_array_pop(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction inst
         gtk_ml_array_pop(&result->value.s_array.array, &container->value.s_array.array);
         gtk_ml_push(vm->ctx, result);
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "array", strlen("array")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7408,16 +7430,22 @@ gboolean gtk_ml_ii_map_get(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
     (void) err;
     (void) instr;
 
-    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *key = gtk_ml_pop(vm->ctx);
 
     switch (container->kind) {
     case GTKML_S_MAP:
         gtk_ml_push(vm->ctx, gtk_ml_hash_trie_get(&container->value.s_map.map, key));
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "map", strlen("map")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7428,9 +7456,9 @@ gboolean gtk_ml_ii_map_insert(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
     (void) err;
     (void) instr;
 
-    GtkMl_S *value = gtk_ml_pop(vm->ctx);
-    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *key = gtk_ml_pop(vm->ctx);
+    GtkMl_S *value = gtk_ml_pop(vm->ctx);
     GtkMl_S *result = new_map(vm->ctx, NULL, container->value.s_map.metamap);
     gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_void_reference);
 
@@ -7439,9 +7467,15 @@ gboolean gtk_ml_ii_map_insert(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         gtk_ml_hash_trie_insert(&result->value.s_map.map, &container->value.s_map.map, key, value);
         gtk_ml_push(vm->ctx, result);
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "map", strlen("map")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7452,8 +7486,8 @@ gboolean gtk_ml_ii_map_delete(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
     (void) err;
     (void) instr;
 
-    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *result = new_map(vm->ctx, NULL, container->value.s_map.metamap);
     gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_void_reference);
 
@@ -7462,9 +7496,15 @@ gboolean gtk_ml_ii_map_delete(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         gtk_ml_hash_trie_delete(&result->value.s_map.map, &container->value.s_map.map, key);
         gtk_ml_push(vm->ctx, result);
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "map", strlen("map")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7475,16 +7515,22 @@ gboolean gtk_ml_ii_set_contains(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction i
     (void) err;
     (void) instr;
 
-    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *key = gtk_ml_pop(vm->ctx);
 
     switch (container->kind) {
     case GTKML_S_SET:
         gtk_ml_push(vm->ctx, gtk_ml_hash_set_contains(&container->value.s_set.set, key)? new_true(vm->ctx, NULL) : new_false(vm->ctx, NULL));
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "set", strlen("set")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7495,8 +7541,8 @@ gboolean gtk_ml_ii_set_insert(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
     (void) err;
     (void) instr;
 
-    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *result = new_set(vm->ctx, NULL);
     gtk_ml_del_hash_set(vm->ctx, &result->value.s_set.set, gtk_ml_delete_void_reference);
 
@@ -7505,9 +7551,15 @@ gboolean gtk_ml_ii_set_insert(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         gtk_ml_hash_set_insert(&result->value.s_set.set, &container->value.s_set.set, key);
         gtk_ml_push(vm->ctx, result);
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "set", strlen("set")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7518,8 +7570,8 @@ gboolean gtk_ml_ii_set_delete(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
     (void) err;
     (void) instr;
 
-    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *container = gtk_ml_pop(vm->ctx);
+    GtkMl_S *key = gtk_ml_pop(vm->ctx);
     GtkMl_S *result = new_set(vm->ctx, NULL);
     gtk_ml_del_hash_set(vm->ctx, &result->value.s_set.set, gtk_ml_delete_void_reference);
 
@@ -7528,9 +7580,15 @@ gboolean gtk_ml_ii_set_delete(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction ins
         gtk_ml_hash_set_delete(&result->value.s_set.set, &container->value.s_set.set, key);
         gtk_ml_push(vm->ctx, result);
         break;
-    default:
-        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+    default: {
+        GtkMl_S *error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
+        GtkMl_S *new = new_map(vm->ctx, NULL, NULL);
+        gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), new_keyword(vm->ctx, NULL, 0, "set", strlen("set")));
+        error = new;
+        *err = error;
         return 0;
+    }
     }
 
     PC_INCREMENT;
@@ -7561,12 +7619,12 @@ gboolean gtk_ml_ibr_ret(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
     (void) instr;
 
-    gtk_ml_leave(vm->ctx);
-
     if (vm->reg[GTKML_R_FLAGS].flags & GTKML_F_TOPCALL) {
         vm->reg[GTKML_R_FLAGS].flags |= GTKML_F_HALT;
         PC_INCREMENT;
     } else {
+        gtk_ml_leave(vm->ctx);
+
         uint64_t pc = vm->call_stack[--vm->call_stack_ptr];
         uint64_t flags = vm->call_stack[--vm->call_stack_ptr];
         vm->reg[GTKML_R_PC].pc = pc;
