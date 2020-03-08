@@ -1,13 +1,49 @@
-(define (number? expr) #t)
+(define (= a b) (cmp 0 a b))
+(define (cdar list) (car (cdr list)))
+(define (cddar list) (car (cdr (cdr list))))
+
+; returns true if expression is an int or a float
+(define (number? expr)
+  (cond
+    (= (typeof expr) :int)   #t
+    (= (typeof expr) :float) #t
+    :else                    #f))
+
+; returns true if expression is a non-empty list
+(define (list? expr) (= (typeof expr) :list))
+
+; returns true if expression is a constant number or an expression that evaluates to a constant number
+(define (const-number? expr)
+  (cond
+    (number? expr) #t
+    (list? expr)   (cond
+      (= (car expr) 'intr-add) (cond
+        (const-number? (cdar expr)) (const-number (cddar expr))
+        :else #f))
+    :else          #f))
+
+; evaluates a constant expression
+(define (const-eval expr)
+  (cond
+    (number? expr) expr
+    (list? expr)   (cond
+      (= (car expr) 'intr-add) (+ (const-eval (cdar expr)) (const-eval (cddar expr)))
+      :else                    #nil)
+    :else          expr))
 
 ; define an intrinsical operator
 (define-intrinsic (intr-add a b)
   (cond
-    (number? a) (do
+    (const-number? a) (cond
+      (const-number? b) (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :push-imm (+ (const-eval a) (const-eval b)))
+      :else (do
+        (compile-expr CTX CODE-BUILDER BASIC-BLOCK b)
+        (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
+        (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add)))
+    :else (do
       (compile-expr CTX CODE-BUILDER BASIC-BLOCK b)
       (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
-      (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add))
-    :else (error {:err 'number-error :desc "not a number"})))
+      (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add))))
 
 ; define a Window macro
 (define-macro (Window title width height)

@@ -79,9 +79,14 @@ typedef enum GtkMl_Cmp {
 #define GTKML_IA_BIT_NAND 0x24
 #define GTKML_IA_BIT_NOR 0x25
 #define GTKML_IA_BIT_XNOR 0x26
+#define GTKML_IA_CAR 0x30
+#define GTKML_IA_CDR 0x31
 #define GTKML_IA_BIND 0x50
 #define GTKML_IA_DEFINE 0x51
 #define GTKML_IA_BIND_ARGS 0x52
+#define GTKML_IA_ENTER 0x5e
+#define GTKML_IA_LEAVE 0x5f
+#define GTKML_IA_TYPEOF 0xf0
 
 #define GTKML_II_PUSH_IMM 0x0
 #define GTKML_II_POP 0x1
@@ -145,9 +150,14 @@ typedef enum GtkMl_Cmp {
 #define GTKML_SIA_BIT_NAND "BIT_NAND"
 #define GTKML_SIA_BIT_NOR "BIT_NOR"
 #define GTKML_SIA_BIT_XNOR "BIT_XNOR"
+#define GTKML_SIA_CAR "CAR"
+#define GTKML_SIA_CDR "CDR"
 #define GTKML_SIA_BIND "BIND"
 #define GTKML_SIA_DEFINE "DEFINE"
 #define GTKML_SIA_BIND_ARGS "BIND_ARGS"
+#define GTKML_SIA_TYPEOF "TYPEOF"
+#define GTKML_SIA_ENTER "ENTER"
+#define GTKML_SIA_LEAVE "LEAVE"
 
 #define GTKML_SII_PUSH_IMM_EXTERN "PUSH_IMM EXTERN"
 #define GTKML_SII_PUSH_IMM "PUSH_IMM"
@@ -663,9 +673,19 @@ GTKML_PUBLIC gboolean gtk_ml_build_popf(GtkMl_Context *ctx, GtkMl_Builder *b, Gt
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_car(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_cdr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_bind(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_bind_args(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_enter(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_leave(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_typeof(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64);
 // builds a push in the chosen basic_block
