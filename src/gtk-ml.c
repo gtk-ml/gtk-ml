@@ -57,6 +57,7 @@ GTKML_PRIVATE GtkMl_S *new_true(GtkMl_Context *ctx, GtkMl_Span *span);
 GTKML_PRIVATE GtkMl_S *new_false(GtkMl_Context *ctx, GtkMl_Span *span);
 GTKML_PRIVATE GtkMl_S *new_int(GtkMl_Context *ctx, GtkMl_Span *span, int64_t value);
 GTKML_PRIVATE GtkMl_S *new_float(GtkMl_Context *ctx, GtkMl_Span *span, float value);
+GTKML_PRIVATE GtkMl_S *new_char(GtkMl_Context *ctx, GtkMl_Span *span, uint32_t value);
 GTKML_PRIVATE GtkMl_S *new_string(GtkMl_Context *ctx, GtkMl_Span *span, const char *ptr, size_t len);
 GTKML_PRIVATE GtkMl_S *new_symbol(GtkMl_Context *ctx, GtkMl_Span *span, gboolean owned, const char *ptr, size_t len);
 GTKML_PRIVATE GtkMl_S *new_keyword(GtkMl_Context *ctx, GtkMl_Span *span, gboolean owned, const char *ptr, size_t len);
@@ -372,7 +373,7 @@ GTKML_PRIVATE const char *TYPENAME[] = {
     [GTKML_S_TRUE] = "true",
     [GTKML_S_INT] = "int",
     [GTKML_S_FLOAT] = "float",
-    [GTKML_S_STRING] = "string",
+    [GTKML_S_CHAR] = "char",
     [GTKML_S_SYMBOL] = "symbol",
     [GTKML_S_KEYWORD] = "keyword",
     [GTKML_S_LIST] = "list",
@@ -657,12 +658,12 @@ gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *program,
 }
 
 GtkMl_S *gtk_ml_get_export(GtkMl_Context *ctx, GtkMl_S **err, const char *linkage_name) {
+    GtkMl_S *ext = new_string(ctx, NULL, linkage_name, strlen(linkage_name));
     for (size_t i = 0; i < ctx->vm->program.n_exec;) {
         GtkMl_Instruction instr = ctx->vm->program.exec[i];
         if (instr.gen.category == GTKML_EI_EXPORT) {
             GtkMl_S *program = ctx->vm->program.statics[ctx->vm->program.exec[i + 1].imm64];
-            const char *export = program->value.s_program.linkage_name;
-            if (strcmp(linkage_name, export) == 0) {
+            if (gtk_ml_equal(ext, program->value.s_program.linkage_name)) {
                 return program;
             }
         }
@@ -1118,27 +1119,26 @@ gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **err, GtkMl_Buil
                 *err = gtk_ml_error(ctx, "category-error", GTKML_ERR_CATEGORY_ERROR, 0, 0, 0, 0);
                 return 0;
             }
-            if (ext->kind != GTKML_S_STRING) {
+            if (ext->kind != GTKML_S_ARRAY) {
                 *err = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 0);
                 return 0;
             }
-            const char *bb1 = ext->value.s_string.ptr;
             gboolean found = 0;
 
             for (size_t l = 0; l < n;) {
                 GtkMl_Instruction instr = result[l];
                 if (instr.gen.category == GTKML_EI_EXPORT) {
                     GtkMl_S *addr = statics[result[l + 1].imm64];
-                    const char *bb2;
+                    GtkMl_S *exp;
                     if (addr->kind == GTKML_S_PROGRAM) {
-                        bb2 = addr->value.s_program.linkage_name;
+                        exp = addr->value.s_program.linkage_name;
                     } else if (addr->kind == GTKML_S_ADDRESS) {
-                        bb2 = addr->value.s_address.linkage_name;
+                        exp = addr->value.s_address.linkage_name;
                     } else {
                         *err = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 0);
                         return 0;
                     }
-                    if (strcmp(bb1, bb2) == 0) {
+                    if (gtk_ml_equal(ext, exp)) {
                         result[i].gen.category &= ~GTKML_EI_IMM_EXTERN;
                         if (result[i].gen.category & GTKML_I_EXTENDED) {
                             result[i + 1].imm64 = result[l + 1].imm64;
@@ -1673,10 +1673,23 @@ GTKML_PRIVATE GtkMl_S *new_float(GtkMl_Context *ctx, GtkMl_Span *span, float val
     return s;
 }
 
+GTKML_PRIVATE GtkMl_S *new_char(GtkMl_Context *ctx, GtkMl_Span *span, uint32_t value) {
+    GtkMl_S *s = new_value(ctx, span, GTKML_S_CHAR);
+    s->value.s_char.value = value;
+    return s;
+}
+
 GTKML_PRIVATE GtkMl_S *new_string(GtkMl_Context *ctx, GtkMl_Span *span, const char *ptr, size_t len) {
-    GtkMl_S *s = new_value(ctx, span, GTKML_S_STRING);
-    s->value.s_string.ptr = ptr;
-    s->value.s_string.len = len;
+    GtkMl_S *s = new_value(ctx, span, GTKML_S_ARRAY);
+    GtkMl_Array array;
+    gtk_ml_new_array(&array);
+    for (size_t i = 0; i < len; i++) {
+        GtkMl_Array new;
+        // TODO: unicode codepoints
+        gtk_ml_array_push(&new, &array, new_char(ctx, span, ptr[i]));
+        array = new;
+    }
+    s->value.s_array.array = array;
     return s;
 }
 
@@ -1762,7 +1775,7 @@ GTKML_PRIVATE GtkMl_S *new_lambda(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_S 
 
 GTKML_PRIVATE GtkMl_S *new_program(GtkMl_Context *ctx, GtkMl_Span *span, const char *linkage_name, uint64_t addr, GtkMl_S *args, GtkMl_S *body, GtkMl_S *capture, GtkMl_ProgramKind kind) {
     GtkMl_S *s = new_value(ctx, span, GTKML_S_PROGRAM);
-    s->value.s_program.linkage_name = linkage_name;
+    s->value.s_program.linkage_name = new_string(ctx, span, linkage_name, strlen(linkage_name));
     s->value.s_program.addr = addr;
     s->value.s_program.args = args;
     s->value.s_program.body = body;
@@ -1773,7 +1786,7 @@ GTKML_PRIVATE GtkMl_S *new_program(GtkMl_Context *ctx, GtkMl_Span *span, const c
 
 GTKML_PRIVATE GtkMl_S *new_address(GtkMl_Context *ctx, GtkMl_Span *span, const char *linkage_name, uint64_t addr) {
     GtkMl_S *s = new_value(ctx, span, GTKML_S_ADDRESS);
-    s->value.s_address.linkage_name = linkage_name;
+    s->value.s_address.linkage_name = new_string(ctx, span, linkage_name, strlen(linkage_name));
     s->value.s_address.addr = addr;
     return s;
 }
@@ -1798,6 +1811,23 @@ GTKML_PRIVATE GtkMl_S *new_userdata(GtkMl_Context *ctx, GtkMl_Span *span, void *
     s->value.s_userdata.del = del;
     s->value.s_userdata.keep = new_nil(ctx, span);
     return s;
+}
+
+GTKML_PRIVATE GtkMl_VisitResult array_to_c_str(GtkMl_Array *array, size_t idx, GtkMl_S *value, void *data) {
+    size_t len = gtk_ml_array_len(array);
+    char *c_str = data;
+    // for some reason we have to reverse it?
+    c_str[len - idx - 1] = value->value.s_char.value;
+    return GTKML_VISIT_RECURSE;
+}
+
+GTKML_PRIVATE char *to_c_str(GtkMl_S *string) {
+    GtkMl_Array *array = &string->value.s_array.array;
+    size_t len = gtk_ml_array_len(array);
+    char *c_str = malloc(len + 1);
+    gtk_ml_array_foreach(array, array_to_c_str, c_str);
+    c_str[len] = 0;
+    return c_str;
 }
 
 GTKML_PRIVATE void span_add(GtkMl_Span *dest, GtkMl_Span *lhs, GtkMl_Span *rhs) {
@@ -2181,10 +2211,7 @@ GTKML_PRIVATE GtkMl_S *parse_string(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Tok
         return NULL;
     }
     size_t len = (*tokenv)[0].span.len - 2;
-    char *ptr = malloc(len + 1);
-    memcpy(ptr, (*tokenv)[0].span.ptr + 1, len);
-    ptr[len] = 0;
-    GtkMl_S *result = new_string(ctx, &(*tokenv)[0].span, ptr, len);
+    GtkMl_S *result = new_string(ctx, &(*tokenv)[0].span, (*tokenv)[0].span.ptr + 1, len);
     ++*tokenv;
     --*tokenc;
     return result;
@@ -3329,7 +3356,7 @@ gboolean compile_cond_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
         return gtk_ml_build_setf_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, new_false(ctx, &(*stmt)->span)));
     case GTKML_S_INT:
     case GTKML_S_FLOAT:
-    case GTKML_S_STRING:
+    case GTKML_S_CHAR:
     case GTKML_S_KEYWORD:
     case GTKML_S_PROGRAM:
     case GTKML_S_ADDRESS:
@@ -3500,7 +3527,7 @@ gboolean compile_quasi_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
     case GTKML_S_FALSE:
     case GTKML_S_INT:
     case GTKML_S_FLOAT:
-    case GTKML_S_STRING:
+    case GTKML_S_CHAR:
     case GTKML_S_KEYWORD:
     case GTKML_S_PROGRAM:
     case GTKML_S_ADDRESS:
@@ -3622,7 +3649,7 @@ gboolean compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     case GTKML_S_FALSE:
     case GTKML_S_INT:
     case GTKML_S_FLOAT:
-    case GTKML_S_STRING:
+    case GTKML_S_CHAR:
     case GTKML_S_KEYWORD:
     case GTKML_S_PROGRAM:
     case GTKML_S_ADDRESS:
@@ -5764,7 +5791,7 @@ GTKML_PRIVATE void mark_value(GtkMl_S *s) {
     case GTKML_S_FALSE:
     case GTKML_S_INT:
     case GTKML_S_FLOAT:
-    case GTKML_S_STRING:
+    case GTKML_S_CHAR:
     case GTKML_S_KEYWORD:
     case GTKML_S_SYMBOL:
     case GTKML_S_ADDRESS:
@@ -5845,12 +5872,8 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_FALSE:
     case GTKML_S_INT:
     case GTKML_S_FLOAT:
-    case GTKML_S_ADDRESS:
+    case GTKML_S_CHAR:
     case GTKML_S_LIGHTDATA:
-        break;
-    case GTKML_S_STRING:
-        // const cast required
-        free((void *) s->value.s_string.ptr);
         break;
     case GTKML_S_KEYWORD:
         if (s->value.s_keyword.owned) {
@@ -5893,8 +5916,11 @@ GTKML_PRIVATE void delete(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_UNQUOTE:
         delete(ctx, s->value.s_unquote.expr);
         break;
+    case GTKML_S_ADDRESS:
+        delete(ctx, s->value.s_address.linkage_name);
+        break;
     case GTKML_S_PROGRAM:
-        free((void *) s->value.s_program.linkage_name);
+        delete(ctx, s->value.s_program.linkage_name);
         delete(ctx, s->value.s_program.args);
         delete(ctx, s->value.s_program.capture);
         break;
@@ -5920,6 +5946,7 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_FALSE:
     case GTKML_S_INT:
     case GTKML_S_FLOAT:
+    case GTKML_S_CHAR:
     case GTKML_S_LIGHTDATA:
     case GTKML_S_LIST:
     case GTKML_S_VAR:
@@ -5929,6 +5956,7 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_UNQUOTE:
     case GTKML_S_LAMBDA:
     case GTKML_S_ADDRESS:
+    case GTKML_S_PROGRAM:
     case GTKML_S_MACRO:
         break;
     case GTKML_S_MAP:
@@ -5940,10 +5968,6 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
     case GTKML_S_ARRAY:
         gtk_ml_del_array(ctx, &s->value.s_array.array, gtk_ml_delete_value_reference);
         break;
-    case GTKML_S_STRING:
-        // const cast required
-        free((void *) s->value.s_string.ptr);
-        break;
     case GTKML_S_KEYWORD:
         if (s->value.s_keyword.owned) {
             free((void *) s->value.s_keyword.ptr);
@@ -5953,9 +5977,6 @@ GTKML_PRIVATE void del(GtkMl_Context *ctx, GtkMl_S *s) {
         if (s->value.s_symbol.owned) {
             free((void *) s->value.s_symbol.ptr);
         }
-        break;
-    case GTKML_S_PROGRAM:
-        free((void *) s->value.s_program.linkage_name);
         break;
     case GTKML_S_USERDATA:
         s->value.s_userdata.del(ctx, s->value.s_userdata.userdata);
@@ -6071,8 +6092,8 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
     case GTKML_S_FLOAT:
         fprintf(stream, "%f", expr->value.s_float.value);
         return 1;
-    case GTKML_S_STRING:
-        fprintf(stream, "\"%.*s\"", (int) expr->value.s_string.len, expr->value.s_string.ptr);
+    case GTKML_S_CHAR:
+        fprintf(stream, "\\%c", expr->value.s_char.value);
         return 1;
     case GTKML_S_KEYWORD:
         fprintf(stream, ":%.*s", (int) expr->value.s_keyword.len, expr->value.s_keyword.ptr);
@@ -6153,13 +6174,19 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
     case GTKML_S_PROGRAM:
         switch (expr->value.s_program.kind) {
         case GTKML_PROG_INTRINSIC:
-            fprintf(stream, "(program-intrinsic \"%s\" 0x%lx ", expr->value.s_program.linkage_name, expr->value.s_program.addr);
+            fprintf(stream, "(program-intrinsic ");
+            gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.linkage_name);
+            fprintf(stream, "0x%lx ", expr->value.s_program.addr);
             break;
         case GTKML_PROG_MACRO:
-            fprintf(stream, "(program-macro \"%s\" 0x%lx ", expr->value.s_program.linkage_name, expr->value.s_program.addr);
+            fprintf(stream, "(program-macro ");
+            gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.linkage_name);
+            fprintf(stream, "0x%lx ", expr->value.s_program.addr);
             break;
         case GTKML_PROG_RUNTIME:
-            fprintf(stream, "(program \"%s\" 0x%lx ", expr->value.s_program.linkage_name, expr->value.s_program.addr);
+            fprintf(stream, "(program ");
+            gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.linkage_name);
+            fprintf(stream, "0x%lx ", expr->value.s_program.addr);
             break;
         }
         if (!gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.args)) {
@@ -6341,7 +6368,9 @@ GTKML_PRIVATE GtkMl_S *vm_std_application(GtkMl_Context *ctx, GtkMl_S **err, Gtk
     GtkMl_S *application = gtk_ml_pop(ctx);
     (void) application;
 
-    GtkApplication *app = gtk_application_new(id_expr->value.s_string.ptr, flags_expr->value.s_int.value);
+    char *id = to_c_str(id_expr);
+    GtkApplication *app = gtk_application_new(id, flags_expr->value.s_int.value);
+    free(id);
     GtkMl_S *app_expr = new_userdata(ctx, &expr->span, app, gtk_ml_object_unref);
 
     GtkMl_S *activate = map_find(map_expr, new_keyword(ctx, NULL, 0, "activate", strlen("activate")));
@@ -6366,7 +6395,9 @@ GTKML_PRIVATE GtkMl_S *vm_std_new_window(GtkMl_Context *ctx, GtkMl_S **err, GtkM
     (void) new_window;
 
     GtkWidget *window = gtk_application_window_new(app_expr->value.s_userdata.userdata);
-    gtk_window_set_title(GTK_WINDOW(window), title_expr->value.s_string.ptr);
+    char *title = to_c_str(title_expr);
+    gtk_window_set_title(GTK_WINDOW(window), title);
+    free(title);
     gtk_window_set_default_size(GTK_WINDOW(window), width_expr->value.s_int.value, height_expr->value.s_int.value);
     gtk_widget_show_all(window);
 
@@ -6649,8 +6680,8 @@ gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs) {
         return lhs->value.s_int.value == rhs->value.s_int.value;
     case GTKML_S_FLOAT:
         return lhs->value.s_float.value == rhs->value.s_float.value;
-    case GTKML_S_STRING:
-        return lhs->value.s_string.len == rhs->value.s_string.len && memcmp(lhs->value.s_string.ptr, rhs->value.s_string.ptr, lhs->value.s_string.len) == 0;
+    case GTKML_S_CHAR:
+        return lhs->value.s_char.value == rhs->value.s_char.value;
     case GTKML_S_KEYWORD:
         return lhs->value.s_keyword.len == rhs->value.s_keyword.len && memcmp(lhs->value.s_keyword.ptr, rhs->value.s_keyword.ptr, lhs->value.s_keyword.len) == 0;
     case GTKML_S_SYMBOL:
@@ -6777,8 +6808,8 @@ gboolean default_hash_update(GtkMl_Hash *hash, void *ptr) {
         break;
     case GTKML_S_FLOAT:
         return 0;
-    case GTKML_S_STRING:
-        jenkins_update(hash, value->value.s_string.ptr, value->value.s_string.len);
+    case GTKML_S_CHAR:
+        jenkins_update(hash, &value->value.s_char.value, sizeof(uint32_t));
         break;
     case GTKML_S_SYMBOL:
         jenkins_update(hash, value->value.s_symbol.ptr, value->value.s_symbol.len);
@@ -6825,7 +6856,7 @@ gboolean default_hash_update(GtkMl_Hash *hash, void *ptr) {
         default_hash_update(hash, value->value.s_lambda.capture);
         break;
     case GTKML_S_PROGRAM:
-        jenkins_update(hash, value->value.s_program.linkage_name, strlen(value->value.s_program.linkage_name));
+        default_hash_update(hash, value->value.s_program.linkage_name);
         jenkins_update(hash, &value->value.s_program.addr, sizeof(uint64_t));
         default_hash_update(hash, value->value.s_program.args);
         default_hash_update(hash, value->value.s_program.body);
@@ -6949,7 +6980,7 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
 
                 if (export->kind == GTKML_S_PROGRAM) {
                     GtkMl_S *new = new_array(ctx, NULL);
-                    gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_symbol(ctx, NULL, 0, export->value.s_program.linkage_name, strlen(export->value.s_program.linkage_name)));
+                    gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_program.linkage_name);
                     program = new;
 
                     new = new_array(ctx, NULL);
@@ -6957,6 +6988,10 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
                     program = new;
                 } else if (export->kind == GTKML_S_ADDRESS) {
                     GtkMl_S *new = new_array(ctx, NULL);
+                    gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_address.linkage_name);
+                    program = new;
+
+                    new = new_array(ctx, NULL);
                     gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_int(ctx, NULL, export->value.s_address.addr));
                     program = new;
                 }
@@ -6993,7 +7028,7 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
 
             if (export->kind == GTKML_S_PROGRAM) {
                 GtkMl_S *new = new_array(ctx, NULL);
-                gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_symbol(ctx, NULL, 0, export->value.s_program.linkage_name, strlen(export->value.s_program.linkage_name)));
+                gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_program.linkage_name);
                 program = new;
 
                 new = new_array(ctx, NULL);
@@ -7001,6 +7036,10 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
                 program = new;
             } else if (export->kind == GTKML_S_ADDRESS) {
                 GtkMl_S *new = new_array(ctx, NULL);
+                gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_address.linkage_name);
+                program = new;
+
+                new = new_array(ctx, NULL);
                 gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_int(ctx, NULL, export->value.s_address.addr));
                 program = new;
             }
@@ -8695,12 +8734,9 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
     case GTKML_S_FLOAT:
         fwrite(&value->value.s_float.value, sizeof(double), 1, stream);
         break;
-    case GTKML_S_STRING: {
-        uint64_t len = value->value.s_string.len;
-        fwrite(&len, sizeof(uint64_t), 1, stream);
-        fwrite(value->value.s_string.ptr, 1, len + 1, stream);
+    case GTKML_S_CHAR:
+        fwrite(&value->value.s_char.value, sizeof(uint32_t), 1, stream);
         break;
-    }
     case GTKML_S_KEYWORD: {
         uint64_t len = value->value.s_keyword.len;
         fwrite(&len, sizeof(uint64_t), 1, stream);
@@ -8714,9 +8750,9 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
         break;
     }
     case GTKML_S_PROGRAM: {
-        uint64_t len = strlen(value->value.s_program.linkage_name);
-        fwrite(&len, sizeof(uint64_t), 1, stream);
-        fwrite(value->value.s_program.linkage_name, 1, len + 1, stream);
+        if (!gtk_ml_serf_value(serf, ctx, stream, err, value->value.s_program.linkage_name)) {
+            return 0;
+        }
         fwrite(&value->value.s_program.addr, sizeof(uint64_t), 1, stream);
         if (!gtk_ml_serf_value(serf, ctx, stream, err, value->value.s_program.args)) {
             return 0;
@@ -8875,16 +8911,9 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
     case GTKML_S_FLOAT:
         fread(&result->value.s_float.value, sizeof(double), 1, stream);
         break;
-    case GTKML_S_STRING: {
-        uint64_t len;
-        fread(&len, sizeof(uint64_t), 1, stream);
-        char *ptr = malloc(len + 1);
-        fread(ptr, 1, len + 1, stream);
-        ptr[len] = 0;
-        result->value.s_string.ptr = ptr;
-        result->value.s_string.len = len;
+    case GTKML_S_CHAR:
+        fread(&result->value.s_char.value, sizeof(uint32_t), 1, stream);
         break;
-    }
     case GTKML_S_SYMBOL: {
         uint64_t len;
         fread(&len, sizeof(uint64_t), 1, stream);
@@ -9048,11 +9077,11 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         break;
     }
     case GTKML_S_PROGRAM: {
-        uint64_t len;
-        fread(&len, sizeof(uint64_t), 1, stream);
-        char *ptr = malloc(len + 1);
-        fread(ptr, 1, len + 1, stream);
-        result->value.s_program.linkage_name = ptr;
+        GtkMl_S *linkage_name = gtk_ml_deserf_value(deserf, ctx, stream, err);
+        if (!linkage_name) {
+            return NULL;
+        }
+        result->value.s_program.linkage_name = linkage_name;
         uint64_t addr;
         fread(&addr, sizeof(uint64_t), 1, stream);
         result->value.s_program.addr = addr;

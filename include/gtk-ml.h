@@ -291,6 +291,7 @@ typedef enum GtkMl_TokenKind {
     GTKML_TOK_CURLYR,
     GTKML_TOK_INT,
     GTKML_TOK_FLOAT,
+    GTKML_TOK_CHAR,
     GTKML_TOK_STRING,
     GTKML_TOK_IDENT,
     GTKML_TOK_KEYWORD,
@@ -353,7 +354,7 @@ typedef enum GtkMl_SKind {
     GTKML_S_TRUE,
     GTKML_S_INT,
     GTKML_S_FLOAT,
-    GTKML_S_STRING,
+    GTKML_S_CHAR,
     GTKML_S_SYMBOL,
     GTKML_S_KEYWORD,
     GTKML_S_LIST,
@@ -383,11 +384,10 @@ typedef struct GtkMl_SFloat {
     double value;
 } GtkMl_SFloat;
 
-// a string like "x", "42", "hello world!"
-typedef struct GtkMl_SString {
-    const char *ptr; // heap allocated
-    size_t len;
-} GtkMl_SString;
+// a character like \x, \4, \newline, \space, \x30, \u0030
+typedef struct GtkMl_SChar {
+    uint32_t value;
+} GtkMl_SChar;
 
 // a regular symbol like x, forty-two, +, if
 typedef struct GtkMl_SSymbol {
@@ -460,7 +460,7 @@ typedef enum GtkMl_ProgramKind {
 
 // a compiled closure
 typedef struct GtkMl_SProgram {
-    const char *linkage_name;
+    GtkMl_S *linkage_name;
     uint64_t addr;
     GtkMl_S *args;
     GtkMl_S *body;
@@ -470,7 +470,7 @@ typedef struct GtkMl_SProgram {
 
 // a compiled closure
 typedef struct GtkMl_SAddress {
-    const char *linkage_name;
+    GtkMl_S *linkage_name;
     uint64_t addr;
 } GtkMl_SAddress;
 
@@ -494,7 +494,7 @@ typedef struct GtkMl_SUserdata {
 typedef union GtkMl_SUnion {
     GtkMl_SInt s_int;
     GtkMl_SFloat s_float;
-    GtkMl_SString s_string;
+    GtkMl_SChar s_char;
     GtkMl_SSymbol s_symbol;
     GtkMl_SKeyword s_keyword;
     GtkMl_SList s_list;
