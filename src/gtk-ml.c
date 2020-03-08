@@ -6790,6 +6790,68 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
         s_loc = new_loc;
     }
 
+    GtkMl_S *s_stacktrace = NULL;
+    if (ctx->vm->program.exec) {
+        s_stacktrace = new_array(ctx, NULL);
+        for (size_t i = 0; i < ctx->vm->call_stack_ptr; i++) {
+            GtkMl_S *program = new_nil(ctx, NULL);
+            size_t call_at = ctx->vm->call_stack[i];
+            int64_t ptr = call_at;
+            while (ptr >= 0) {
+                GtkMl_Instruction instr = ctx->vm->program.exec[ptr >> 3];
+                if (instr.gen.category == GTKML_EI_EXPORT) {
+                    GtkMl_S *export = ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64];
+
+                    program = new_array(ctx, NULL);
+
+                    GtkMl_S *new = new_array(ctx, NULL);
+                    gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_symbol(ctx, NULL, 0, export->value.s_program.linkage_name, strlen(export->value.s_program.linkage_name)));
+                    program = new;
+
+                    new = new_array(ctx, NULL);
+                    gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_int(ctx, NULL, export->value.s_program.addr));
+                    program = new;
+
+                    new = new_array(ctx, NULL);
+                    gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_int(ctx, NULL, call_at));
+                    program = new;
+                }
+                ptr -= 8;
+            }
+            GtkMl_S *new = new_array(ctx, NULL);
+            gtk_ml_array_push(&new->value.s_array.array, &s_stacktrace->value.s_array.array, program);
+            s_stacktrace = new;
+        }
+
+        GtkMl_S *program = new_nil(ctx, NULL);
+        size_t call_at = ctx->vm->reg[GTKML_R_PC].pc;
+        int64_t ptr = call_at;
+        while (ptr >= 0) {
+            GtkMl_Instruction instr = ctx->vm->program.exec[ptr >> 3];
+            if (instr.gen.category == GTKML_EI_EXPORT) {
+                GtkMl_S *export = ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64];
+
+                program = new_array(ctx, NULL);
+
+                GtkMl_S *new = new_array(ctx, NULL);
+                gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_symbol(ctx, NULL, 0, export->value.s_program.linkage_name, strlen(export->value.s_program.linkage_name)));
+                program = new;
+
+                new = new_array(ctx, NULL);
+                gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_int(ctx, NULL, export->value.s_program.addr));
+                program = new;
+
+                new = new_array(ctx, NULL);
+                gtk_ml_array_push(&new->value.s_array.array, &program->value.s_array.array, new_int(ctx, NULL, call_at));
+                program = new;
+            }
+            ptr -= 8;
+        }
+        GtkMl_S *new = new_array(ctx, NULL);
+        gtk_ml_array_push(&new->value.s_array.array, &s_stacktrace->value.s_array.array, program);
+        s_stacktrace = new;
+    }
+
     GtkMl_S *error = new_map(ctx, NULL, NULL);
 
     GtkMl_S *new = new_map(ctx, NULL, NULL);
@@ -6803,6 +6865,12 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
     new = new_map(ctx, NULL, NULL);
     gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(ctx, NULL, 0, "loc", 3), s_loc);
     error = new;
+
+    if (s_stacktrace) {
+        new = new_map(ctx, NULL, NULL);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, new_keyword(ctx, NULL, 0, "stacktrace", 10), s_stacktrace);
+        error = new;
+    }
 
     va_list args;
     va_start(args, n);
