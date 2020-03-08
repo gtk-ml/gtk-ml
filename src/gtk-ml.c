@@ -627,8 +627,7 @@ gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *program,
     if (params->kind == GTKML_S_LIST) {
         GtkMl_S *param = gtk_ml_car(params);
         if (param->kind == GTKML_S_VARARG) {
-            *err = gtk_ml_error(ctx, "unimplemented", GTKML_ERR_UNIMPLEMENTED, 0, 0, 0, 0);
-            return 0;
+            gtk_ml_push(ctx, args);
         } else {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
@@ -7470,9 +7469,26 @@ gboolean gtk_ml_ia_bind_args(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction inst
     GtkMl_S *revkeys = gtk_ml_pop(vm->ctx);
     size_t n = gtk_ml_pop(vm->ctx)->value.s_int.value;
 
-    for (size_t i = 0; i < n; i++) {
-        GtkMl_S *value = gtk_ml_pop(vm->ctx);
-        gtk_ml_bind(vm->ctx, gtk_ml_car(revkeys), value);
+    GtkMl_S *_revkeys = revkeys;
+    size_t n_params = 0;
+    while (revkeys->kind != GTKML_S_NIL) {
+        ++n_params;
+        revkeys = gtk_ml_cdr(revkeys);
+    }
+    revkeys = _revkeys;
+
+    for (size_t i = 0; i < n_params; i++) {
+        GtkMl_S *key = gtk_ml_car(revkeys);
+        if (key->kind == GTKML_S_VARARG) {
+            GtkMl_S *rest = new_nil(vm->ctx, NULL);
+            for (size_t j = 0; j < n - (n_params - 1); j++) {
+                rest = new_list(vm->ctx, NULL, gtk_ml_pop(vm->ctx), rest);
+            }
+            gtk_ml_bind(vm->ctx, key->value.s_vararg.expr, rest);
+        } else {
+            GtkMl_S *value = gtk_ml_pop(vm->ctx);
+            gtk_ml_bind(vm->ctx, key, value);
+        }
         revkeys = gtk_ml_cdr(revkeys);
     }
 
