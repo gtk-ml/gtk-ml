@@ -11,6 +11,7 @@
 
 ; returns true if expression is a non-empty list
 (define (list? expr) (= (typeof expr) :list))
+(define (nil? expr) (= (typeof expr) :nil))
 
 ; returns true if expression is a constant number or an expression that evaluates to a constant number
 (define (const-number? expr)
@@ -45,17 +46,26 @@
       (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
       (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add))))
 
+(define (sum a ...rest)
+  (cond
+    (nil? rest) a
+    :else       (+ a (sum (car rest) ...(cdr rest)))))
+
 ; define a Window macro
-(define-macro (Window title width height)
+(define-macro (Window title width height ...body)
   `(lambda (app)
-    (new-window app ,title ,width ,height)))
+    (new-window app ,title ,width ,height)
+    ,...body))
 
 ; run the application
 (Application "de.walterpi.example" flags-none {
   :activate (Window
+    ;; title
     "gtk-ml example"
+    ;; width
     (cond
       #f          (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
       (cmp 0 1 2) (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
-      :else       640)
+      :else       (sum 160 160 160 160))
+    ;; height
     (do 0 (intr-add 240 240)))})
