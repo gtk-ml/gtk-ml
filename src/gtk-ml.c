@@ -627,7 +627,11 @@ gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *program,
     if (params->kind == GTKML_S_LIST) {
         GtkMl_S *param = gtk_ml_car(params);
         if (param->kind == GTKML_S_VARARG) {
-            gtk_ml_push(ctx, args);
+            while (args->kind != GTKML_S_NIL) {
+                gtk_ml_push(ctx, args);
+                args = gtk_ml_cdr(args);
+                ++n_args;
+            }
         } else {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
