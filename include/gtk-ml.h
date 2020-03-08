@@ -36,6 +36,8 @@
 #define GTKML_STD_APPLICATION 0x0
 #define GTKML_STD_NEW_WINDOW 0x1
 #define GTKML_STD_ERROR 0x2
+#define GTKML_STD_COMPILE_EXPR 0x100
+#define GTKML_STD_EMIT_BYTECODE 0x101
 
 #define GTKML_I_ARITH 0x1
 #define GTKML_I_IMM 0x2
@@ -194,6 +196,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_ARGUMENT_ERROR "invalid arguments"
 #define GTKML_ERR_TYPE_ERROR "invalid type for expression"
 #define GTKML_ERR_CMP_ERROR "invalid comparison enum"
+#define GTKML_ERR_BYTECODE_ERROR "unrecognized bytecode keyword"
 #define GTKML_ERR_BOOLEAN_ERROR "expected a boolean expression"
 #define GTKML_ERR_ARITY_ERROR "invalid argument count"
 #define GTKML_ERR_BINDING_ERROR "binding not found"
@@ -228,6 +231,12 @@ typedef struct GtkMl_Builder GtkMl_Builder;
 typedef union GtkMl_Register GtkMl_Register;
 typedef uint64_t GtkMl_Static;
 typedef uint32_t GtkMl_Hash;
+
+typedef enum GtkMl_Stage {
+    GTKML_STAGE_INTR,
+    GTKML_STAGE_MACRO,
+    GTKML_STAGE_RUNTIME,
+} GtkMl_Stage;
 
 // a lexical analysis level token tag
 typedef enum GtkMl_TokenKind {
@@ -519,11 +528,12 @@ typedef struct GtkMl_BasicBlock {
     size_t cap_exec;
 } GtkMl_BasicBlock;
 
-typedef gboolean (*GtkMl_BuilderFn)(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+typedef gboolean (*GtkMl_BuilderFn)(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 
 typedef struct GtkMl_BuilderMacro {
     const char *name;
     GtkMl_BuilderFn fn;
+    gboolean require_intrinsic;
     gboolean require_macro;
     gboolean require_runtime;
 } GtkMl_BuilderMacro;
@@ -540,12 +550,18 @@ struct GtkMl_Builder {
     unsigned int counter;
     unsigned int flags;
 
+    GtkMl_Context *intr_ctx;
+    GtkMl_Vm *intr_vm;
+
     GtkMl_Context *macro_ctx;
     GtkMl_Vm *macro_vm;
 
     GtkMl_BuilderMacro *builders;
     size_t len_builder;
     size_t cap_builder;
+
+    GtkMl_HashSet intr_fns;
+    GtkMl_HashSet macro_fns;
 };
 
 union GtkMl_Register {
@@ -703,10 +719,10 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_loadf(GtkMl_Context *ctx, char **src, GtkMl_S **err
 // loads an expression from a string
 GTKML_PUBLIC GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, GtkMl_S **err, const char *src);
 
-// do a macro pass on the selected lambda expression
-GTKML_PUBLIC gboolean gtk_ml_macro_pass(GtkMl_Builder *b, GtkMl_S **err, GtkMl_S *lambda);
 // compile a lambda expression to bytecode
-GTKML_PUBLIC gboolean gtk_ml_compile_macros(GtkMl_Builder *b, GtkMl_S **err, GtkMl_S *macro);
+GTKML_PUBLIC gboolean gtk_ml_compile_intrinsics(GtkMl_Builder *b, GtkMl_BasicBlock **start, GtkMl_S **err, GtkMl_S *intrinsic);
+// compile a lambda expression to bytecode
+GTKML_PUBLIC gboolean gtk_ml_compile_macros(GtkMl_Builder *b, GtkMl_BasicBlock **start, GtkMl_S **err, GtkMl_S *macro);
 // compile a lambda expression to bytecode
 GTKML_PUBLIC gboolean gtk_ml_compile(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **err, GtkMl_S *lambda);
 // compile a lambda expression to bytecode with expanding macros
