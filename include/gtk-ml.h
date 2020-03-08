@@ -447,6 +447,12 @@ typedef struct GtkMl_SLambda {
     GtkMl_S *capture;
 } GtkMl_SLambda;
 
+typedef enum GtkMl_ProgramKind {
+    GTKML_PROG_INTRINSIC,
+    GTKML_PROG_MACRO,
+    GTKML_PROG_RUNTIME,
+} GtkMl_ProgramKind;
+
 // a compiled closure
 typedef struct GtkMl_SProgram {
     const char *linkage_name;
@@ -454,6 +460,7 @@ typedef struct GtkMl_SProgram {
     GtkMl_S *args;
     GtkMl_S *body;
     GtkMl_S *capture;
+    GtkMl_ProgramKind kind;
 } GtkMl_SProgram;
 
 // a compiled closure
