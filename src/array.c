@@ -1,4 +1,6 @@
+#define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
+#include "gtk-ml-internal.h"
 
 #define GTKML_A_BITS 5
 #define GTKML_A_SIZE (1 << GTKML_A_BITS)
@@ -41,21 +43,21 @@ GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *nod
 GTKML_PRIVATE gboolean equal(GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs);
 GTKML_PRIVATE GtkMl_VisitResult fn_contains(GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
 
-void gtk_ml_new_array(GtkMl_Array *array) {
+void gtk_ml_new_array_trie(GtkMl_Array *array) {
     array->root = NULL;
     array->len = 0;
 }
 
-void gtk_ml_del_array(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
+void gtk_ml_del_array_trie(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
     del_node(ctx, array->root, deleter);
 }
 
-void gtk_ml_array_copy(GtkMl_Array *out, GtkMl_Array *array) {
+void gtk_ml_array_trie_copy(GtkMl_Array *out, GtkMl_Array *array) {
     out->root = copy_node(array->root);
     out->len = array->len;
 }
 
-size_t gtk_ml_array_len(GtkMl_Array *array) {
+size_t gtk_ml_array_trie_len(GtkMl_Array *array) {
     return array->len;
 }
 
@@ -66,20 +68,20 @@ GTKML_PRIVATE GtkMl_VisitResult fn_concat(GtkMl_Array *ht, size_t index, GtkMl_S
     GtkMl_Array *dest = data;
 
     GtkMl_Array new;
-    gtk_ml_array_push(&new, dest, value);
+    gtk_ml_array_trie_push(&new, dest, value);
     *dest = new;
     
     return GTKML_VISIT_RECURSE;
 }
 
-void gtk_ml_array_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs) {
+void gtk_ml_array_trie_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs) {
     out->root = copy_node(lhs->root);
     out->len = lhs->len;
 
-    gtk_ml_array_foreach(rhs, fn_concat, out);
+    gtk_ml_array_trie_foreach(rhs, fn_concat, out);
 }
 
-void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value) {
+void gtk_ml_array_trie_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value) {
     out->root = NULL;
     out->len = array->len + 1;
 
@@ -99,11 +101,11 @@ void gtk_ml_array_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value) {
     }
 }
 
-GtkMl_S *gtk_ml_array_pop(GtkMl_Array *out, GtkMl_Array *array) {
-    return gtk_ml_array_delete(out, array, array->len - 1);
+GtkMl_S *gtk_ml_array_trie_pop(GtkMl_Array *out, GtkMl_Array *array) {
+    return gtk_ml_array_trie_delete(out, array, array->len - 1);
 }
 
-GtkMl_S *gtk_ml_array_get(GtkMl_Array *array, size_t index) {
+GtkMl_S *gtk_ml_array_trie_get(GtkMl_Array *array, size_t index) {
     return get(array->root, index);
 }
 
@@ -113,7 +115,7 @@ struct ContainsData {
     size_t index;
 };
 
-gboolean gtk_ml_array_contains(GtkMl_Array *array, size_t *index, GtkMl_S *value) {
+gboolean gtk_ml_array_trie_contains(GtkMl_Array *array, size_t *index, GtkMl_S *value) {
     struct ContainsData contains = { value, 0, 0 };
     foreach(array, array->root, 0, fn_contains, &contains);
     if (contains.contains) {
@@ -122,7 +124,7 @@ gboolean gtk_ml_array_contains(GtkMl_Array *array, size_t *index, GtkMl_S *value
     return contains.contains;
 }
 
-GtkMl_S *gtk_ml_array_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index) {
+GtkMl_S *gtk_ml_array_trie_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index) {
     out->root = NULL;
     out->len = array->len - 1;
 
@@ -136,11 +138,11 @@ GtkMl_S *gtk_ml_array_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index)
     return result;
 }
 
-void gtk_ml_array_foreach(GtkMl_Array *array, GtkMl_ArrayFn fn, void *data) {
+void gtk_ml_array_trie_foreach(GtkMl_Array *array, GtkMl_ArrayFn fn, void *data) {
     foreach(array, array->root, 0, fn, data);
 }
 
-gboolean gtk_ml_array_equal(GtkMl_Array *lhs, GtkMl_Array *rhs) {
+gboolean gtk_ml_array_trie_equal(GtkMl_Array *lhs, GtkMl_Array *rhs) {
     if (lhs->len != rhs->len) {
         return 0;
     }
