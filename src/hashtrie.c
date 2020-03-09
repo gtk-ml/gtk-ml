@@ -1,4 +1,6 @@
+#define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
+#include "gtk-ml-internal.h"
 
 #define GTKML_H_BITS 5
 #define GTKML_H_SIZE (1 << GTKML_H_BITS)
