@@ -14,6 +14,8 @@
 
 #define GTKML_PRIVATE static
 
+#define GTKML_VERSION "libgtkml ver. 0.0.0"
+
 #define GTKML_FLAG_NONE 0x0
 #define GTKML_FLAG_REACHABLE 0x1
 #define GTKML_FLAG_DELETE 0x2
@@ -933,6 +935,7 @@ GTKML_PUBLIC gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *r
 GTKML_PUBLIC void gtk_ml_new_array_trie(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_del_array_trie(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PUBLIC void gtk_ml_array_trie_copy(GtkMl_Array *out, GtkMl_Array *array);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_is_string(GtkMl_Array *array);
 GTKML_PUBLIC size_t gtk_ml_array_trie_len(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_array_trie_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs);
 GTKML_PUBLIC void gtk_ml_array_trie_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value);
@@ -942,6 +945,12 @@ GTKML_PUBLIC gboolean gtk_ml_array_trie_contains(GtkMl_Array *array, size_t *ind
 GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index);
 GTKML_PUBLIC void gtk_ml_array_trie_foreach(GtkMl_Array *ht, GtkMl_ArrayFn fn, void *data);
 GTKML_PUBLIC gboolean gtk_ml_array_trie_equal(GtkMl_Array *lhs, GtkMl_Array *rhs);
+
+/* miscelaneous */
+
+GTKML_PUBLIC void gtk_ml_delete_value_reference(GtkMl_Context *ctx, GtkMl_S *value);
+GTKML_PUBLIC void gtk_ml_delete_void_reference(GtkMl_Context *ctx, void *);
+GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
 
 #endif /* ifndef GTK_ML_H */
 

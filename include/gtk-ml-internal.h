@@ -210,12 +210,6 @@ GTKML_PUBLIC gboolean gtk_ml_compile_macros(GtkMl_Builder *b, GtkMl_BasicBlock *
 // compile a lambda expression to bytecode
 GTKML_PUBLIC gboolean gtk_ml_compile(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **err, GtkMl_S *lambda);
 
-/* miscelaneous */
-
-GTKML_PUBLIC void gtk_ml_delete_value_reference(GtkMl_Context *ctx, GtkMl_S *value);
-GTKML_PUBLIC void gtk_ml_delete_void_reference(GtkMl_Context *ctx, void *);
-GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
-
 #endif /* ifndef GTK_ML_INTERNAL_H */
 
 // vim: set ft=c :

@@ -584,7 +584,15 @@ gboolean gtk_ml_ia_typeof(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) 
     (void) err;
     (void) instr;
     GtkMl_S *value = gtk_ml_pop(vm->ctx);
-    gtk_ml_push(vm->ctx, gtk_ml_new_keyword(vm->ctx, NULL, 0, TYPENAME[value->kind], strlen(TYPENAME[value->kind])));
+    if (value->kind == GTKML_S_ARRAY) {
+        if (gtk_ml_array_trie_is_string(&value->value.s_array.array)) {
+            gtk_ml_push(vm->ctx, gtk_ml_new_keyword(vm->ctx, NULL, 0, "string", strlen("string")));
+        } else {
+            gtk_ml_push(vm->ctx, gtk_ml_new_keyword(vm->ctx, NULL, 0, TYPENAME[value->kind], strlen(TYPENAME[value->kind])));
+        }
+    } else {
+        gtk_ml_push(vm->ctx, gtk_ml_new_keyword(vm->ctx, NULL, 0, TYPENAME[value->kind], strlen(TYPENAME[value->kind])));
+    }
     PC_INCREMENT;
     return 1;
 }

@@ -57,6 +57,26 @@ void gtk_ml_array_trie_copy(GtkMl_Array *out, GtkMl_Array *array) {
     out->len = array->len;
 }
 
+GTKML_PRIVATE GtkMl_VisitResult is_string(GtkMl_Array *ht, size_t index, GtkMl_S *value, void *data) {
+    (void) ht;
+    (void) index;
+
+    gboolean *is_string = data;
+
+    if (value->kind != GTKML_S_CHAR) {
+        *is_string = 0;
+        return GTKML_VISIT_BREAK;
+    }
+
+    return GTKML_VISIT_RECURSE;
+}
+
+gboolean gtk_ml_array_trie_is_string(GtkMl_Array *array) {
+    gboolean is = 1;
+    gtk_ml_array_trie_foreach(array, is_string, &is);
+    return is;
+}
+
 size_t gtk_ml_array_trie_len(GtkMl_Array *array) {
     return array->len;
 }
@@ -70,7 +90,7 @@ GTKML_PRIVATE GtkMl_VisitResult fn_concat(GtkMl_Array *ht, size_t index, GtkMl_S
     GtkMl_Array new;
     gtk_ml_array_trie_push(&new, dest, value);
     *dest = new;
-    
+
     return GTKML_VISIT_RECURSE;
 }
 

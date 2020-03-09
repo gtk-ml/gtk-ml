@@ -2188,7 +2188,6 @@ gboolean gtk_ml_compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **
     }
     gtk_ml_load_program(b->intr_ctx, &intrinsics);
     gtk_ml_del_program(&intrinsics);
-    gtk_ml_dumpf_program(b->intr_ctx, stdout, NULL);
     GtkMl_S *intr_program = gtk_ml_get_export(b->intr_ctx, err, "_start");
     if (!intr_program) {
         return 0;

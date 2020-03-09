@@ -8,7 +8,9 @@ CC=clang
 INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
-TEST_HELLO=$(BINDIR)/hello 
+GTKMLI=$(BINDIR)/gtkmli
+TEST_HELLO=$(BINDIR)/hello
+BINARIES=$(GTKMLI)
 TESTS=$(TEST_HELLO)
 OBJ=$(OBJDIR)/gtk-ml.c.o $(OBJDIR)/value.c.o $(OBJDIR)/builder.c.o \
 	$(OBJDIR)/lex.c.o $(OBJDIR)/parse.c.o $(OBJDIR)/code-gen.c.o \
@@ -19,11 +21,13 @@ CFLAGS:=-O0 -g -Wall -Wextra -Werror -pedantic -fPIC -std=c11 -pthread $(shell p
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
 INCLUDE:=-I$(INCDIR)
 
-.PHONY: default all test install clean
+.PHONY: default all build test install clean
 
 default: all
 
-all: $(TARGET) $(TESTS) compile_commands.json
+all: $(TARGET) $(BINARIES) $(TESTS) compile_commands.json
+
+build: $(BINARIES)
 
 test: $(TESTS)
 
@@ -43,6 +47,9 @@ compile_commands.json: $(OBJ) $(DBDIR)
 $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIB)
 
+$(GTKMLI): src/gtkmli.c $(TARGET)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
+
 $(TEST_HELLO): test/hello.c $(TARGET)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
 
@@ -52,7 +59,7 @@ $(OBJDIR): $(BINDIR)
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-$(DBDIR): 
+$(DBDIR):
 	mkdir -p $(DBDIR)
 
 clean:

@@ -322,10 +322,10 @@ void gtk_ml_del_program(GtkMl_Program* program) {
 }
 
 GTKML_PRIVATE GtkMl_VisitResult array_to_c_str(GtkMl_Array *array, size_t idx, GtkMl_S *value, void *data) {
-    size_t len = gtk_ml_array_trie_len(array);
+    (void) array;
+
     char *c_str = data;
-    // for some reason we have to reverse it?
-    c_str[len - idx - 1] = value->value.s_char.value;
+    c_str[idx] = value->value.s_char.value;
     return GTKML_VISIT_RECURSE;
 }
 
@@ -481,15 +481,15 @@ gboolean default_hash_update(GtkMl_Hash *hash, void *ptr) {
         } while (value->kind != GTKML_S_NIL);
         break;
     case GTKML_S_MAP: {
-        struct HashData data = { hash, default_hash_update }; 
+        struct HashData data = { hash, default_hash_update };
         gtk_ml_hash_trie_foreach(&value->value.s_map.map, hash_trie_update, &data);
     } break;
     case GTKML_S_SET: {
-        struct HashData data = { hash, default_hash_update }; 
+        struct HashData data = { hash, default_hash_update };
         gtk_ml_hash_set_foreach(&value->value.s_set.set, hash_set_update, &data);
     } break;
     case GTKML_S_ARRAY: {
-        struct HashData data = { hash, default_hash_update }; 
+        struct HashData data = { hash, default_hash_update };
         gtk_ml_array_trie_foreach(&value->value.s_array.array, array_update, &data);
     } break;
     case GTKML_S_VAR:
@@ -890,6 +890,16 @@ GTKML_PRIVATE GtkMl_VisitResult dumpf_array(GtkMl_Array *array, size_t idx, GtkM
     return GTKML_VISIT_RECURSE;
 }
 
+GTKML_PRIVATE GtkMl_VisitResult dumpf_string(GtkMl_Array *array, size_t idx, GtkMl_S *key, void *data) {
+    (void) array;
+    (void) idx;
+    (void) data;
+
+    fprintf(data, "%c", key->value.s_char.value);
+
+    return GTKML_VISIT_RECURSE;
+}
+
 gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *expr) {
     switch (expr->kind) {
     case GTKML_S_NIL:
@@ -929,24 +939,31 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
         return 1;
     case GTKML_S_MAP: {
         fprintf(stream, "{");
-        struct DumpfData data = { ctx, stream, err, 0 }; 
+        struct DumpfData data = { ctx, stream, err, 0 };
         gtk_ml_hash_trie_foreach(&expr->value.s_map.map, dumpf_hash_trie, &data);
         fprintf(stream, "}");
         return 1;
     }
     case GTKML_S_SET: {
         fprintf(stream, "#{");
-        struct DumpfData data = { ctx, stream, err, 0 }; 
+        struct DumpfData data = { ctx, stream, err, 0 };
         gtk_ml_hash_set_foreach(&expr->value.s_set.set, dumpf_hash_set, &data);
         fprintf(stream, "}");
         return 1;
     }
     case GTKML_S_ARRAY: {
-        fprintf(stream, "[");
-        struct DumpfData data = { ctx, stream, err, 0 }; 
-        gtk_ml_array_trie_foreach(&expr->value.s_array.array, dumpf_array, &data);
-        fprintf(stream, "]");
-        return 1;
+        if (gtk_ml_array_trie_len(&expr->value.s_array.array) > 0 && gtk_ml_array_trie_is_string(&expr->value.s_array.array)) {
+            fprintf(stream, "\"");
+            gtk_ml_array_trie_foreach(&expr->value.s_array.array, dumpf_string, stream);
+            fprintf(stream, "\"");
+            return 1;
+        } else {
+            fprintf(stream, "[");
+            struct DumpfData data = { ctx, stream, err, 0 };
+            gtk_ml_array_trie_foreach(&expr->value.s_array.array, dumpf_array, &data);
+            fprintf(stream, "]");
+            return 1;
+        }
     }
     case GTKML_S_VAR:
         fprintf(stream, "(var ");
@@ -1112,7 +1129,7 @@ gboolean gtk_ml_dumpf_program(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err) {
         } else {
             fprintf(stream, "INVALID %lx\n", instr.instr);
         }
-        
+
         if (instr.gen.category & GTKML_I_EXTENDED) {
             pc += 2;
         } else {
