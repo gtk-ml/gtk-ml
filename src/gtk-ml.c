@@ -1,9 +1,13 @@
 #include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
 #include <errno.h>
 #ifdef GTKML_ENABLE_POSIX
 #include <sys/ptrace.h>
 #endif /* GTKML_ENABLE_POSIX */
+#ifdef GTKML_ENABLE_GTK
 #include <gtk/gtk.h>
+#endif /* GTKML_ENABLE_GTK */
 #include <math.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
@@ -204,7 +208,9 @@ GtkMl_Context *gtk_ml_new_context() {
     ctx->bindings = gtk_ml_new_list(ctx, NULL, gtk_ml_new_map(ctx, NULL, NULL), gtk_ml_new_nil(ctx, NULL));
     ctx->top_scope = &gtk_ml_car(ctx->bindings);
 
+#ifdef GTKML_ENABLE_GTK
     gtk_ml_define(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "flags-none", 10), gtk_ml_new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE));
+#endif /* GTKML_ENABLE_GTK */
     gtk_ml_define(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-none", 9), gtk_ml_new_int(ctx, NULL, GTKML_F_NONE));
 
     ctx->parser.readers = malloc(sizeof(GtkMl_Reader) * 64);
@@ -1149,10 +1155,12 @@ void gtk_ml_delete_value(GtkMl_Context *ctx, void *s) {
     gtk_ml_delete(ctx, s);
 }
 
+#ifdef GTKML_ENABLE_GTK
 void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj) {
     (void) ctx;
     g_object_unref(obj);
 }
+#endif /* GTKML_ENABLE_GTK */
 
 #ifdef GTKML_ENABLE_POSIX
 struct DumpfDebugData {
@@ -1249,7 +1257,7 @@ gboolean gtk_ml_dumpf_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, Gtk
         fprintf(stream, "#f");
         return 1;
     case GTKML_S_INT:
-        fprintf(stream, "%ld", expr->value.s_int.value);
+        fprintf(stream, "%"GTKML_FMT_64"d", expr->value.s_int.value);
         return 1;
     case GTKML_S_FLOAT:
         fprintf(stream, "%f", expr->value.s_float.value);
@@ -1369,17 +1377,17 @@ gboolean gtk_ml_dumpf_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, Gtk
         case GTKML_PROG_INTRINSIC:
             fprintf(stream, "(program-intrinsic ");
             gtk_ml_dumpf_debug(ctx, stream, err, expr->value.s_program.linkage_name);
-            fprintf(stream, " 0x%lx ", expr->value.s_program.addr);
+            fprintf(stream, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
             break;
         case GTKML_PROG_MACRO:
             fprintf(stream, "(program-macro ");
             gtk_ml_dumpf_debug(ctx, stream, err, expr->value.s_program.linkage_name);
-            fprintf(stream, " 0x%lx ", expr->value.s_program.addr);
+            fprintf(stream, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
             break;
         case GTKML_PROG_RUNTIME:
             fprintf(stream, "(program ");
             gtk_ml_dumpf_debug(ctx, stream, err, expr->value.s_program.linkage_name);
-            fprintf(stream, " 0x%lx ", expr->value.s_program.addr);
+            fprintf(stream, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
             break;
         }
         if (!gtk_ml_dumpf_debug(ctx, stream, err, expr->value.s_program.args)) {
@@ -1408,7 +1416,7 @@ gboolean gtk_ml_dumpf_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, Gtk
         return 1;
     }
     case GTKML_S_ADDRESS:
-        fprintf(stream, "(address 0x%lx)", expr->value.s_address.addr);
+        fprintf(stream, "(address 0x%"GTKML_FMT_64"x)", expr->value.s_address.addr);
         return 1;
     case GTKML_S_MACRO: {
         fprintf(stream, "(macro ");
@@ -1515,7 +1523,7 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
         fprintf(stream, "#f");
         return 1;
     case GTKML_S_INT:
-        fprintf(stream, "%ld", expr->value.s_int.value);
+        fprintf(stream, "%"GTKML_FMT_64"d", expr->value.s_int.value);
         return 1;
     case GTKML_S_FLOAT:
         fprintf(stream, "%f", expr->value.s_float.value);
@@ -1611,17 +1619,17 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
         case GTKML_PROG_INTRINSIC:
             fprintf(stream, "(program-intrinsic ");
             gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.linkage_name);
-            fprintf(stream, " 0x%lx ", expr->value.s_program.addr);
+            fprintf(stream, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
             break;
         case GTKML_PROG_MACRO:
             fprintf(stream, "(program-macro ");
             gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.linkage_name);
-            fprintf(stream, " 0x%lx ", expr->value.s_program.addr);
+            fprintf(stream, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
             break;
         case GTKML_PROG_RUNTIME:
             fprintf(stream, "(program ");
             gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.linkage_name);
-            fprintf(stream, " 0x%lx ", expr->value.s_program.addr);
+            fprintf(stream, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
             break;
         }
         if (!gtk_ml_dumpf(ctx, stream, err, expr->value.s_program.args)) {
@@ -1641,7 +1649,7 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
         fprintf(stream, ")");
         return 1;
     case GTKML_S_ADDRESS:
-        fprintf(stream, "(address 0x%lx)", expr->value.s_address.addr);
+        fprintf(stream, "(address 0x%"GTKML_FMT_64"x)", expr->value.s_address.addr);
         return 1;
     case GTKML_S_MACRO: {
         fprintf(stream, "(macro ");
@@ -1679,13 +1687,294 @@ char *gtk_ml_dumpsn(GtkMl_Context *ctx, char *ptr, size_t n, GtkMl_S **err, GtkM
     return NULL;
 }
 
-char *gtk_ml_dumpsnr(GtkMl_Context *ctx, char *ptr, size_t n, GtkMl_S **err, GtkMl_S *expr) {
-    (void) ctx;
-    (void) ptr;
-    (void) n;
-    (void) err;
-    (void) expr;
-    return NULL;
+#define rprintf(buffer, fmt, ...) \
+    do { \
+        size_t cap = 1024; \
+        char *_buf; \
+        while (1) { \
+            _buf = malloc(cap); \
+            size_t n = snprintf(_buf, cap, fmt, __VA_ARGS__); \
+            if (n == cap - 1) { \
+                cap *= 2; \
+                free(_buf); \
+            } \
+            break; \
+        } \
+        buffer = _buf; \
+    } while (0)
+
+#define rprint(buffer, fmt) \
+    do { \
+        size_t cap = 1024; \
+        char *_buf; \
+        while (1) { \
+            _buf = malloc(cap); \
+            size_t n = snprintf(_buf, cap, fmt); \
+            if (n == cap - 1) { \
+                cap *= 2; \
+                free(_buf); \
+            } \
+            break; \
+        } \
+        buffer = _buf; \
+    } while (0)
+
+#define snrprintf_at(buffer, at, size, fmt, ...) \
+    do { \
+        char *buf; \
+        rprintf(buf, fmt, __VA_ARGS__);\
+        if (strlen(buf) >= size - at) { \
+            size += strlen(buf) + 1; \
+            buffer = realloc(buffer, size); \
+        } \
+        strcpy(buffer + at, buf); \
+        at += strlen(buf); \
+        free(buf); \
+    } while (0)
+
+#define snrprint_at(buffer, at, size, fmt) \
+    do { \
+        char *buf; \
+        rprint(buf, fmt);\
+        if (strlen(buf) >= size - at) { \
+            size += strlen(buf) + 1; \
+            buffer = realloc(buffer, size); \
+        } \
+        strcpy(buffer + at, buf); \
+        at += strlen(buf); \
+        free(buf); \
+    } while (0)
+
+struct DumpsnrData {
+    GtkMl_Context *ctx;
+    char *buffer;
+    size_t *offset;
+    size_t size;
+    GtkMl_S **err;
+    size_t n;
+};
+
+GTKML_PRIVATE GtkMl_VisitResult dumpsnr_hash_trie(GtkMl_HashTrie *ht, void *key, void *value, void *_data) {
+    struct DumpsnrData *data = _data;
+
+    gtk_ml_dumpsnr_internal(data->ctx, data->buffer, data->offset, data->size, data->err, key);
+    snrprint_at(data->buffer, *data->offset, data->size, " ");
+    gtk_ml_dumpsnr_internal(data->ctx, data->buffer, data->offset, data->size, data->err, value);
+    ++data->n;
+    if (data->n < gtk_ml_hash_trie_len(ht)) {
+        snrprint_at(data->buffer, *data->offset, data->size, " ");
+    }
+
+    return GTKML_VISIT_RECURSE;
+}
+
+GTKML_PRIVATE GtkMl_VisitResult dumpsnr_hash_set(GtkMl_HashSet *hs, void *key, void *_data) {
+    struct DumpsnrData *data = _data;
+
+    gtk_ml_dumpsnr_internal(data->ctx, data->buffer, data->offset, data->size, data->err, key);
+    ++data->n;
+    if (data->n < gtk_ml_hash_set_len(hs)) {
+        snrprint_at(data->buffer, *data->offset, data->size, " ");
+    }
+
+    return GTKML_VISIT_RECURSE;
+}
+
+GTKML_PRIVATE GtkMl_VisitResult dumpsnr_array(GtkMl_Array *array, size_t idx, GtkMl_S *key, void *_data) {
+    (void) idx;
+
+    struct DumpsnrData *data = _data;
+
+    gtk_ml_dumpsnr_internal(data->ctx, data->buffer, data->offset, data->size, data->err, key);
+    ++data->n;
+    if (data->n < gtk_ml_array_trie_len(array)) {
+        snrprint_at(data->buffer, *data->offset, data->size, " ");
+    }
+
+    return GTKML_VISIT_RECURSE;
+}
+
+GTKML_PRIVATE GtkMl_VisitResult dumpsnr_string(GtkMl_Array *array, size_t idx, GtkMl_S *key, void *_data) {
+    (void) array;
+    (void) idx;
+
+    struct DumpsnrData *data = _data;
+    snrprintf_at(data->buffer, *data->offset, data->size, "%c", key->value.s_char.value);
+
+    return GTKML_VISIT_RECURSE;
+}
+
+char *gtk_ml_dumpsnr_internal(GtkMl_Context *ctx, char *buffer, size_t *offset, size_t size, GtkMl_S **err, GtkMl_S *expr) {
+    switch (expr->kind) {
+    case GTKML_S_NIL:
+        snrprint_at(buffer, *offset, size, "#nil");
+        return buffer;
+    case GTKML_S_TRUE:
+        snrprint_at(buffer, *offset, size, "#t");
+        return buffer;
+    case GTKML_S_FALSE:
+        snrprint_at(buffer, *offset, size, "#f");
+        return buffer;
+    case GTKML_S_INT:
+        snrprintf_at(buffer, *offset, size, "%"GTKML_FMT_64"d", expr->value.s_int.value);
+        return buffer;
+    case GTKML_S_FLOAT:
+        snrprintf_at(buffer, *offset, size, "%f", expr->value.s_float.value);
+        return buffer;
+    case GTKML_S_CHAR:
+        snrprintf_at(buffer, *offset, size, "\\%c", expr->value.s_char.value);
+        return buffer;
+    case GTKML_S_KEYWORD:
+        snrprintf_at(buffer, *offset, size, ":%.*s", (int) expr->value.s_keyword.len, expr->value.s_keyword.ptr);
+        return buffer;
+    case GTKML_S_SYMBOL:
+        snrprintf_at(buffer, *offset, size, "'%.*s", (int) expr->value.s_symbol.len, expr->value.s_symbol.ptr);
+        return buffer;
+    case GTKML_S_LIST:
+        snrprint_at(buffer, *offset, size, "(");
+        while (expr->kind != GTKML_S_NIL) {
+            gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, gtk_ml_car(expr));
+            expr = gtk_ml_cdr(expr);
+            if (expr->kind != GTKML_S_NIL) {
+                snrprint_at(buffer, *offset, size, " ");
+            }
+        }
+        snrprint_at(buffer, *offset, size, ")");
+        return buffer;
+    case GTKML_S_MAP: {
+        snrprint_at(buffer, *offset, size, "{");
+        struct DumpsnrData data = { ctx, buffer, offset, size, err, 0 };
+        gtk_ml_hash_trie_foreach(&expr->value.s_map.map, dumpsnr_hash_trie, &data);
+        snrprint_at(buffer, *offset, size, "}");
+        return buffer;
+    }
+    case GTKML_S_SET: {
+        snrprint_at(buffer, *offset, size, "#{");
+        struct DumpsnrData data = { ctx, buffer, offset, size, err, 0 };
+        gtk_ml_hash_set_foreach(&expr->value.s_set.set, dumpsnr_hash_set, &data);
+        snrprint_at(buffer, *offset, size, "}");
+        return buffer;
+    }
+    case GTKML_S_ARRAY: {
+        if (gtk_ml_array_trie_len(&expr->value.s_array.array) > 0 && gtk_ml_array_trie_is_string(&expr->value.s_array.array)) {
+            snrprint_at(buffer, *offset, size, "\"");
+            struct DumpsnrData data = { ctx, buffer, offset, size, err, 0 };
+            gtk_ml_array_trie_foreach(&expr->value.s_array.array, dumpsnr_string, &data);
+            snrprint_at(buffer, *offset, size, "\"");
+            return buffer;
+        } else {
+            snrprint_at(buffer, *offset, size, "[");
+            struct DumpsnrData data = { ctx, buffer, offset, size, err, 0 };
+            gtk_ml_array_trie_foreach(&expr->value.s_array.array, dumpsnr_array, &data);
+            snrprint_at(buffer, *offset, size, "]");
+            return buffer;
+        }
+    }
+    case GTKML_S_VAR:
+        snrprint_at(buffer, *offset, size, "(var ");
+        if (!gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_vararg.expr)) {
+            return NULL;
+        }
+        snrprint_at(buffer, *offset, size, ")");
+        return buffer;
+    case GTKML_S_VARARG:
+        snrprint_at(buffer, *offset, size, "...");
+        return gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_vararg.expr);
+    case GTKML_S_QUOTE:
+        snrprint_at(buffer, *offset, size, "'");
+        return gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_vararg.expr);
+    case GTKML_S_QUASIQUOTE:
+        snrprint_at(buffer, *offset, size, "`");
+        return gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_vararg.expr);
+    case GTKML_S_UNQUOTE:
+        snrprint_at(buffer, *offset, size, ",");
+        return gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_vararg.expr);
+    case GTKML_S_LAMBDA: {
+        snrprint_at(buffer, *offset, size, "(lambda ");
+        if (!gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_lambda.args)) {
+            return NULL;
+        }
+        snrprint_at(buffer, *offset, size, " ");
+        GtkMl_S *body = expr->value.s_lambda.body;
+        while (body->kind != GTKML_S_NIL) {
+            if (!gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, gtk_ml_car(body))) {
+                return NULL;
+            }
+            body = gtk_ml_cdr(body);
+            if (body->kind != GTKML_S_NIL) {
+                snrprint_at(buffer, *offset, size, " ");
+            }
+        }
+        snrprint_at(buffer, *offset, size, ")");
+        return buffer;
+    }
+    case GTKML_S_PROGRAM:
+        switch (expr->value.s_program.kind) {
+        case GTKML_PROG_INTRINSIC:
+            snrprint_at(buffer, *offset, size, "(program-intrinsic ");
+            gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_program.linkage_name);
+            snrprintf_at(buffer, *offset, size, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
+            break;
+        case GTKML_PROG_MACRO:
+            snrprint_at(buffer, *offset, size, "(program-macro ");
+            gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_program.linkage_name);
+            snrprintf_at(buffer, *offset, size, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
+            break;
+        case GTKML_PROG_RUNTIME:
+            snrprint_at(buffer, *offset, size, "(program ");
+            gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_program.linkage_name);
+            snrprintf_at(buffer, *offset, size, " 0x%"GTKML_FMT_64"x ", expr->value.s_program.addr);
+            break;
+        }
+        if (!gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_program.args)) {
+            return NULL;
+        }
+        snrprint_at(buffer, *offset, size, " ");
+        GtkMl_S *body = expr->value.s_program.body;
+        while (body->kind != GTKML_S_NIL) {
+            if (!gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, gtk_ml_car(body))) {
+                return NULL;
+            }
+            body = gtk_ml_cdr(body);
+            if (body->kind != GTKML_S_NIL) {
+                snrprint_at(buffer, *offset, size, " ");
+            }
+        }
+        snrprint_at(buffer, *offset, size, ")");
+        return buffer;
+    case GTKML_S_ADDRESS:
+        snrprintf_at(buffer, *offset, size, "(address 0x%"GTKML_FMT_64"x)", expr->value.s_address.addr);
+        return buffer;
+    case GTKML_S_MACRO: {
+        snrprint_at(buffer, *offset, size, "(macro ");
+        gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr->value.s_macro.args);
+        snrprint_at(buffer, *offset, size, " ");
+        GtkMl_S *body = expr->value.s_macro.body;
+        while (body->kind != GTKML_S_NIL) {
+            gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, gtk_ml_car(body));
+            body = gtk_ml_cdr(body);
+            if (body->kind != GTKML_S_NIL) {
+                snrprint_at(buffer, *offset, size, " ");
+            }
+        }
+        snrprint_at(buffer, *offset, size, ")");
+        return buffer;
+    }
+    case GTKML_S_LIGHTDATA:
+        snrprintf_at(buffer, *offset, size, "%p", expr->value.s_lightdata.userdata);
+        return buffer;
+    case GTKML_S_USERDATA:
+        snrprintf_at(buffer, *offset, size, "%p", expr->value.s_lightdata.userdata);
+        return buffer;
+    default:
+        *err = gtk_ml_error(ctx, "invalid-sexpr", GTKML_ERR_INVALID_SEXPR, expr->span.ptr != NULL, expr->span.line, expr->span.col, 1, gtk_ml_new_keyword(ctx, NULL, 0, "kind", strlen("kind")), gtk_ml_new_int(ctx, NULL, expr->kind));
+        return NULL;
+    }
+}
+
+char *gtk_ml_dumpsnr(GtkMl_Context *ctx, char *buffer, size_t size, GtkMl_S **err, GtkMl_S *expr) {
+    size_t offset = 0;
+    return gtk_ml_dumpsnr_internal(ctx, buffer, &offset, size, err, expr);
 }
 
 GTKML_PRIVATE gboolean gtk_ml_dumpf_program_internal(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, gboolean line, gboolean debug) {
@@ -1722,7 +2011,7 @@ GTKML_PRIVATE gboolean gtk_ml_dumpf_program_internal(GtkMl_Context *ctx, FILE *s
                 fprintf(stream, "%u, %u, %u", instr.imm.rd, instr.imm.rs, instr.imm.imm);
                 break;
             case GTKML_I_BR:
-                fprintf(stream, "%lu", instr.br.imm);
+                fprintf(stream, "%"GTKML_FMT_64"u", instr.br.imm);
                 break;
             case GTKML_EI_IMM:
             case GTKML_EI_IMM | GTKML_EI_IMM_EXTERN:
@@ -1732,19 +2021,19 @@ GTKML_PRIVATE gboolean gtk_ml_dumpf_program_internal(GtkMl_Context *ctx, FILE *s
                 break;
             }
             if (instr.gen.category & GTKML_I_EXTENDED) {
-                fprintf(stream, "%lu", ctx->vm->program.exec[pc + 1].imm64);
+                fprintf(stream, "%"GTKML_FMT_64"u", ctx->vm->program.exec[pc + 1].imm64);
             }
             fprintf(stream, "\n");
         } else if (instr.gen.category == GTKML_EI_EXPORT) {
             if (instr.imm.imm & GTKML_EI_EXPORT_FLAG_LOCAL) {
-                fprintf(stream, "EXPORT LOCAL %lu\n", ctx->vm->program.exec[pc + 1].imm64);
+                fprintf(stream, "EXPORT LOCAL %"GTKML_FMT_64"u\n", ctx->vm->program.exec[pc + 1].imm64);
             } else {
-                fprintf(stream, "EXPORT %lu\n", ctx->vm->program.exec[pc + 1].imm64);
+                fprintf(stream, "EXPORT %"GTKML_FMT_64"u\n", ctx->vm->program.exec[pc + 1].imm64);
             }
         } else if (instr.gen.category & GTKML_I_EXTENDED) {
-            fprintf(stream, "INVALID %lx %lu\n", instr.instr, ctx->vm->program.exec[pc + 1].imm64);
+            fprintf(stream, "INVALID %"GTKML_FMT_64"x %"GTKML_FMT_64"u\n", instr.instr, ctx->vm->program.exec[pc + 1].imm64);
         } else {
-            fprintf(stream, "INVALID %lx\n", instr.instr);
+            fprintf(stream, "INVALID %"GTKML_FMT_64"x\n", instr.instr);
         }
 
         if (instr.gen.category & GTKML_I_EXTENDED) {
@@ -1825,7 +2114,7 @@ GTKML_PRIVATE gboolean gtk_ml_dumpf_program_debug_internal(GtkMl_Context *ctx, F
                 fprintf(stream, "%u, %u, %u", instr.imm.rd, instr.imm.rs, instr.imm.imm);
                 break;
             case GTKML_I_BR:
-                fprintf(stream, "%lu", instr.br.imm);
+                fprintf(stream, "%"GTKML_FMT_64"u", instr.br.imm);
                 break;
             case GTKML_EI_IMM:
             case GTKML_EI_IMM | GTKML_EI_IMM_EXTERN:
@@ -1839,7 +2128,7 @@ GTKML_PRIVATE gboolean gtk_ml_dumpf_program_debug_internal(GtkMl_Context *ctx, F
                 if (*err) {
                     return 0;
                 }
-                fprintf(stream, "%lu", imm64);
+                fprintf(stream, "%"GTKML_FMT_64"u", imm64);
             }
             fprintf(stream, "\n");
         } else if (instr.gen.category == GTKML_EI_EXPORT) {
@@ -1848,22 +2137,22 @@ GTKML_PRIVATE gboolean gtk_ml_dumpf_program_debug_internal(GtkMl_Context *ctx, F
                 if (*err) {
                     return 0;
                 }
-                fprintf(stream, "EXPORT LOCAL %lu\n", imm64);
+                fprintf(stream, "EXPORT LOCAL %"GTKML_FMT_64"u\n", imm64);
             } else {
                 uint64_t imm64 = gtk_ml_dbg_read_u64(ctx, err, &text[pc + 1]);
                 if (*err) {
                     return 0;
                 }
-                fprintf(stream, "EXPORT %lu\n", imm64);
+                fprintf(stream, "EXPORT %"GTKML_FMT_64"u\n", imm64);
             }
         } else if (instr.gen.category & GTKML_I_EXTENDED) {
             uint64_t imm64 = gtk_ml_dbg_read_u64(ctx, err, &text[pc + 1]);
             if (*err) {
                 return 0;
             }
-            fprintf(stream, "INVALID %lx %lu\n", instr.instr, imm64);
+            fprintf(stream, "INVALID %"GTKML_FMT_64"x %"GTKML_FMT_64"u\n", instr.instr, imm64);
         } else {
-            fprintf(stream, "INVALID %lx\n", instr.instr);
+            fprintf(stream, "INVALID %"GTKML_FMT_64"x\n", instr.instr);
         }
 
         if (instr.gen.category & GTKML_I_EXTENDED) {
@@ -2009,10 +2298,10 @@ gboolean gtk_ml_backtracef_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err
                 }
                 if (export->kind == GTKML_S_PROGRAM) {
                     gtk_ml_dumpf_debug(ctx, stream, err, export->value.s_program.linkage_name);
-                    fprintf(stream, " 0x%08lx 0x%08lx\n", export->value.s_program.addr, call_at);
+                    fprintf(stream, " 0x%08"GTKML_FMT_64"x 0x%08"GTKML_FMT_64"x\n", export->value.s_program.addr, call_at);
                 } else if (export->kind == GTKML_S_ADDRESS) {
                     gtk_ml_dumpf_debug(ctx, stream, err, export->value.s_address.linkage_name);
-                    fprintf(stream, " 0x%08lx 0x%08lx\n", export->value.s_address.addr, call_at);
+                    fprintf(stream, " 0x%08"GTKML_FMT_64"x 0x%08"GTKML_FMT_64"x\n", export->value.s_address.addr, call_at);
                 }
             } else {
                 fprintf(stream, " #nil\n");
@@ -2064,10 +2353,10 @@ gboolean gtk_ml_backtracef_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err
             }
             if (export->kind == GTKML_S_PROGRAM) {
                 gtk_ml_dumpf_debug(ctx, stream, err, export->value.s_program.linkage_name);
-                fprintf(stream, " 0x%08lx 0x%08lx", export->value.s_program.addr, call_at);
+                fprintf(stream, " 0x%08"GTKML_FMT_64"x 0x%08"GTKML_FMT_64"x", export->value.s_program.addr, call_at);
             } else if (export->kind == GTKML_S_ADDRESS) {
                 gtk_ml_dumpf_debug(ctx, stream, err, export->value.s_address.linkage_name);
-                fprintf(stream, " 0x%08lx 0x%08lx", export->value.s_address.addr, call_at);
+                fprintf(stream, " 0x%08"GTKML_FMT_64"x 0x%08"GTKML_FMT_64"x", export->value.s_address.addr, call_at);
             }
         } else {
             fprintf(stream, " #nil");
@@ -2098,6 +2387,7 @@ char *gtk_ml_dumpsnr_program(GtkMl_Context *ctx, char *ptr, size_t n, GtkMl_S **
     return NULL;
 }
 
+#ifdef GTKML_ENABLE_ASM
 void gtk_ml_breakpoint(GtkMl_Context *ctx) {
     gtk_ml_breakpoint_internal(ctx, ctx->enable_breakpoint);
 }
@@ -2107,6 +2397,7 @@ void gtk_ml_breakpoint_internal(GtkMl_Context *ctx, gboolean enable) {
         __asm__ volatile ( "int $3" : : "a" (ctx) :);
     }
 }
+#endif /* GTKML_ENABLE_ASM */
 
 #ifdef GTKML_ENABLE_POSIX
 uint64_t gtk_ml_dbg_read_memory(GtkMl_Context *ctx, GtkMl_S **err, const void *addr) {

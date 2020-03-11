@@ -4,13 +4,46 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
+#ifdef GTKML_ENABLE_GTK
 #include <gtk/gtk.h>
+#else
+typedef int gboolean;
+#endif /* GTKML_ENABLE_GTK */
 
 #ifdef __cplusplus
 #define GTKML_PUBLIC extern "C"
 #else
 #define GTKML_PUBLIC extern
 #endif
+
+#ifndef GTKML_INTWIDTH_DEFINED
+
+#if defined(__LONG_WIDTH__)
+#define GTKML_LONG_WIDTH __LONG_WIDTH__
+#elif defined(LONG_WIDTH)
+#define GTKML_LONG_WIDTH LONG_WIDTH
+#else
+#define GTKML_LONG_WIDTH 32
+#endif /* defined(__LONG_WIDTH__) */
+
+#if defined(__LONG_LONG_WIDTH__)
+#define GTKML_LLONG_WIDTH __LONG_LONG_WIDTH__
+#elif defined(LLONG_WIDTH)
+#define GTKML_LLONG_WIDTH LLONG_WIDTH
+#else
+#define GTKML_LLONG_WIDTH 64
+#endif /* defined(__LONG_LONG_WIDTH__) */
+
+#endif /* GTKML_INTWIDTH_DEFINED */
+
+#if GTKML_LONG_WIDTH == 64
+#define GTKML_FMT_64 "l"
+#elif GTKML_LLONG_WIDTH == 64
+#define GTKML_FMT_64 "ll"
+#else
+#error "gtk-ml: i don't know a type that's 64-bit long"
+#endif /* GTKML_LONG_WIDTH == 64 */
 
 #define GTKML_PRIVATE static
 
@@ -23,8 +56,8 @@
 #define GTKML_GC_COUNT_THRESHOLD 1024
 #define GTKML_GC_STEP_THRESHOLD 256
 
-#define GTKML_VM_STACK 16 * 1024 * 1024
-#define GTKML_VM_CALL_STACK 16 * 1024 * 1024
+#define GTKML_VM_STACK (GTKML_STACK_SIZE)
+#define GTKML_VM_CALL_STACK (GTKML_STACK_SIZE)
 
 #define GTKML_F_TOPCALL 0x20
 #define GTKML_F_HALT 0x10
@@ -35,8 +68,10 @@
 #define GTKML_F_NONE 0x0
 #define GTKML_F_GENERIC (GTKML_F_ZERO | GTKML_F_SIGN | GTKML_F_OVERFLOW | GTKML_F_CARRY)
 
+#ifdef GTKML_ENABLE_GTK
 #define GTKML_STD_APPLICATION 0x0
 #define GTKML_STD_NEW_WINDOW 0x1
+#endif /* GTKML_ENABLE_GTK */
 #define GTKML_STD_ERROR 0x2
 #define GTKML_STD_COMPILE_EXPR 0x100
 #define GTKML_STD_EMIT_BYTECODE 0x101
@@ -534,35 +569,35 @@ typedef struct GtkMl_S {
 } GtkMl_S;
 
 typedef struct GtkMl_InstrGen {
-    unsigned long cond : 4;
-    unsigned long category : 4;
-    unsigned long _pad : 56;
+    uint64_t cond : 4;
+    uint64_t category : 4;
+    uint64_t _pad : 56;
 } GtkMl_InstrGen;
 
 typedef struct GtkMl_InstrArith {
-    unsigned long cond : 4;
-    unsigned long category : 4; // must be 0001
-    unsigned long opcode : 8;
-    unsigned long rd : 8;
-    unsigned long rs : 8;
-    unsigned long ra : 8;
-    unsigned long _pad : 24;
+    uint64_t cond : 4;
+    uint64_t category : 4; // must be 0001
+    uint64_t opcode : 8;
+    uint64_t rd : 8;
+    uint64_t rs : 8;
+    uint64_t ra : 8;
+    uint64_t _pad : 24;
 } GtkMl_InstrArith;
 
 typedef struct GtkMl_InstrImm {
-    unsigned long cond : 4;
-    unsigned long category : 4; // must be 0010 or 1010
-    unsigned long opcode : 8;
-    unsigned long rd : 8;
-    unsigned long rs : 8;
-    unsigned long imm : 32;
+    uint64_t cond : 4;
+    uint64_t category : 4; // must be 0010 or 1010
+    uint64_t opcode : 8;
+    uint64_t rd : 8;
+    uint64_t rs : 8;
+    uint64_t imm : 32;
 } GtkMl_InstrImm;
 
 typedef struct GtkMl_InstrBr {
-    unsigned long cond : 4;
-    unsigned long category : 4; // must be 0011 or 1011
-    unsigned long opcode : 8;
-    unsigned long imm : 48;
+    uint64_t cond : 4;
+    uint64_t category : 4; // must be 0011 or 1011
+    uint64_t opcode : 8;
+    uint64_t imm : 48;
 } GtkMl_InstrBr;
 
 typedef union GtkMl_Instruction {
@@ -687,7 +722,9 @@ GTKML_PUBLIC GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value)
 
 GTKML_PUBLIC void gtk_ml_delete(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PUBLIC void gtk_ml_del(GtkMl_Context *ctx, GtkMl_S *s);
+#ifdef GTKML_ENABLE_GTK
 GTKML_PUBLIC void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
+#endif /* GTKML_ENABLE_GTK */
 
 // sets the conditional flags of the next instruction
 GTKML_PUBLIC void gtk_ml_builder_set_cond(GtkMl_Builder *b, unsigned int flags);

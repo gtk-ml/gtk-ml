@@ -1,9 +1,12 @@
 #include <stdlib.h>
+#include <string.h>
 #ifdef GTKML_ENABLE_POSIX
 #include <sys/ptrace.h>
-#endif /* GTKML_ENABLE_POSIX */
 #include <sys/wait.h>
+#endif /* GTKML_ENABLE_POSIX */
+#ifdef GTKML_ENABLE_GTK
 #include <gtk/gtk.h>
+#endif /* GTKML_ENABLE_GTK */
 #include <math.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
@@ -28,8 +31,10 @@ GTKML_PRIVATE gboolean (*CATEGORY[])(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction *
     [15] = (gboolean (*)(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction *)) NULL,
 };
 
+#ifdef GTKML_ENABLE_GTK
 GTKML_PRIVATE GtkMl_S *vm_std_application(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_new_window(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
+#endif /* GTKML_ENABLE_GTK */
 GTKML_PRIVATE GtkMl_S *vm_std_error(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_compile_expr(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
@@ -43,8 +48,10 @@ GTKML_PRIVATE GtkMl_S *vm_std_dbg_backtrace(GtkMl_Context *ctx, GtkMl_S **err, G
 #endif /* GTKML_ENABLE_POSIX */
 
 GTKML_PRIVATE GtkMl_S *(*STD[])(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = {
+#ifdef GTKML_ENABLE_GTK
     [GTKML_STD_APPLICATION] = vm_std_application,
     [GTKML_STD_NEW_WINDOW] = vm_std_new_window,
+#endif /* GTKML_ENABLE_GTK */
     [GTKML_STD_ERROR] = vm_std_error,
     [GTKML_STD_COMPILE_EXPR] = vm_std_compile_expr,
     [GTKML_STD_EMIT_BYTECODE] = vm_std_emit_bytecode,
@@ -113,6 +120,7 @@ GtkMl_S *gtk_ml_get(GtkMl_Context *ctx, GtkMl_S *key) {
     return get_inner(ctx->bindings, key);
 }
 
+#ifdef GTKML_ENABLE_GTK
 GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
     (void) app;
 
@@ -181,6 +189,7 @@ GtkMl_S *vm_std_new_window(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
 
     return gtk_ml_new_lightdata(ctx, &expr->span, window);
 }
+#endif /* GTKML_ENABLE_GTK */
 
 GtkMl_S *vm_std_error(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
     GtkMl_S *error_expr = gtk_ml_pop(ctx);
@@ -591,7 +600,9 @@ void gtk_ml_del_vm(GtkMl_Vm *vm) {
 }
 
 gboolean gtk_ml_vm_step(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
+#ifdef GTKML_ENABLE_ASM
     gtk_ml_breakpoint(vm->ctx);
+#endif /* GTKML_ENABLE_ASM */
 
     if (!instr->gen.cond || (instr->gen.cond && (vm->reg[GTKML_R_FLAGS].flags & instr->gen.cond))) {
         if (instr->gen.cond) {
@@ -615,10 +626,14 @@ gboolean gtk_ml_vm_step(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
 }
 
 gboolean gtk_ml_vm_run(GtkMl_Vm *vm, GtkMl_S **err, gboolean brk) {
+#ifdef GTKML_ENABLE_ASM
     if (brk && getenv("GTKML_ENABLE_DEBUG") && strcmp(getenv("GTKML_ENABLE_DEBUG"), "0") != 0) {
         gtk_ml_breakpoint_internal(vm->ctx, !vm->ctx->dbg_done);
         vm->ctx->dbg_done = 1;
     }
+#else
+    (void) brk;
+#endif /* GTKML_ENABLE_ASM */
 
     vm->reg[GTKML_R_FLAGS].flags |= GTKML_F_TOPCALL;
     vm->reg[GTKML_R_FLAGS].flags &= ~GTKML_F_HALT;

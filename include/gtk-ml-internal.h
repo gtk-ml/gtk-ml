@@ -51,8 +51,10 @@ struct GtkMl_Vm {
     GtkMl_Context *ctx;
 };
 
+#ifdef GTKML_ENABLE_ASM
 GTKML_PUBLIC void gtk_ml_breakpoint(GtkMl_Context *ctx);
 GTKML_PUBLIC void gtk_ml_breakpoint_internal(GtkMl_Context *ctx, gboolean enable);
+#endif /* GTKML_ENABLE_ASM */
 #ifdef GTKML_ENABLE_POSIX
 GTKML_PUBLIC uint64_t gtk_ml_dbg_read_memory(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
 GTKML_PUBLIC void gtk_ml_dbg_write_memory(GtkMl_Context *ctx, GtkMl_S **err, void *addr, uint64_t value);
@@ -69,6 +71,9 @@ GTKML_PUBLIC void gtk_ml_dbg_write_ptr(GtkMl_Context *ctx, GtkMl_S **err, void *
 GTKML_PUBLIC void gtk_ml_dbg_read_value(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *out, const GtkMl_S *addr);
 GTKML_PUBLIC void gtk_ml_dbg_write_value(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *addr, GtkMl_S *value);
 #endif /* GTKML_ENABLE_POSIX */
+
+// dumps a value to a string and reallocates if necessary
+GTKML_PUBLIC char *gtk_ml_dumpsnr_internal(GtkMl_Context *ctx, char *ptr, size_t *offset, size_t n, GtkMl_S **err, GtkMl_S *expr);
 
 // dumps a value to a file in debug mode
 GTKML_PUBLIC gboolean gtk_ml_dumpf_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *expr);
@@ -102,8 +107,10 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_parse_unquote(GtkMl_Context *ctx, GtkMl_S **err, Gt
 GTKML_PUBLIC GtkMl_S *gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc);
 GTKML_PUBLIC GtkMl_S *gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc);
 
+#ifdef GTKML_ENABLE_GTK
 GTKML_PUBLIC gboolean gtk_ml_builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PUBLIC gboolean gtk_ml_builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+#endif /* GTKML_ENABLE_GTK */
 #ifdef GTKML_ENABLE_POSIX
 GTKML_PUBLIC gboolean gtk_ml_builder_dbg_run(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PUBLIC gboolean gtk_ml_builder_dbg_cont(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
