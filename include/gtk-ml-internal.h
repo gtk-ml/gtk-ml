@@ -2,7 +2,7 @@
 #define GTK_ML_INTERNAL_H 1
 
 #ifndef GTKML_INCLUDE_INTERNAL
-#error "did you really mean to include \"gtk-ml-internal.h\""
+#error "did you really mean to include \"gtk-ml-internal.h\"?"
 #endif /* GTKML_INCLUDE_INTERNAL */
 
 #include "gtk-ml.h"
@@ -28,6 +28,14 @@ struct GtkMl_Context {
 
     GtkMl_Vm *vm;
     GtkMl_Parser parser;
+
+    gboolean is_debugger;
+    gboolean enable_breakpoint;
+    gboolean dbg_done;
+#ifdef GTKML_ENABLE_POSIX
+    pid_t dbg_process;
+    GtkMl_Context *dbg_ctx;
+#endif /* GTKML_ENABLE_POSIX */
 };
 
 struct GtkMl_Vm {
@@ -42,6 +50,36 @@ struct GtkMl_Vm {
 
     GtkMl_Context *ctx;
 };
+
+GTKML_PUBLIC void gtk_ml_breakpoint(GtkMl_Context *ctx);
+GTKML_PUBLIC void gtk_ml_breakpoint_internal(GtkMl_Context *ctx, gboolean enable);
+#ifdef GTKML_ENABLE_POSIX
+GTKML_PUBLIC uint64_t gtk_ml_dbg_read_memory(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_memory(GtkMl_Context *ctx, GtkMl_S **err, void *addr, uint64_t value);
+GTKML_PUBLIC gboolean gtk_ml_dbg_read_boolean(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_boolean(GtkMl_Context *ctx, GtkMl_S **err, void *addr, gboolean value);
+GTKML_PUBLIC uint8_t gtk_ml_dbg_read_u8(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_u8(GtkMl_Context *ctx, GtkMl_S **err, void *addr, uint8_t value);
+GTKML_PUBLIC uint32_t gtk_ml_dbg_read_u32(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_u32(GtkMl_Context *ctx, GtkMl_S **err, void *addr, uint32_t value);
+GTKML_PUBLIC uint64_t gtk_ml_dbg_read_u64(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_u64(GtkMl_Context *ctx, GtkMl_S **err, void *addr, uint64_t value);
+GTKML_PUBLIC void *gtk_ml_dbg_read_ptr(GtkMl_Context *ctx, GtkMl_S **err, const void *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_ptr(GtkMl_Context *ctx, GtkMl_S **err, void *addr, void *value);
+GTKML_PUBLIC void gtk_ml_dbg_read_value(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *out, const GtkMl_S *addr);
+GTKML_PUBLIC void gtk_ml_dbg_write_value(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *addr, GtkMl_S *value);
+#endif /* GTKML_ENABLE_POSIX */
+
+// dumps a value to a file in debug mode
+GTKML_PUBLIC gboolean gtk_ml_dumpf_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *expr);
+// dumps the current line to a file in debug mode
+GTKML_PUBLIC gboolean gtk_ml_dumpf_line_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
+// dumps the current program to a file in debug mode
+GTKML_PUBLIC gboolean gtk_ml_dumpf_program_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
+// dumps the stack to a file in debug mode
+GTKML_PUBLIC gboolean gtk_ml_dumpf_stack_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
+// dumps the call backtrace to a file in debug mode
+GTKML_PUBLIC gboolean gtk_ml_backtracef_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
 
 // builds the program's macros
 GTKML_PUBLIC gboolean gtk_ml_build_macros(GtkMl_Program *out, GtkMl_S **err, GtkMl_Builder *b);
@@ -66,6 +104,14 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_
 
 GTKML_PUBLIC gboolean gtk_ml_builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PUBLIC gboolean gtk_ml_builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+#ifdef GTKML_ENABLE_POSIX
+GTKML_PUBLIC gboolean gtk_ml_builder_dbg_run(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PUBLIC gboolean gtk_ml_builder_dbg_cont(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PUBLIC gboolean gtk_ml_builder_dbg_step(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PUBLIC gboolean gtk_ml_builder_dbg_disasm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PUBLIC gboolean gtk_ml_builder_dbg_stack(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+GTKML_PUBLIC gboolean gtk_ml_builder_dbg_backtrace(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
+#endif /* GTKML_ENABLE_POSIX */
 GTKML_PUBLIC gboolean gtk_ml_builder_setmetamap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PUBLIC gboolean gtk_ml_builder_getmetamap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PUBLIC gboolean gtk_ml_builder_getvar(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
@@ -109,7 +155,10 @@ GTKML_PUBLIC void gtk_ml_delete(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PUBLIC void gtk_ml_del(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PUBLIC void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
 
-GTKML_PUBLIC gboolean gtk_ml_vm_run(GtkMl_Vm *vm, GtkMl_S **err);
+// runs a program previously loaded with `gtk_ml_load_program`
+GTKML_PUBLIC gboolean gtk_ml_run_program_internal(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *program, GtkMl_S *args, gboolean brk);
+
+GTKML_PUBLIC gboolean gtk_ml_vm_run(GtkMl_Vm *vm, GtkMl_S **err, gboolean brk);
 
 GTKML_PUBLIC gboolean gtk_ml_ia(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr);
 GTKML_PUBLIC gboolean gtk_ml_ii(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr);
@@ -209,6 +258,49 @@ GTKML_PUBLIC gboolean gtk_ml_compile_intrinsics(GtkMl_Builder *b, GtkMl_BasicBlo
 GTKML_PUBLIC gboolean gtk_ml_compile_macros(GtkMl_Builder *b, GtkMl_BasicBlock **start, GtkMl_S **err, GtkMl_S *macro);
 // compile a lambda expression to bytecode
 GTKML_PUBLIC gboolean gtk_ml_compile(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **err, GtkMl_S *lambda);
+
+#ifdef GTKML_ENABLE_POSIX
+/* debug versions of container and other operations */
+
+// calculates a hash of a value if possible, but it's debug mode
+GTKML_PUBLIC gboolean gtk_ml_hash_debug(GtkMl_Context *ctx, GtkMl_Hasher *hasher, GtkMl_Hash *hash, GtkMl_S *value);
+
+typedef GtkMl_VisitResult (*GtkMl_HashTrieDebugFn)(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_HashTrie *ht, void *key, void *value, void *data);
+typedef GtkMl_VisitResult (*GtkMl_HashSetDebugFn)(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_HashSet *hs, void *value, void *data);
+typedef GtkMl_VisitResult (*GtkMl_ArrayDebugFn)(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
+
+GTKML_PUBLIC void gtk_ml_hash_trie_copy_debug(GtkMl_Context *ctx, GtkMl_HashTrie *out, GtkMl_HashTrie *ht);
+GTKML_PUBLIC size_t gtk_ml_hash_trie_len_debug(GtkMl_Context *ctx, GtkMl_HashTrie *ht);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_concat_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_HashTrie *out, GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
+GTKML_PUBLIC void *gtk_ml_hash_trie_insert_debug(GtkMl_Context *ctx, GtkMl_HashTrie *out, GtkMl_HashTrie *ht, void *key, void *value);
+GTKML_PUBLIC void *gtk_ml_hash_trie_get_debug(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void *key);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_contains_debug(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void *key);
+GTKML_PUBLIC void *gtk_ml_hash_trie_delete_debug(GtkMl_Context *ctx, GtkMl_HashTrie *out, GtkMl_HashTrie *ht, void *key);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_foreach_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_HashTrie *ht, GtkMl_HashTrieDebugFn fn, void *data);
+GTKML_PUBLIC gboolean gtk_ml_hash_trie_equal_debug(GtkMl_Context *ctx, GtkMl_HashTrie *lhs, GtkMl_HashTrie *rhs);
+
+GTKML_PUBLIC void gtk_ml_hash_set_copy_debug(GtkMl_Context *ctx, GtkMl_HashSet *out, GtkMl_HashSet *hs);
+GTKML_PUBLIC size_t gtk_ml_hash_set_len_debug(GtkMl_Context *ctx, GtkMl_HashSet *hs);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_concat_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_HashSet *out, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
+GTKML_PUBLIC void *gtk_ml_hash_set_insert_debug(GtkMl_Context *ctx, GtkMl_HashSet *out, GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC void *gtk_ml_hash_set_get_debug(GtkMl_Context *ctx, GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_contains_debug(GtkMl_Context *ctx, GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC void *gtk_ml_hash_set_delete_debug(GtkMl_Context *ctx, GtkMl_HashSet *out, GtkMl_HashSet *hs, void *value);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_foreach_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_HashSet *ht, GtkMl_HashSetDebugFn fn, void *data);
+GTKML_PUBLIC gboolean gtk_ml_hash_set_equal_debug(GtkMl_Context *ctx, GtkMl_HashSet *lhs, GtkMl_HashSet *rhs);
+
+GTKML_PUBLIC void gtk_ml_array_trie_copy_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_is_string_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array);
+GTKML_PUBLIC size_t gtk_ml_array_trie_len_debug(GtkMl_Context *ctx, GtkMl_Array *array);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_concat_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs);
+GTKML_PUBLIC void gtk_ml_array_trie_push_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_pop_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array);
+GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_get_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t index);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_contains_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t *index, GtkMl_S *value);
+GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_delete_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array, size_t index);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_foreach_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *ht, GtkMl_ArrayDebugFn fn, void *data);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_equal_debug(GtkMl_Context *ctx, GtkMl_Array *lhs, GtkMl_Array *rhs);
+#endif /* GTKML_ENABLE_POSIX */
 
 #endif /* ifndef GTK_ML_INTERNAL_H */
 

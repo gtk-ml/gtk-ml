@@ -40,6 +40,14 @@
 #define GTKML_STD_ERROR 0x2
 #define GTKML_STD_COMPILE_EXPR 0x100
 #define GTKML_STD_EMIT_BYTECODE 0x101
+#ifdef GTKML_ENABLE_POSIX
+#define GTKML_STD_DBG_RUN 0x200
+#define GTKML_STD_DBG_CONT 0x201
+#define GTKML_STD_DBG_STEP 0x202
+#define GTKML_STD_DBG_DISASM 0x203
+#define GTKML_STD_DBG_STACK 0x204
+#define GTKML_STD_DBG_BACKTRACE 0x205
+#endif /* GTKML_ENABLE_POSIX */
 
 #define GTKML_I_ARITH 0x1
 #define GTKML_I_IMM 0x2
@@ -248,6 +256,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_LINKAGE_ERROR "symbol not found while linking"
 #define GTKML_ERR_SER_ERROR "serialization error"
 #define GTKML_ERR_DESER_ERROR "deserialization error"
+#define GTKML_ERR_DEBUGGER_ERROR "process is not a debugger"
 #define GTKML_ERR_UNIMPLEMENTED "unimplemented"
 
 #define gtk_ml_car(x) ((x)->value.s_list.car)
@@ -647,6 +656,13 @@ GTKML_PUBLIC GtkMl_Hasher GTKML_PTR_HASHER;
 // creates a new context on the heap
 // must be deleted with `gtk_ml_del_context`
 GTKML_PUBLIC GtkMl_Context *gtk_ml_new_context();
+#ifdef GTKML_ENABLE_POSIX
+// creates a new debugger context on the heap
+// must be deleted with `gtk_ml_del_context`
+GTKML_PUBLIC GtkMl_Context *gtk_ml_new_debugger(pid_t dbg_process);
+// sets the debug process of a debugger context
+GTKML_PUBLIC void gtk_ml_set_debug(GtkMl_Context *ctx, pid_t dbg_process, GtkMl_Context *debugee);
+#endif /* GTKML_ENABLE_POSIX */
 // deletes a context created with `gtk_ml_new_context`
 GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
 // loads an executable program into the context

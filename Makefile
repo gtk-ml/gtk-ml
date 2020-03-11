@@ -4,6 +4,7 @@ BINDIR=bin
 OBJDIR=$(BINDIR)/obj
 DBDIR=$(BINDIR)/db
 CC=clang
+CXX=clang++
 
 INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
@@ -16,10 +17,19 @@ OBJ=$(OBJDIR)/gtk-ml.c.o $(OBJDIR)/value.c.o $(OBJDIR)/builder.c.o \
 	$(OBJDIR)/lex.c.o $(OBJDIR)/parse.c.o $(OBJDIR)/code-gen.c.o \
 	$(OBJDIR)/serf.c.o $(OBJDIR)/vm.c.o $(OBJDIR)/bytecode.c.o \
 	$(OBJDIR)/hashtrie.c.o $(OBJDIR)/hashset.c.o $(OBJDIR)/array.c.o
+LIB=/usr/local/lib/liblinenoise.a
 
 CFLAGS:=-O0 -g -Wall -Wextra -Werror -pedantic -fPIC -std=c11 -pthread $(shell pkg-config --cflags gtk+-3.0)
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
-INCLUDE:=-I$(INCDIR)
+INCLUDE:=-I$(INCDIR) -I/usr/local/include
+
+# posix allows us to use the debugger
+ifdef ENABLE_POSIX
+CFLAGS+=-DGTKML_ENABLE_POSIX=1
+
+GTKMLDBG=$(BINDIR)/gtkml-dbg
+BINARIES+=$(GTKMLDBG)
+endif
 
 .PHONY: default all build test install clean
 
@@ -44,14 +54,25 @@ $(OBJDIR)/%.c.o: $(SRCDIR)/%.c $(OBJDIR) $(DBDIR)
 compile_commands.json: $(OBJ) $(DBDIR)
 	sed -e '1s/^/[\n/' -e '$$s/,$$/\n]/' $(patsubst $(OBJDIR)/%.c.o,$(DBDIR)/%.c.o.json,$^) > $@
 
-$(TARGET): $(OBJ)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIB)
+$(TARGET): $(OBJ) $(LIB)
+	$(CXX) $(LDFLAGS) -shared -o $@ $^
 
-$(GTKMLI): src/gtkmli.c $(TARGET)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
+$(GTKMLI): src/gtkmli.c $(TARGET) $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
+	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
+	rm $@.o
 
-$(TEST_HELLO): test/hello.c $(TARGET)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
+ifdef ENABLE_POSIX
+$(GTKMLDBG): src/gtkml-dbg.c $(TARGET) $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
+	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
+	rm $@.o
+endif
+
+$(TEST_HELLO): test/hello.c $(TARGET) $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
+	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
+	rm $@.o
 
 $(OBJDIR): $(BINDIR)
 	mkdir -p $(OBJDIR)

@@ -8,6 +8,7 @@ struct ParameterPrototype {
     gboolean exists;
     gboolean takes_value;
     gboolean multiple_allowed;
+    gboolean takes_rest;
     char short_opt;
     const char *long_opt;
     const char *value_name;
@@ -15,16 +16,16 @@ struct ParameterPrototype {
 };
 
 GTKML_PRIVATE const struct ParameterPrototype PARAMS[] = {
-    ['r'] = { 1, 0, 0, 'r', "run-application", NULL, "Run the result of :f or :e as a GTK application." },
-    ['d'] = { 1, 0, 0, 'd', "dump-result", NULL, "Dump the result of :f or :e." },
-    ['D'] = { 1, 0, 0, 'D', "dump-program", NULL, "Dump the bytecode of :f or :e."  },
-    ['e'] = { 1, 1, 1, 'e', "eval", "S-EXPR", "Evaluate an S-EXPR." },
-    ['f'] = { 1, 1, 0, 'f', "file", "PATH", "Load and execute a file from a PATH." },
-    ['F'] = { 1, 1, 0, 'F', "file-and-run", "PATH", "Load and execute a file from a PATH and then run it as a GTK application." },
-    ['h'] = { 1, 0, 0, 'h', "help", NULL, "Print this message and exit." },
-    ['V'] = { 1, 0, 0, 'V', "version", NULL, "Print the current version and exit." },
-    ['v'] = { 1, 0, 0, 'v', "verbose", NULL, "Print some additional information." },
-    [255] = {0, 0, 0, 0, NULL, NULL, NULL },
+    ['r'] = { 1, 0, 0, 0, 'r', "run-application", NULL, "Run the result of :f or :e as a GTK application." },
+    ['d'] = { 1, 0, 0, 0, 'd', "dump-result", NULL, "Dump the result of :f or :e." },
+    ['D'] = { 1, 0, 0, 0, 'D', "dump-program", NULL, "Dump the bytecode of :f or :e."  },
+    ['e'] = { 1, 1, 1, 0, 'e', "eval", "S-EXPR", "Evaluate an S-EXPR." },
+    ['f'] = { 1, 1, 0, 0, 'f', "file", "PATH", "Load and execute a file from a PATH." },
+    ['F'] = { 1, 1, 0, 0, 'F', "file-and-run", "PATH", "Load and execute a file from a PATH and then run it as a GTK application." },
+    ['h'] = { 1, 0, 0, 0, 'h', "help", NULL, "Print this message and exit." },
+    ['V'] = { 1, 0, 0, 0, 'V', "version", NULL, "Print the current version and exit." },
+    ['v'] = { 1, 0, 0, 0, 'v', "verbose", NULL, "Print some additional information." },
+    [255] = {0, 0, 0, 0, 0, NULL, NULL, NULL },
 };
 
 #define array_len(array) (sizeof(array) / sizeof(array[0]))
@@ -46,6 +47,9 @@ void print_help(const char *arg0) {
                     offset += strlen("...");
                 }
                 offset += strlen(PARAMS[i].value_name) + 4;
+                if (PARAMS[i].takes_rest) {
+                    offset += strlen("...");
+                }
             }
             if (offset > desc_offset) {
                 desc_offset = offset;
@@ -64,7 +68,11 @@ void print_help(const char *arg0) {
                 if (PARAMS[i].multiple_allowed) {
                     offset += fprintf(stderr, "...");
                 }
-                offset += fprintf(stderr, "%s    ", PARAMS[i].value_name);
+                offset += fprintf(stderr, "%s", PARAMS[i].value_name);
+                if (PARAMS[i].takes_rest) {
+                    offset += fprintf(stderr, "...");
+                }
+                offset += fprintf(stderr, "    ");
             }
             for (size_t j = 0; j < desc_offset - offset; j++) {
                 fprintf(stderr, " ");
@@ -82,7 +90,9 @@ void print_version(const char *arg0) {
 int main(int argc, const char **argv) {
     GtkMl_S *err = NULL;
 
-    GtkMl_Context *ctx = gtk_ml_new_context(NULL, 0);
+    GtkMl_Context *ctx = gtk_ml_new_context();
+
+    const char *rest = NULL;
 
     GtkMl_HashTrie flags;
     gtk_ml_new_hash_trie(&flags, &GTKML_DEFAULT_HASHER);
@@ -97,10 +107,13 @@ int main(int argc, const char **argv) {
                 GtkMl_HashTrie new;
                 gtk_ml_new_hash_trie(&new, &GTKML_DEFAULT_HASHER);
                 GtkMl_S *default_value;
-                if (PARAMS[i].multiple_allowed) {
+                if (PARAMS[i].multiple_allowed || PARAMS[i].takes_rest) {
                     default_value = gtk_ml_new_array(ctx, NULL);
                 } else {
                     default_value = gtk_ml_new_nil(ctx, NULL);
+                }
+                if (PARAMS[i].takes_rest) {
+                    rest = PARAMS[i].long_opt;
                 }
                 gtk_ml_hash_trie_insert(&new, &opts, gtk_ml_new_keyword(ctx, NULL, 0, long_opt, strlen(long_opt)), default_value);
                 gtk_ml_del_hash_trie(ctx, &opts, gtk_ml_delete_void_reference);
@@ -140,7 +153,25 @@ int main(int argc, const char **argv) {
         }
 
         GtkMl_S *keyword = gtk_ml_new_keyword(ctx, NULL, 0, long_opt, strlen(long_opt));
-        if (gtk_ml_hash_trie_contains(&flags, keyword)) {
+        if (rest && strcmp(rest, long_opt) == 0) {
+            ++i;
+            for (; i < argc; i++) {
+                GtkMl_S *value = gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i]));
+
+                GtkMl_S *current = gtk_ml_hash_trie_get(&opts, keyword);
+                if (current->kind == GTKML_S_ARRAY) {
+                    GtkMl_Array new;
+                    gtk_ml_array_trie_push(&new, &current->value.s_array.array, value);
+                    gtk_ml_del_array_trie(ctx, &current->value.s_array.array, gtk_ml_delete_value_reference);
+                    current->value.s_array.array = new;
+                } else {
+                    GtkMl_HashTrie new;
+                    gtk_ml_hash_trie_insert(&new, &opts, keyword, value);
+                    gtk_ml_del_hash_trie(ctx, &opts, gtk_ml_delete_void_reference);
+                    opts = new;
+                }
+            }
+        } else if (gtk_ml_hash_trie_contains(&flags, keyword)) {
             GtkMl_HashTrie new;
             gtk_ml_hash_trie_insert(&new, &flags, keyword, gtk_ml_new_true(ctx, NULL));
             gtk_ml_del_hash_trie(ctx, &flags, gtk_ml_delete_void_reference);

@@ -324,7 +324,7 @@ GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t inde
         return fn(array, index, node->value.a_leaf.value, data);
     case GTKML_A_BRANCH: {
         for (size_t i = 0; i < node->value.a_branch.len; i++) {
-            switch (foreach(array, node->value.a_branch.nodes[i], (index << GTKML_A_BITS) | i, fn, data)) {
+            switch (foreach(array, node->value.a_branch.nodes[i], (index << node->shift) | i, fn, data)) {
             case GTKML_VISIT_RECURSE:
                 continue;
             case GTKML_VISIT_CONTINUE:
@@ -375,3 +375,270 @@ gboolean equal(GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs) {
         return 1;
     }
 }
+
+#ifdef GTKML_ENABLE_POSIX
+/* debug stuff */
+
+// GTKML_PRIVATE GtkMl_ArrayNode *new_leaf_debug(GtkMl_Context *ctx, GtkMl_S *value);
+// GTKML_PRIVATE GtkMl_ArrayNode *new_branch_debug(GtkMl_Context *ctx, size_t shift, size_t len);
+GTKML_PRIVATE GtkMl_ArrayNode *copy_node_debug(GtkMl_Context *ctx, GtkMl_ArrayNode *node);
+// GTKML_PRIVATE void del_node_debug(GtkMl_Context *ctx, GtkMl_ArrayNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *));
+// GTKML_PRIVATE gboolean push_debug(GtkMl_Context *ctx, GtkMl_ArrayNode **out, GtkMl_ArrayNode *node, size_t *depth, GtkMl_S *value);
+GTKML_PRIVATE GtkMl_S *get_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_ArrayNode *node, size_t index);
+// GTKML_PRIVATE GtkMl_S *delete_debug(GtkMl_Context *ctx, GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node, size_t index);
+GTKML_PRIVATE GtkMl_VisitResult foreach_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayDebugFn fn, void *data);
+GTKML_PRIVATE gboolean equal_debug(GtkMl_Context *ctx, GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs);
+GTKML_PRIVATE GtkMl_VisitResult fn_contains_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t index, GtkMl_S *value, void *data);
+
+void gtk_ml_array_trie_copy_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array) {
+    out->root = copy_node_debug(ctx, array->root);
+    out->len = array->len;
+}
+
+GTKML_PRIVATE GtkMl_VisitResult is_string_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *ht, size_t index, GtkMl_S *value, void *data) {
+    (void) ht;
+    (void) index;
+
+    gboolean *is_string = data;
+
+    GtkMl_S val;
+    gtk_ml_dbg_read_value(ctx, err, &val, value);
+
+    if (val.kind != GTKML_S_CHAR) {
+        *is_string = 0;
+        return GTKML_VISIT_BREAK;
+    }
+
+    return GTKML_VISIT_RECURSE;
+}
+
+gboolean gtk_ml_array_trie_is_string_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array) {
+    gboolean is = 1;
+    gtk_ml_array_trie_foreach_debug(ctx, err, array, is_string_debug, &is);
+    return is;
+}
+
+size_t gtk_ml_array_trie_len_debug(GtkMl_Context *ctx, GtkMl_Array *array) {
+    (void) ctx;
+    return array->len;
+}
+
+GTKML_PRIVATE GtkMl_VisitResult fn_concat_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *ht, size_t index, GtkMl_S *value, void *data) {
+    (void) ctx;
+    (void) err;
+    (void) ht;
+    (void) index;
+
+    GtkMl_Array *dest = data;
+
+    GtkMl_Array new;
+    gtk_ml_array_trie_push_debug(ctx, &new, dest, value);
+    *dest = new;
+
+    return GTKML_VISIT_RECURSE;
+}
+
+gboolean gtk_ml_array_trie_concat_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs) {
+    out->root = copy_node(lhs->root);
+    out->len = lhs->len;
+
+    return gtk_ml_array_trie_foreach_debug(ctx, err, rhs, fn_concat_debug, out);
+}
+
+void gtk_ml_array_trie_push_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value) {
+    (void) ctx;
+    (void) out;
+    (void) array;
+    (void) value;
+    fprintf(stderr, "warning: push is currently unavailable in debug mode\n");
+}
+
+GtkMl_S *gtk_ml_array_trie_pop_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array) {
+    return gtk_ml_array_trie_delete_debug(ctx, out, array, array->len - 1);
+}
+
+GtkMl_S *gtk_ml_array_trie_get_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t index) {
+    return get_debug(ctx, err, array->root, index);
+}
+
+struct ContainsDebugData {
+    GtkMl_S *value;
+    gboolean contains;
+    size_t index;
+};
+
+gboolean gtk_ml_array_trie_contains_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t *index, GtkMl_S *value) {
+    struct ContainsDebugData contains = { value, 0, 0 };
+    foreach_debug(ctx, err, array, array->root, 0, fn_contains_debug, &contains);
+    if (contains.contains) {
+        *index = contains.index;
+    }
+    return contains.contains;
+}
+
+GtkMl_S *gtk_ml_array_trie_delete_debug(GtkMl_Context *ctx, GtkMl_Array *out, GtkMl_Array *array, size_t index) {
+    (void) ctx;
+    (void) out;
+    (void) array;
+    (void) index;
+    fprintf(stderr, "warning: delete is currently unavailable in debug mode\n");
+    return NULL;
+}
+
+gboolean gtk_ml_array_trie_foreach_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, GtkMl_ArrayDebugFn fn, void *data) {
+    *err = NULL;
+    foreach_debug(ctx, err, array, array->root, 0, fn, data);
+    return *err == NULL;
+}
+
+gboolean gtk_ml_array_trie_equal_debug(GtkMl_Context *ctx, GtkMl_Array *lhs, GtkMl_Array *rhs) {
+    if (lhs->len != rhs->len) {
+        return 0;
+    }
+
+    return equal_debug(ctx, lhs->root, rhs->root);
+}
+
+// GtkMl_ArrayNode *new_leaf_debug(GtkMl_Context *ctx, GtkMl_S *value) {
+//     (void) ctx;
+//     (void) value;
+//     fprintf(stderr, "warning: new_leaf is currently unavailable in debug mode\n");
+//     return NULL;
+// }
+// 
+// GtkMl_ArrayNode *new_branch_debug(GtkMl_Context *ctx, size_t shift, size_t len) {
+//     (void) ctx;
+//     (void) shift;
+//     (void) len;
+//     fprintf(stderr, "warning: new_branch is currently unavailable in debug mode\n");
+//     return NULL;
+// }
+
+GtkMl_ArrayNode *copy_node_debug(GtkMl_Context *ctx, GtkMl_ArrayNode *node) {
+    (void) ctx;
+    (void) node;
+    fprintf(stderr, "warning: copy_node is currently unavailable in debug mode\n");
+    return NULL;
+}
+
+// void del_node_debug(GtkMl_Context *ctx, GtkMl_ArrayNode *node, void (*deleter)(GtkMl_Context *, GtkMl_S *)) {
+//     (void) ctx;
+//     (void) node;
+//     (void) deleter;
+//     fprintf(stderr, "warning: del_node is currently unavailable in debug mode\n");
+// }
+// 
+// gboolean push_debug(GtkMl_Context *ctx, GtkMl_ArrayNode **out, GtkMl_ArrayNode *node, size_t *depth, GtkMl_S *value) {
+//     (void) ctx;
+//     (void) out;
+//     (void) node;
+//     (void) depth;
+//     (void) value;
+//     fprintf(stderr, "warning: push is currently unavailable in debug mode\n");
+//     return 0;
+// }
+
+GtkMl_S *get_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_ArrayNode *node, size_t index) {
+    if (!node) {
+        return NULL;
+    }
+
+    GtkMl_ArrayNodeKind kind = (GtkMl_ArrayNodeKind) gtk_ml_dbg_read_u32(ctx, err, &node->kind);
+    if (*err) {
+        return NULL;
+    }
+    switch (kind) {
+    case GTKML_A_LEAF:
+        return gtk_ml_dbg_read_ptr(ctx, err, &node->value.a_leaf.value);
+    case GTKML_A_BRANCH: {
+        size_t shift = gtk_ml_dbg_read_u64(ctx, err, &node->shift);
+        size_t idx = (index >> shift) & GTKML_A_MASK;
+        GtkMl_ArrayNode *next = gtk_ml_dbg_read_ptr(ctx, err, &node->value.a_branch.nodes[idx]);
+        if (*err) {
+            return NULL;
+        }
+        return get_debug(ctx, err, next, index);
+    }
+    }
+}
+
+// GtkMl_S *delete_debug(GtkMl_Context *ctx, GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node, size_t index) {
+//     (void) ctx;
+//     (void) out;
+//     (void) shiftme;
+//     (void) node;
+//     (void) index;
+//     fprintf(stderr, "warning: delete is currently unavailable in debug mode\n");
+//     return NULL;
+// }
+
+GtkMl_VisitResult foreach_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayDebugFn fn, void *data) {
+    if (!node) {
+        return GTKML_VISIT_RECURSE;
+    }
+
+    GtkMl_ArrayNodeKind kind = (GtkMl_ArrayNodeKind) gtk_ml_dbg_read_u32(ctx, err, &node->kind);
+    if (*err) {
+        return GTKML_VISIT_BREAK;
+    }
+    switch (kind) {
+    case GTKML_A_LEAF: {
+        GtkMl_S *value = gtk_ml_dbg_read_ptr(ctx, err, &node->value.a_leaf.value);
+        if (*err) {
+            return GTKML_VISIT_BREAK;
+        }
+        return fn(ctx, err, array, index, value, data);
+    }
+    case GTKML_A_BRANCH: {
+        size_t len = gtk_ml_dbg_read_u64(ctx, err, &node->value.a_branch.len);
+        if (*err) {
+            return GTKML_VISIT_BREAK;
+        }
+        size_t shift = gtk_ml_dbg_read_u64(ctx, err, &node->shift);
+        if (*err) {
+            return GTKML_VISIT_BREAK;
+        }
+        for (size_t i = 0; i < len; i++) {
+            GtkMl_ArrayNode **nodes = gtk_ml_dbg_read_ptr(ctx, err, &node->value.a_branch.nodes);
+            if (*err) {
+                return GTKML_VISIT_BREAK;
+            }
+            GtkMl_ArrayNode *next = gtk_ml_dbg_read_ptr(ctx, err, &nodes[i]);
+            if (*err) {
+                return GTKML_VISIT_BREAK;
+            }
+            switch (foreach_debug(ctx, err, array, next, (index << shift) | i, fn, data)) {
+            case GTKML_VISIT_RECURSE:
+                continue;
+            case GTKML_VISIT_CONTINUE:
+                return GTKML_VISIT_RECURSE;
+            case GTKML_VISIT_BREAK:
+                return GTKML_VISIT_BREAK;
+            }
+        }
+        return GTKML_VISIT_RECURSE;
+    }
+    }
+}
+
+GtkMl_VisitResult fn_contains_debug(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Array *array, size_t index, GtkMl_S *value, void *data) {
+    (void) ctx;
+    (void) err;
+    (void) array;
+    (void) index;
+    (void) value;
+    (void) data;
+    fprintf(stderr, "warning: contains is currently unavailable in debug mode\n");
+    return GTKML_VISIT_BREAK;
+}
+
+gboolean equal_debug(GtkMl_Context *ctx, GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs) {
+    if (lhs == rhs) {
+        return 1;
+    }
+
+    (void) ctx;
+    fprintf(stderr, "warning: equal is currently unavailable in debug mode\n");
+    return 0;
+}
+#endif /* GTKML_ENABLE_POSIX */

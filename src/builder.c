@@ -32,9 +32,11 @@ GtkMl_Builder *gtk_ml_new_builder() {
     b->flags = 0;
 
     b->intr_ctx = gtk_ml_new_context();
+    b->intr_ctx->dbg_done = 1; // fake done sending dbg data
     b->intr_vm = b->intr_ctx->vm;
 
     b->macro_ctx = gtk_ml_new_context();
+    b->macro_ctx->dbg_done = 1; // fake done sending dbg data
     b->macro_vm = b->macro_ctx->vm;
 
     b->builders = malloc(sizeof(GtkMl_BuilderMacro) * 64);
@@ -81,6 +83,14 @@ GtkMl_Builder *gtk_ml_new_builder() {
     gtk_ml_add_builder(b, "get", gtk_ml_builder_getvar, 0, 0, 0);
     gtk_ml_add_builder(b, "assign", gtk_ml_builder_assignvar, 0, 0, 0);
     gtk_ml_add_builder(b, "error", gtk_ml_builder_error, 0, 0, 0);
+#ifdef GTKML_ENABLE_POSIX
+    gtk_ml_add_builder(b, "dbg-run", gtk_ml_builder_dbg_run, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-cont", gtk_ml_builder_dbg_cont, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-step", gtk_ml_builder_dbg_step, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-disasm", gtk_ml_builder_dbg_disasm, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-stack", gtk_ml_builder_dbg_stack, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-backtrace", gtk_ml_builder_dbg_backtrace, 0, 0, 1);
+#endif /* GTKML_ENABLE_POSIX */
 
     gtk_ml_new_hash_set(&b->intr_fns, &GTKML_DEFAULT_HASHER);
     gtk_ml_new_hash_set(&b->macro_fns, &GTKML_DEFAULT_HASHER);
