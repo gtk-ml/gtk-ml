@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <ctype.h>
 #include <gtk/gtk.h>
 #include <math.h>
 #define GTKML_INCLUDE_INTERNAL
@@ -908,7 +909,31 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, GtkMl_S *
         fprintf(stream, "%f", expr->value.s_float.value);
         return 1;
     case GTKML_S_CHAR:
-        fprintf(stream, "\\%c", expr->value.s_char.value);
+        switch (expr->value.s_char.value) {
+        case '\n':
+            fprintf(stream, "\\newline");
+            break;
+        case ' ':
+            fprintf(stream, "\\space");
+            break;
+        case '\t':
+            fprintf(stream, "\\tab");
+            break;
+        case '\x1b':
+            fprintf(stream, "\\escape");
+            break;
+        default:
+            if (isgraph(expr->value.s_char.value)) {
+                fprintf(stream, "\\%c", expr->value.s_char.value);
+            } else if (expr->value.s_char.value < 0x100) {
+                fprintf(stream, "\\x%x", expr->value.s_char.value);
+            } else if (expr->value.s_char.value < 0x10000) {
+                fprintf(stream, "\\u%x", expr->value.s_char.value);
+            } else {
+                fprintf(stream, "\\U%x", expr->value.s_char.value);
+            }
+            break;
+        }
         return 1;
     case GTKML_S_KEYWORD:
         fprintf(stream, ":%.*s", (int) expr->value.s_keyword.len, expr->value.s_keyword.ptr);

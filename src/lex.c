@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <ctype.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"
@@ -9,7 +10,7 @@ GTKML_PRIVATE gboolean IDENT_BEGIN[] = {
     0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -28,7 +29,7 @@ GTKML_PRIVATE gboolean IDENT_CONT[] = {
     0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -41,11 +42,15 @@ GTKML_PRIVATE gboolean IDENT_CONT[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-GTKML_PRIVATE gboolean is_ident_begin(unsigned char c) {
+GTKML_PRIVATE gboolean is_alpha(unsigned char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+gboolean gtk_ml_is_ident_begin(unsigned char c) {
     return IDENT_BEGIN[c];
 }
 
-GTKML_PRIVATE gboolean is_ident_cont(unsigned char c) {
+gboolean gtk_ml_is_ident_cont(unsigned char c) {
     return IDENT_CONT[c];
 }
 
@@ -190,6 +195,35 @@ gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, Gt
             (*tokenv)[*tokenc].span.col = col;
             ++*tokenc;
             break;
+        case '\\': {
+            ++col;
+            ++src;
+            if (!isgraph(*src)) {
+                *err = gtk_ml_error(ctx, "character-error", GTKML_ERR_CHARACTER_ERROR, 1, line, col, 0);
+                return 0;
+            }
+            const char *char_ptr = src - 1;
+            int char_line = line;
+            int char_col = col - 1;
+            size_t char_len = 1;
+            if (is_alpha(*src)) {
+                do {
+                    ++char_len;
+                    ++col;
+                    ++src;
+                } while (is_alpha(*src));
+            } else {
+                ++char_len;
+                ++col;
+                ++src;
+            }
+            (*tokenv)[*tokenc].kind = GTKML_TOK_CHAR;
+            (*tokenv)[*tokenc].span.ptr = char_ptr;
+            (*tokenv)[*tokenc].span.len = char_len;
+            (*tokenv)[*tokenc].span.line = char_line;
+            (*tokenv)[*tokenc].span.col = char_col;
+            ++*tokenc;
+        } continue;
         case '"': {
             ++col;
             ++src;
@@ -261,12 +295,12 @@ gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, Gt
         case ':':
             ++col;
             ++src;
-            if (is_ident_begin(*src)) {
+            if (gtk_ml_is_ident_begin(*src)) {
                 const char *kw_ptr = src - 1;
                 int kw_line = line;
                 int kw_col = col - 1;
                 size_t kw_len = 1;
-                while (is_ident_cont(*src)) {
+                while (gtk_ml_is_ident_cont(*src)) {
                     ++kw_len;
                     ++col;
                     ++src;
@@ -284,12 +318,12 @@ gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, Gt
             }
             break;
         default:
-            if (is_ident_begin(*src)) {
+            if (gtk_ml_is_ident_begin(*src)) {
                 const char *ident_ptr = src;
                 int ident_line = line;
                 int ident_col = col;
                 size_t ident_len = 0;
-                while (is_ident_cont(*src)) {
+                while (gtk_ml_is_ident_cont(*src)) {
                     ++ident_len;
                     ++col;
                     ++src;

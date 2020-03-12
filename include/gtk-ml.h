@@ -224,6 +224,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_IO_ERROR "unknown io error, check errno"
 #define GTKML_ERR_CHARACTER_ERROR "unexpected character"
 #define GTKML_ERR_TOKEN_ERROR "unexpected token"
+#define GTKML_ERR_ESCAPE_ERROR "invalid escape sequence"
 #define GTKML_ERR_EOF_ERROR "unexpected eof"
 #define GTKML_ERR_NULL_ERROR "null dereference"
 #define GTKML_ERR_INVALID_SEXPR "invalid s-expression"
@@ -800,6 +801,9 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_S **err,
 GTKML_PUBLIC GtkMl_S *gtk_ml_loadf(GtkMl_Context *ctx, char **src, GtkMl_S **err, FILE *stream);
 // loads an expression from a string
 GTKML_PUBLIC GtkMl_S *gtk_ml_loads(GtkMl_Context *ctx, GtkMl_S **err, const char *src);
+
+GTKML_PUBLIC gboolean gtk_ml_is_ident_begin(unsigned char c);
+GTKML_PUBLIC gboolean gtk_ml_is_ident_cont(unsigned char c);
 
 // pushes an expression to the stack
 GTKML_PUBLIC void gtk_ml_push(GtkMl_Context *ctx, GtkMl_S *value);

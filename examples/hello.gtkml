@@ -61,7 +61,7 @@
 (Application "de.walterpi.example" flags-none {
   :activate (Window
     ;; title
-    "gtk-ml example"
+    [\a \space \t \i \t \l \e]
     ;; width
     (cond
       #f          (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})
