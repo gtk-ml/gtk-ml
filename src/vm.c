@@ -258,6 +258,7 @@ GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) 
     const char *bc_array_index = "array-index";
     const char *bc_array_push = "array-push";
     const char *bc_array_pop = "array-pop";
+    const char *bc_array_concat = "array-concat";
     const char *bc_map_get = "map-get";
     const char *bc_map_insert = "map-insert";
     const char *bc_map_delete = "map-gtk_ml_delete";
@@ -369,6 +370,8 @@ GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) 
         return gtk_ml_build_array_push(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_array_pop) == bc_len && strncmp(bc_ptr, bc_array_pop, bc_len) == 0) {
         return gtk_ml_build_array_pop(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+    } else if (strlen(bc_array_concat) == bc_len && strncmp(bc_ptr, bc_array_concat, bc_len) == 0) {
+        return gtk_ml_build_array_concat(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_map_get) == bc_len && strncmp(bc_ptr, bc_map_get, bc_len) == 0) {
         return gtk_ml_build_map_get(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_map_insert) == bc_len && strncmp(bc_ptr, bc_map_insert, bc_len) == 0) {

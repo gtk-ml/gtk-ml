@@ -108,12 +108,15 @@ typedef enum GtkMl_Cmp {
 #define GTKML_II_ARRAY_INDEX 0x1a
 #define GTKML_II_ARRAY_PUSH 0x1b
 #define GTKML_II_ARRAY_POP 0x1c
-#define GTKML_II_MAP_GET 0x1d
+#define GTKML_II_ARRAY_CONCAT 0x1d
+#define GTKML_II_MAP_GET 0x1e
 #define GTKML_II_MAP_INSERT 0x1f
 #define GTKML_II_MAP_DELETE 0x20
-#define GTKML_II_SET_CONTAINS 0x21
-#define GTKML_II_SET_INSERT 0x22
-#define GTKML_II_SET_DELETE 0x23
+#define GTKML_II_MAP_CONCAT 0x21
+#define GTKML_II_SET_CONTAINS 0x22
+#define GTKML_II_SET_INSERT 0x23
+#define GTKML_II_SET_DELETE 0x24
+#define GTKML_II_SET_CONCAT 0x25
 
 #define GTKML_IBR_CALL 0x1
 #define GTKML_IBR_RET 0x2
@@ -181,13 +184,16 @@ typedef enum GtkMl_Cmp {
 #define GTKML_SII_LEN "LEN"
 #define GTKML_SII_ARRAY_INDEX "ARRAY_INDEX"
 #define GTKML_SII_ARRAY_PUSH "ARRAY_PUSH"
+#define GTKML_SII_ARRAY_CONCAT "ARRAY_CONCAT"
 #define GTKML_SII_ARRAY_POP "ARRAY_POP"
 #define GTKML_SII_MAP_GET "MAP_GET"
 #define GTKML_SII_MAP_INSERT "MAP_INSERT"
 #define GTKML_SII_MAP_DELETE "MAP_DELETE"
+#define GTKML_SII_MAP_CONCAT "MAP_CONCAT"
 #define GTKML_SII_SET_CONTAINS "SET_CONTAINS"
 #define GTKML_SII_SET_INSERT "SET_INSERT"
 #define GTKML_SII_SET_DELETE "SET_DELETE"
+#define GTKML_SII_SET_CONCAT "SET_CONCAT"
 
 #define GTKML_SIBR_CALL_STD "CALL_STD"
 #define GTKML_SIBR_CALL "CALL"
@@ -752,6 +758,8 @@ GTKML_PUBLIC gboolean gtk_ml_build_array_index(GtkMl_Context *ctx, GtkMl_Builder
 GTKML_PUBLIC gboolean gtk_ml_build_array_push(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_array_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_array_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_get(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block

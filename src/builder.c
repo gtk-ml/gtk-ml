@@ -55,6 +55,7 @@ GtkMl_Builder *gtk_ml_new_builder() {
     gtk_ml_add_builder(b, "index", gtk_ml_builder_index, 0, 0, 0);
     gtk_ml_add_builder(b, "push", gtk_ml_builder_push, 0, 0, 0);
     gtk_ml_add_builder(b, "pop", gtk_ml_builder_pop, 0, 0, 0);
+    gtk_ml_add_builder(b, "concat", gtk_ml_builder_concat, 0, 0, 0);
     gtk_ml_add_builder(b, "+", gtk_ml_builder_add, 0, 0, 0);
     gtk_ml_add_builder(b, "-", gtk_ml_builder_sub, 0, 0, 0);
     gtk_ml_add_builder(b, "*", gtk_ml_builder_mul, 0, 0, 0);
@@ -858,6 +859,24 @@ gboolean gtk_ml_build_array_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
     basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
     basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_POP;
+    ++basic_block->len_exec;
+
+    return 1;
+}
+
+gboolean gtk_ml_build_array_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+    (void) ctx;
+    (void) err;
+
+    if (basic_block->len_exec == basic_block->cap_exec) {
+        basic_block->cap_exec *= 2;
+        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    }
+
+    basic_block->exec[basic_block->len_exec].instr = 0;
+    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
+    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_CONCAT;
     ++basic_block->len_exec;
 
     return 1;
