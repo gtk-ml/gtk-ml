@@ -118,6 +118,7 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
         break;
     }
     case GTKML_S_PROGRAM: {
+        fwrite(&value->value.s_program.kind, sizeof(uint32_t), 1, stream);
         if (!gtk_ml_serf_value(serf, ctx, stream, err, value->value.s_program.linkage_name)) {
             return 0;
         }
@@ -445,6 +446,8 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         break;
     }
     case GTKML_S_PROGRAM: {
+        GtkMl_ProgramKind kind;
+        fread(&kind, sizeof(uint32_t), 1, stream);
         GtkMl_S *linkage_name = gtk_ml_deserf_value(deserf, ctx, stream, err);
         if (!linkage_name) {
             return NULL;
@@ -465,6 +468,7 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         if (!capture) {
             return NULL;
         }
+        result->value.s_program.kind = kind;
         result->value.s_program.args = args;
         result->value.s_program.body = body;
         result->value.s_program.capture = capture;
