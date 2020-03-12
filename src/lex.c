@@ -232,11 +232,17 @@ gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, Gt
             int str_line = line;
             int str_col = col - 1;
             size_t str_len = 1;
-            do {
-                ++str_len;
-                ++col;
-                ++src;
-            } while (*src != '"');
+            if (*src != '"') {
+                do {
+                    if (!*src) {
+                        *err = gtk_ml_error(ctx, "eof-error", GTKML_ERR_EOF_ERROR, 1, str_line, str_col, 0);
+                        return 0;
+                    }
+                    ++str_len;
+                    ++col;
+                    ++src;
+                } while (*src != '"');
+            }
             (*tokenv)[*tokenc].kind = GTKML_TOK_STRING;
             (*tokenv)[*tokenc].span.ptr = str_ptr;
             (*tokenv)[*tokenc].span.len = str_len + 1;
