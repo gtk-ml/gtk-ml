@@ -199,16 +199,23 @@ GtkMl_S *vm_std_error(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
 GtkMl_S *vm_std_compile_expr(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
     (void) expr;
     GtkMl_S *arg = gtk_ml_pop(ctx);
-    GtkMl_BasicBlock **arg_basic_block = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
+    GtkMl_S *bb_var = gtk_ml_pop(ctx);
+    GtkMl_BasicBlock *arg_basic_block = bb_var->value.s_var.expr->value.s_lightdata.userdata;
     GtkMl_Builder *arg_b = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
     GtkMl_Context *arg_ctx = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
 
-    return gtk_ml_compile_expression(arg_ctx, arg_b, arg_basic_block, err, &arg, 0, 0, 1, 1)? gtk_ml_new_true(ctx, NULL) : NULL;
+    if (!gtk_ml_compile_expression(arg_ctx, arg_b, &arg_basic_block, err, &arg, 0, 0, 1, 1)) {
+        return NULL;
+    }
+
+    if (arg_basic_block != bb_var->value.s_var.expr->value.s_lightdata.userdata) {
+        bb_var->value.s_var.expr = gtk_ml_new_lightdata(ctx, NULL, arg_basic_block);
+    }
+
+    return gtk_ml_new_true(ctx, NULL);
 }
 
 GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
-    (void) expr;
-
     GtkMl_S *imm = NULL;
     if (expr->value.s_int.value == 7) {
         imm = gtk_ml_pop(ctx);
@@ -216,7 +223,7 @@ GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) 
 
     GtkMl_S *bc = gtk_ml_pop(ctx);
     unsigned int arg_cond = gtk_ml_pop(ctx)->value.s_int.value;
-    GtkMl_BasicBlock **arg_basic_block = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
+    GtkMl_BasicBlock *arg_basic_block = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
     GtkMl_Builder *arg_b = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
     GtkMl_Context *arg_ctx = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
     const char *bc_ptr = bc->value.s_keyword.ptr;
@@ -273,145 +280,145 @@ GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) 
 
     gtk_ml_builder_set_cond(arg_b, arg_cond);
     if (strlen(bc_halt) == bc_len && strncmp(bc_ptr, bc_halt, bc_len) == 0) {
-        return gtk_ml_build_halt(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_halt(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_push_imm) == bc_len && strncmp(bc_ptr, bc_push_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_push_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_push_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_push_addr) == bc_len && strncmp(bc_ptr, bc_push_addr, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_push_extended_addr(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_push_extended_addr(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_pop) == bc_len && strncmp(bc_ptr, bc_pop, bc_len) == 0) {
-        return gtk_ml_build_pop(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_pop(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_setf_imm) == bc_len && strncmp(bc_ptr, bc_setf_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_setf_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_setf_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_popf) == bc_len && strncmp(bc_ptr, bc_popf, bc_len) == 0) {
-        return gtk_ml_build_popf(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_popf(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_define) == bc_len && strncmp(bc_ptr, bc_define, bc_len) == 0) {
-        return gtk_ml_build_define(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_define(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_car) == bc_len && strncmp(bc_ptr, bc_car, bc_len) == 0) {
-        return gtk_ml_build_car(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_car(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_cdr) == bc_len && strncmp(bc_ptr, bc_cdr, bc_len) == 0) {
-        return gtk_ml_build_cdr(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_cdr(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_bind) == bc_len && strncmp(bc_ptr, bc_bind, bc_len) == 0) {
-        return gtk_ml_build_bind(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_bind(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_bind_args) == bc_len && strncmp(bc_ptr, bc_bind_args, bc_len) == 0) {
-        return gtk_ml_build_bind_args(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_bind_args(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_list) == bc_len && strncmp(bc_ptr, bc_list, bc_len) == 0) {
-        return gtk_ml_build_list(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_list(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_enter) == bc_len && strncmp(bc_ptr, bc_enter, bc_len) == 0) {
-        return gtk_ml_build_enter(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_enter(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_leave) == bc_len && strncmp(bc_ptr, bc_leave, bc_len) == 0) {
-        return gtk_ml_build_leave(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_leave(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_typeof) == bc_len && strncmp(bc_ptr, bc_typeof, bc_len) == 0) {
-        return gtk_ml_build_typeof(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_typeof(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_get_imm) == bc_len && strncmp(bc_ptr, bc_get_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_get_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_get_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_list_imm) == bc_len && strncmp(bc_ptr, bc_list_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_list_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_list_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_map_imm) == bc_len && strncmp(bc_ptr, bc_map_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_map_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_map_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_set_imm) == bc_len && strncmp(bc_ptr, bc_set_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_set_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_set_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_array_imm) == bc_len && strncmp(bc_ptr, bc_array_imm, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_array_extended_imm(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_array_extended_imm(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_setmm_imm) == bc_len && strncmp(bc_ptr, bc_setmm_imm, bc_len) == 0) {
-        return gtk_ml_build_setmm_imm(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_setmm_imm(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_getmm_imm) == bc_len && strncmp(bc_ptr, bc_getmm_imm, bc_len) == 0) {
-        return gtk_ml_build_getmm_imm(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_getmm_imm(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_var_imm) == bc_len && strncmp(bc_ptr, bc_var_imm, bc_len) == 0) {
-        return gtk_ml_build_var_imm(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_var_imm(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_getvar_imm) == bc_len && strncmp(bc_ptr, bc_getvar_imm, bc_len) == 0) {
-        return gtk_ml_build_getvar_imm(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_getvar_imm(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_assignvar_imm) == bc_len && strncmp(bc_ptr, bc_assignvar_imm, bc_len) == 0) {
-        return gtk_ml_build_assignvar_imm(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_assignvar_imm(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_length) == bc_len && strncmp(bc_ptr, bc_length, bc_len) == 0) {
-        return gtk_ml_build_len(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_len(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_array_index) == bc_len && strncmp(bc_ptr, bc_array_index, bc_len) == 0) {
-        return gtk_ml_build_array_index(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_array_index(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_array_push) == bc_len && strncmp(bc_ptr, bc_array_push, bc_len) == 0) {
-        return gtk_ml_build_array_push(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_array_push(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_array_pop) == bc_len && strncmp(bc_ptr, bc_array_pop, bc_len) == 0) {
-        return gtk_ml_build_array_pop(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_array_pop(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_map_get) == bc_len && strncmp(bc_ptr, bc_map_get, bc_len) == 0) {
-        return gtk_ml_build_map_get(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_map_get(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_map_insert) == bc_len && strncmp(bc_ptr, bc_map_insert, bc_len) == 0) {
-        return gtk_ml_build_map_insert(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_map_insert(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_map_delete) == bc_len && strncmp(bc_ptr, bc_map_delete, bc_len) == 0) {
-        return gtk_ml_build_map_delete(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_map_delete(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_set_contains) == bc_len && strncmp(bc_ptr, bc_set_contains, bc_len) == 0) {
-        return gtk_ml_build_set_contains(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_set_contains(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_set_insert) == bc_len && strncmp(bc_ptr, bc_set_insert, bc_len) == 0) {
-        return gtk_ml_build_set_insert(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_set_insert(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_set_delete) == bc_len && strncmp(bc_ptr, bc_set_delete, bc_len) == 0) {
-        return gtk_ml_build_set_delete(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_set_delete(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_call_std) == bc_len && strncmp(bc_ptr, bc_call_std, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_call_extended_std(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_call_extended_std(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_call) == bc_len && strncmp(bc_ptr, bc_call, bc_len) == 0) {
-        return gtk_ml_build_call(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_call(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_branch_absolute) == bc_len && strncmp(bc_ptr, bc_branch_absolute, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_branch_absolute_extended(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_branch_absolute_extended(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_ret) == bc_len && strncmp(bc_ptr, bc_ret, bc_len) == 0) {
-        return gtk_ml_build_ret(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_ret(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_add) == bc_len && strncmp(bc_ptr, bc_add, bc_len) == 0) {
-        return gtk_ml_build_add(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_add(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_sub) == bc_len && strncmp(bc_ptr, bc_sub, bc_len) == 0) {
-        return gtk_ml_build_sub(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_sub(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_mul) == bc_len && strncmp(bc_ptr, bc_mul, bc_len) == 0) {
-        return gtk_ml_build_mul(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_mul(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_div) == bc_len && strncmp(bc_ptr, bc_div, bc_len) == 0) {
-        return gtk_ml_build_div(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_div(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_mod) == bc_len && strncmp(bc_ptr, bc_mod, bc_len) == 0) {
-        return gtk_ml_build_mod(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_mod(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_bitand) == bc_len && strncmp(bc_ptr, bc_bitand, bc_len) == 0) {
-        return gtk_ml_build_bitand(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_bitand(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_bitor) == bc_len && strncmp(bc_ptr, bc_bitor, bc_len) == 0) {
-        return gtk_ml_build_bitor(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_bitor(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_bitxor) == bc_len && strncmp(bc_ptr, bc_bitxor, bc_len) == 0) {
-        return gtk_ml_build_bitxor(arg_ctx, arg_b, *arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_bitxor(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_new_true(ctx, NULL) : NULL;
     } else if (strlen(bc_cmp) == bc_len && strncmp(bc_ptr, bc_cmp, bc_len) == 0) {
         if (!imm) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return 0;
         }
-        return gtk_ml_build_cmp(arg_ctx, arg_b, *arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
+        return gtk_ml_build_cmp(arg_ctx, arg_b, arg_basic_block, err, gtk_ml_append_static(arg_b, imm))? gtk_ml_new_true(ctx, NULL) : NULL;
     } else {
         *err = gtk_ml_error(ctx, "bytecode-error", GTKML_ERR_BYTECODE_ERROR, bc->span.ptr != NULL, bc->span.line, bc->span.col, 0);
         return NULL;
@@ -593,50 +600,52 @@ GtkMl_S *gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *descripti
 
         GtkMl_S *program = gtk_ml_new_nil(ctx, NULL);
         size_t call_at = ctx->vm->reg[GTKML_R_PC].pc;
-        GtkMl_S *export = NULL;
-        for (size_t ptr = 0; ptr <= call_at;) {
-            GtkMl_Instruction instr = ctx->vm->program.exec[ptr >> 3];
-            if (instr.gen.category == GTKML_EI_EXPORT) {
-                if (ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64]->kind == GTKML_S_PROGRAM
-                        || ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64]->kind == GTKML_S_ADDRESS) {
-                    export = ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64];
+        if (call_at < ctx->vm->program.n_exec) {
+            GtkMl_S *export = NULL;
+            for (size_t ptr = 0; ptr <= call_at;) {
+                GtkMl_Instruction instr = ctx->vm->program.exec[ptr >> 3];
+                if (instr.gen.category == GTKML_EI_EXPORT) {
+                    if (ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64]->kind == GTKML_S_PROGRAM
+                            || ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64]->kind == GTKML_S_ADDRESS) {
+                        export = ctx->vm->program.statics[ctx->vm->program.exec[(ptr >> 3) + 1].imm64];
+                    }
+                }
+                if (instr.gen.category & GTKML_I_EXTENDED) {
+                    ptr += 16;
+                } else {
+                    ptr += 8;
                 }
             }
-            if (instr.gen.category & GTKML_I_EXTENDED) {
-                ptr += 16;
-            } else {
-                ptr += 8;
-            }
-        }
 
-        if (export) {
-            program = gtk_ml_new_array(ctx, NULL);
+            if (export) {
+                program = gtk_ml_new_array(ctx, NULL);
 
-            if (export->kind == GTKML_S_PROGRAM) {
+                if (export->kind == GTKML_S_PROGRAM) {
+                    GtkMl_S *new = gtk_ml_new_array(ctx, NULL);
+                    gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_program.linkage_name);
+                    program = new;
+
+                    new = gtk_ml_new_array(ctx, NULL);
+                    gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, gtk_ml_new_int(ctx, NULL, export->value.s_program.addr));
+                    program = new;
+                } else if (export->kind == GTKML_S_ADDRESS) {
+                    GtkMl_S *new = gtk_ml_new_array(ctx, NULL);
+                    gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_address.linkage_name);
+                    program = new;
+
+                    new = gtk_ml_new_array(ctx, NULL);
+                    gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, gtk_ml_new_int(ctx, NULL, export->value.s_address.addr));
+                    program = new;
+                }
+
                 GtkMl_S *new = gtk_ml_new_array(ctx, NULL);
-                gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_program.linkage_name);
-                program = new;
-
-                new = gtk_ml_new_array(ctx, NULL);
-                gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, gtk_ml_new_int(ctx, NULL, export->value.s_program.addr));
-                program = new;
-            } else if (export->kind == GTKML_S_ADDRESS) {
-                GtkMl_S *new = gtk_ml_new_array(ctx, NULL);
-                gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, export->value.s_address.linkage_name);
-                program = new;
-
-                new = gtk_ml_new_array(ctx, NULL);
-                gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, gtk_ml_new_int(ctx, NULL, export->value.s_address.addr));
+                gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, gtk_ml_new_int(ctx, NULL, call_at));
                 program = new;
             }
-
             GtkMl_S *new = gtk_ml_new_array(ctx, NULL);
-            gtk_ml_array_trie_push(&new->value.s_array.array, &program->value.s_array.array, gtk_ml_new_int(ctx, NULL, call_at));
-            program = new;
+            gtk_ml_array_trie_push(&new->value.s_array.array, &s_stacktrace->value.s_array.array, program);
+            s_stacktrace = new;
         }
-        GtkMl_S *new = gtk_ml_new_array(ctx, NULL);
-        gtk_ml_array_trie_push(&new->value.s_array.array, &s_stacktrace->value.s_array.array, program);
-        s_stacktrace = new;
     }
 
     GtkMl_S *error = gtk_ml_new_map(ctx, NULL, NULL);

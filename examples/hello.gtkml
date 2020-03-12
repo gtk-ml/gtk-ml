@@ -36,15 +36,15 @@
 (define-intrinsic (intr-add a b)
   (cond
     (const-number? a) (cond
-      (const-number? b) (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :push-imm (+ (const-eval a) (const-eval b)))
+      (const-number? b) (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :push-imm (+ (const-eval a) (const-eval b)))
       :else (do
         (compile-expr CTX CODE-BUILDER BASIC-BLOCK b)
         (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
-        (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add)))
+        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :add)))
     :else (do
       (compile-expr CTX CODE-BUILDER BASIC-BLOCK b)
       (compile-expr CTX CODE-BUILDER BASIC-BLOCK a)
-      (emit-bytecode CTX CODE-BUILDER BASIC-BLOCK cond-none :add))))
+      (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :add))))
 
 (define (sum a ...rest)
   (cond

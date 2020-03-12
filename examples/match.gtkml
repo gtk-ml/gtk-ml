@@ -13,7 +13,7 @@
     value))
 
 (define (empty? container) (= (len container) 0))
-(define (nil? list) (= (typeof list) :list))
+(define (nil? list) (= (typeof list) :nil))
 
 (define (format-v-impl acc offset fmt args)
   (cond

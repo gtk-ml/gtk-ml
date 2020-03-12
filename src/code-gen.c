@@ -241,10 +241,16 @@ gboolean gtk_ml_builder_intr_apply(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         GtkMl_S *program = gtk_ml_get_export(tmp_ctx, &_err, linkage_name);
         free(linkage_name);
         if (program && program->value.s_program.kind == GTKML_PROG_INTRINSIC) {
+            GtkMl_BasicBlock *bb = *basic_block;
+            GtkMl_S *bb_ld = gtk_ml_new_lightdata(b->intr_ctx, NULL, bb);
+            GtkMl_S *bb_var = gtk_ml_new_var(b->intr_ctx, NULL, bb_ld);
             gtk_ml_define(tmp_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CTX", strlen("CTX")), gtk_ml_new_lightdata(b->intr_ctx, NULL, ctx));
             gtk_ml_define(tmp_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CODE-BUILDER", strlen("CODE-BUILDER")), gtk_ml_new_lightdata(b->intr_ctx, NULL, b));
-            gtk_ml_define(tmp_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "BASIC-BLOCK", strlen("BASIC-BLOCK")), gtk_ml_new_lightdata(b->intr_ctx, NULL, basic_block));
-            return gtk_ml_run_program(tmp_ctx, err, program, args);
+            gtk_ml_define(tmp_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "BASIC-BLOCK", strlen("BASIC-BLOCK")), bb_var);
+            if (!gtk_ml_run_program(tmp_ctx, err, program, args)) {
+                return 0;
+            }
+            *basic_block = bb_var->value.s_var.expr->value.s_lightdata.userdata;
         }
     }
 
@@ -1483,10 +1489,17 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
             GtkMl_S *program = gtk_ml_get_export(b->intr_ctx, &_err, linkage_name);
             free(linkage_name);
             if (program && program->value.s_program.kind == GTKML_PROG_INTRINSIC) {
+                GtkMl_BasicBlock *bb = *basic_block;
+                GtkMl_S *bb_ld = gtk_ml_new_lightdata(b->intr_ctx, NULL, bb);
+                GtkMl_S *bb_var = gtk_ml_new_var(b->intr_ctx, NULL, bb_ld);
                 gtk_ml_define(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CTX", strlen("CTX")), gtk_ml_new_lightdata(b->intr_ctx, NULL, ctx));
                 gtk_ml_define(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CODE-BUILDER", strlen("CODE-BUILDER")), gtk_ml_new_lightdata(b->intr_ctx, NULL, b));
-                gtk_ml_define(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "BASIC-BLOCK", strlen("BASIC-BLOCK")), gtk_ml_new_lightdata(b->intr_ctx, NULL, basic_block));
-                return gtk_ml_run_program(b->intr_ctx, err, program, args);
+                gtk_ml_define(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "BASIC-BLOCK", strlen("BASIC-BLOCK")), bb_var);
+                if (!gtk_ml_run_program(b->intr_ctx, err, program, args)) {
+                    return 0;
+                }
+                *basic_block = bb_var->value.s_var.expr->value.s_lightdata.userdata;
+                return 1;
             }
         }
 
