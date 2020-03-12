@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"
@@ -76,8 +77,10 @@ GtkMl_Builder *gtk_ml_new_builder() {
     gtk_ml_add_builder(b, "define-macro", gtk_ml_builder_define_macro, 0, 0, 0);
     gtk_ml_add_builder(b, "define-intrinsic", gtk_ml_builder_define_intrinsic, 0, 0, 0);
     gtk_ml_add_builder(b, "intr-apply", gtk_ml_builder_intr_apply, 1, 0, 0);
+#ifdef GTKML_ENABLE_GTK
     gtk_ml_add_builder(b, "Application", gtk_ml_builder_application, 0, 0, 1);
     gtk_ml_add_builder(b, "new-window", gtk_ml_builder_new_window, 0, 0, 1);
+#endif /* GTKML_ENABLE_GTK */
     gtk_ml_add_builder(b, "setmetamap", gtk_ml_builder_setmetamap, 0, 0, 0);
     gtk_ml_add_builder(b, "getmetamap", gtk_ml_builder_getmetamap, 0, 0, 0);
     gtk_ml_add_builder(b, "get", gtk_ml_builder_getvar, 0, 0, 0);
