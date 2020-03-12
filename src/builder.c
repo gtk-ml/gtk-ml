@@ -43,6 +43,7 @@ GtkMl_Builder *gtk_ml_new_builder() {
 
     gtk_ml_add_builder(b, "compile-expr", gtk_ml_builder_compile_expr, 1, 0, 0);
     gtk_ml_add_builder(b, "emit-bytecode", gtk_ml_builder_emit_bytecode, 1, 0, 0);
+    gtk_ml_add_builder(b, "append-basic-block", gtk_ml_builder_append_basic_block, 1, 0, 0);
     gtk_ml_add_builder(b, "do", gtk_ml_builder_do, 0, 0, 0);
     gtk_ml_add_builder(b, "lambda", gtk_ml_builder_lambda, 0, 0, 0);
     gtk_ml_add_builder(b, "macro", gtk_ml_builder_macro, 0, 1, 0);

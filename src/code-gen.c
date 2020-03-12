@@ -309,6 +309,24 @@ gboolean gtk_ml_builder_emit_bytecode(GtkMl_Context *ctx, GtkMl_Builder *b, GtkM
     return compile_std_call(ctx, b, basic_block, err, GTKML_STD_EMIT_BYTECODE, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
+gboolean gtk_ml_builder_append_basic_block(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) b;
+    (void) basic_block;
+    (void) allow_intr;
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_APPEND_BASIC_BLOCK, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
 gboolean gtk_ml_builder_do(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_S *args = gtk_ml_cdr(*stmt);
 
