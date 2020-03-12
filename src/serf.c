@@ -214,6 +214,9 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
             }
         }
         break;
+    default:
+        *err = gtk_ml_error(ctx, "invalid-sexpr", GTKML_ERR_INVALID_SEXPR, 0, 0, 0, 0);
+        return 0;
     }
     fprintf(stream, ")");
     return result;
@@ -304,6 +307,7 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         break;
     }
     case GTKML_S_LIST: {
+        result->kind = GTKML_S_NIL;
         char next = 0;
         fread(&next, 1, 1, stream);
         if (next != ')') {
@@ -501,6 +505,9 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
         *err = gtk_ml_error(ctx, "deser-error", GTKML_ERR_DESER_ERROR, 0, 0, 0, 0);
+        return 0;
+    default:
+        *err = gtk_ml_error(ctx, "invalid-sexpr", GTKML_ERR_INVALID_SEXPR, 0, 0, 0, 0);
         return 0;
     }
 

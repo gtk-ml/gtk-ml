@@ -1353,7 +1353,7 @@ gboolean gtk_ml_compile_quasi_expression(GtkMl_Context *ctx, GtkMl_Builder *b, G
     case GTKML_S_ARRAY: {
         int64_t n = gtk_ml_array_trie_len(&stmt->value.s_array.array);
         struct CompileData data = { ctx, b, basic_block, err, stmt, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, unwrapped, 1 }; 
-        gtk_ml_array_trie_foreach(&stmt->value.s_array.array, compile_quasi_array, &data);
+        gtk_ml_array_trie_foreach_rev(&stmt->value.s_array.array, compile_quasi_array, &data);
         return gtk_ml_build_array_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, gtk_ml_new_int(ctx, NULL, n)));
     }
     case GTKML_S_UNQUOTE: {
@@ -1488,7 +1488,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     case GTKML_S_ARRAY: {
         int64_t n = gtk_ml_array_trie_len(&(*stmt)->value.s_array.array);
         struct CompileData data = { ctx, b, basic_block, err, (*stmt), allow_intr, allow_macro, allow_runtime, allow_macro_expansion, NULL, 1 }; 
-        gtk_ml_array_trie_foreach(&(*stmt)->value.s_array.array, compile_array, &data);
+        gtk_ml_array_trie_foreach_rev(&(*stmt)->value.s_array.array, compile_array, &data);
         return gtk_ml_build_array_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, gtk_ml_new_int(ctx, NULL, n)));
     }
     case GTKML_S_VAR:

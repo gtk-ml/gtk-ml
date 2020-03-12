@@ -561,6 +561,12 @@ gboolean gtk_ml_ia_enter(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
 gboolean gtk_ml_ia_leave(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
     (void) instr;
+
+    if (vm->ctx->bindings->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(vm->ctx, "scope-error", GTKML_ERR_SCOPE_ERROR, 0, 0, 0, 0);
+        return 0;
+    }
+
     gtk_ml_leave(vm->ctx);
     PC_INCREMENT;
     return 1;
@@ -1313,6 +1319,11 @@ gboolean gtk_ml_ibr_ret(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
         vm->reg[GTKML_R_FLAGS].flags |= GTKML_F_HALT;
         PC_INCREMENT;
     } else {
+        if (vm->ctx->bindings->kind == GTKML_S_NIL) {
+            *err = gtk_ml_error(vm->ctx, "scope-error", GTKML_ERR_SCOPE_ERROR, 0, 0, 0, 0);
+            return 0;
+        }
+
         gtk_ml_leave(vm->ctx);
 
         uint64_t pc = vm->call_stack[--vm->call_stack_ptr];

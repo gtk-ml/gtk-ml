@@ -187,6 +187,10 @@ GtkMl_S *gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token
         return NULL;
     }
 
+    if (!expr) {
+        return NULL;
+    }
+
     span_add(&span, &span, &expr->span);
     if (expr) {
         expr->span = span;
@@ -236,6 +240,9 @@ GtkMl_S *gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token *
     }
 
     GtkMl_S *car = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    if (!car) {
+        return NULL;
+    }
     GtkMl_S *cdr = gtk_ml_parse_list_rest(ctx, err, tokenv, tokenc);
     if (!cdr) {
         return NULL;

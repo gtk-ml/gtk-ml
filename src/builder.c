@@ -19,7 +19,7 @@
 GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     GtkMl_Builder *b = malloc(sizeof(GtkMl_Builder));
 
-    b->basic_blocks = malloc(sizeof(GtkMl_BasicBlock) * 64);
+    b->basic_blocks = malloc(sizeof(GtkMl_BasicBlock *) * 64);
     b->len_bb = 0;
     b->cap_bb = 64;
 
@@ -1299,10 +1299,11 @@ gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
 GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name) {
     if (b->len_bb == b->cap_bb) {
         b->cap_bb *= 2;
-        b->basic_blocks = realloc(b->basic_blocks, sizeof(GtkMl_BasicBlock) * b->cap_bb);
+        b->basic_blocks = realloc(b->basic_blocks, sizeof(GtkMl_BasicBlock *) * b->cap_bb);
     }
 
-    GtkMl_BasicBlock *basic_block = b->basic_blocks + b->len_bb;
+    GtkMl_BasicBlock *basic_block = malloc(sizeof(GtkMl_BasicBlock));
+    b->basic_blocks[b->len_bb] = basic_block;
     ++b->len_bb;
 
     basic_block->name = name;
@@ -1336,7 +1337,7 @@ GTKML_PRIVATE gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **e
     size_t n = 0;
     size_t n_static = b->len_static;
     for (size_t i = 0; i < b->len_bb; i++) {
-        n += b->basic_blocks[i].len_exec;
+        n += b->basic_blocks[i]->len_exec;
     }
 
     if (!complete) {
@@ -1349,8 +1350,8 @@ GTKML_PRIVATE gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **e
     uint64_t pc = 0;
 
     for (size_t i = 0; i < b->len_bb; i++) {
-        size_t n = b->basic_blocks[i].len_exec;
-        memcpy(result + pc, b->basic_blocks[i].exec, sizeof(GtkMl_Instruction) * n);
+        size_t n = b->basic_blocks[i]->len_exec;
+        memcpy(result + pc, b->basic_blocks[i]->exec, sizeof(GtkMl_Instruction) * n);
         pc += n;
 
         // add a halt instruction to the end of _start
@@ -1468,7 +1469,8 @@ GTKML_PRIVATE gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **e
         switch (stage) {
         case GTKML_STAGE_INTR:
             for (size_t i = 0; i < b->len_bb; i++) {
-                free(b->basic_blocks[i].exec);
+                free(b->basic_blocks[i]->exec);
+                free(b->basic_blocks[i]);
             }
             b->len_bb = 0;
             b->len_static = 1;
@@ -1493,7 +1495,8 @@ GTKML_PRIVATE gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **e
             // then it's safe to delete the intr context and vm
 
             for (size_t i = 0; i < b->len_bb; i++) {
-                free(b->basic_blocks[i].exec);
+                free(b->basic_blocks[i]->exec);
+                free(b->basic_blocks[i]);
             }
             b->len_bb = 0;
             b->len_static = 1;
@@ -1530,7 +1533,8 @@ GTKML_PRIVATE gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **e
             gtk_ml_del_context(b->intr_ctx);
 
             for (size_t i = 0; i < b->len_bb; i++) {
-                free(b->basic_blocks[i].exec);
+                free(b->basic_blocks[i]->exec);
+                free(b->basic_blocks[i]);
             }
             for (size_t i = 0; i < b->len_builder; i++) {
                 free((void *) b->builders[i].name);

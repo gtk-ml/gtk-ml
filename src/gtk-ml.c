@@ -204,6 +204,10 @@ GtkMl_Context *gtk_ml_new_context() {
     ctx->bindings = gtk_ml_new_list(ctx, NULL, gtk_ml_new_map(ctx, NULL, NULL), gtk_ml_new_nil(ctx, NULL));
     ctx->top_scope = &gtk_ml_car(ctx->bindings);
 
+    ctx->free_len = 0;
+    ctx->free_cap = 64;
+    ctx->free_all = malloc(sizeof(GtkMl_S *) * ctx->free_cap);
+
     gtk_ml_define(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "flags-none", 10), gtk_ml_new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE));
     gtk_ml_define(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-none", 9), gtk_ml_new_int(ctx, NULL, GTKML_F_NONE));
 
@@ -221,6 +225,13 @@ GtkMl_Context *gtk_ml_new_context() {
     return ctx;
 }
 
+GTKML_PRIVATE void free_all(GtkMl_Context *ctx) {
+    for (size_t i = 0; i < ctx->free_len; i++) {
+        free(ctx->free_all[i]);
+    }
+    ctx->free_len = 0;
+}
+
 void gtk_ml_del_context(GtkMl_Context *ctx) {
     gtk_ml_del_vm(ctx->vm);
 
@@ -230,8 +241,10 @@ void gtk_ml_del_context(GtkMl_Context *ctx) {
         gtk_ml_del(ctx, value);
         value = next;
     }
+    free_all(ctx);
 
     free(ctx->parser.readers);
+    free(ctx->free_all);
 
     free(ctx);
 }
@@ -289,6 +302,10 @@ gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *program,
     ctx->vm->reg[GTKML_R_PC].pc = program->value.s_program.addr;
     gboolean result = gtk_ml_vm_run(ctx->vm, err);
 
+    if (ctx->bindings->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "scope-error", GTKML_ERR_SCOPE_ERROR, 0, 0, 0, 0);
+        return 0;
+    }
     gtk_ml_leave(ctx);
 
     return result;
@@ -557,7 +574,8 @@ void ptr_hash_start(GtkMl_Hash *hash) {
 }
 
 gboolean ptr_hash_update(GtkMl_Hash *hash, void *ptr) {
-    jenkins_update(hash, &ptr, sizeof(void *));
+    *hash = (size_t) ptr >> 3;
+    // jenkins_update(hash, &ptr, sizeof(void *));
     return 1;
 }
 
@@ -668,7 +686,7 @@ GTKML_PRIVATE void mark_value(GtkMl_S *s) {
 }
 
 GTKML_PRIVATE void mark_program(GtkMl_Program *program) {
-    for (GtkMl_Static i = 0; i < program->n_static;) {
+    for (GtkMl_Static i = 1; i < program->n_static; i++) {
         mark_value(program->statics[i]);
     }
 }
@@ -757,7 +775,11 @@ void gtk_ml_delete(GtkMl_Context *ctx, GtkMl_S *s) {
         gtk_ml_delete(ctx, s->value.s_macro.capture);
         break;
     }
-    free(s);
+    if (ctx->free_len == ctx->free_cap) {
+        ctx->free_cap *= 2;
+        ctx->free_all = realloc(ctx->free_all, sizeof(GtkMl_S *) * ctx->free_cap);
+    }
+    ctx->free_all[ctx->free_len++] = s;
     --ctx->n_values;
 }
 
@@ -804,7 +826,11 @@ void gtk_ml_del(GtkMl_Context *ctx, GtkMl_S *s) {
         s->value.s_userdata.del(ctx, s->value.s_userdata.userdata);
         break;
     }
-    free(s);
+    if (ctx->free_len == ctx->free_cap) {
+        ctx->free_cap *= 2;
+        ctx->free_all = realloc(ctx->free_all, sizeof(GtkMl_S *) * ctx->free_cap);
+    }
+    ctx->free_all[ctx->free_len++] = s;
     --ctx->n_values;
 }
 
@@ -817,7 +843,7 @@ GTKML_PRIVATE void sweep(GtkMl_Context *ctx) {
         } else {
             GtkMl_S *unreachable = *value;
             *value = (*value)->next;
-            gtk_ml_delete(ctx, unreachable);
+            gtk_ml_del(ctx, unreachable);
         }
     }
 }
@@ -835,6 +861,7 @@ gboolean gtk_ml_collect(GtkMl_Context *ctx) {
     size_t n_values = ctx->n_values;
     mark(ctx);
     sweep(ctx);
+    free_all(ctx);
     ctx->m_values = 2 * n_values;
 
     return 1;

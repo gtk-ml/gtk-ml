@@ -156,6 +156,14 @@ GtkMl_S *vm_std_new_window(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
     GtkMl_S *new_window = gtk_ml_pop(ctx);
     (void) new_window;
 
+    if (app_expr->kind != GTKML_S_USERDATA) {
+        *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), app_expr);
+        return NULL;
+    }
+    if (!app_expr->value.s_userdata.userdata) {
+        *err = gtk_ml_error(ctx, "null-error", GTKML_ERR_NULL_ERROR, 0, 0, 0, 0);
+        return NULL;
+    }
     GtkWidget *window = gtk_application_window_new(app_expr->value.s_userdata.userdata);
     char *title = gtk_ml_to_c_str(title_expr);
     gtk_window_set_title(GTK_WINDOW(window), title);
