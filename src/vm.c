@@ -30,6 +30,7 @@ GTKML_PRIVATE GtkMl_S *vm_std_error(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *
 GTKML_PRIVATE GtkMl_S *vm_std_compile_expr(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_append_basic_block(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
+GTKML_PRIVATE GtkMl_S *vm_std_global_counter(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 
 GTKML_PRIVATE GtkMl_S *(*STD[])(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = {
     [GTKML_STD_APPLICATION] = vm_std_application,
@@ -38,6 +39,7 @@ GTKML_PRIVATE GtkMl_S *(*STD[])(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = {
     [GTKML_STD_COMPILE_EXPR] = vm_std_compile_expr,
     [GTKML_STD_EMIT_BYTECODE] = vm_std_emit_bytecode,
     [GTKML_STD_APPEND_BASIC_BLOCK] = vm_std_append_basic_block,
+    [GTKML_STD_GLOBAL_COUNTER] = vm_std_global_counter,
 };
 
 void gtk_ml_push(GtkMl_Context *ctx, GtkMl_S *value) {
@@ -441,6 +443,15 @@ GtkMl_S *vm_std_append_basic_block(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *e
     GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(arg_b, name);
 
     return gtk_ml_new_lightdata(ctx, NULL, bb);
+}
+
+GtkMl_S *vm_std_global_counter(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
+    (void) expr;
+    (void) err;
+
+    GtkMl_Builder *arg_b = gtk_ml_pop(ctx)->value.s_lightdata.userdata;
+
+    return arg_b->counter;
 }
 
 gboolean gtk_ml_equal(GtkMl_S *lhs, GtkMl_S *rhs) {

@@ -16,7 +16,7 @@
         ++b->len_builder; \
     } while (0);
 
-GtkMl_Builder *gtk_ml_new_builder() {
+GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     GtkMl_Builder *b = malloc(sizeof(GtkMl_Builder));
 
     b->basic_blocks = malloc(sizeof(GtkMl_BasicBlock) * 64);
@@ -28,7 +28,7 @@ GtkMl_Builder *gtk_ml_new_builder() {
     b->len_static = 1;
     b->cap_static = 64;
 
-    b->counter = 0;
+    b->counter = gtk_ml_new_var(ctx, NULL, gtk_ml_new_int(ctx, NULL, 0));
     b->flags = 0;
 
     b->intr_ctx = gtk_ml_new_context();
@@ -44,6 +44,7 @@ GtkMl_Builder *gtk_ml_new_builder() {
     gtk_ml_add_builder(b, "compile-expr", gtk_ml_builder_compile_expr, 1, 0, 0);
     gtk_ml_add_builder(b, "emit-bytecode", gtk_ml_builder_emit_bytecode, 1, 0, 0);
     gtk_ml_add_builder(b, "append-basic-block", gtk_ml_builder_append_basic_block, 1, 0, 0);
+    gtk_ml_add_builder(b, "global-counter", gtk_ml_builder_global_counter, 1, 0, 0);
     gtk_ml_add_builder(b, "do", gtk_ml_builder_do, 0, 0, 0);
     gtk_ml_add_builder(b, "lambda", gtk_ml_builder_lambda, 0, 0, 0);
     gtk_ml_add_builder(b, "macro", gtk_ml_builder_macro, 0, 1, 0);
@@ -98,6 +99,12 @@ unsigned int gtk_ml_builder_clear_cond(GtkMl_Builder *b) {
     unsigned int flags = b->flags;
     b->flags = 0;
     return flags;
+}
+
+GtkMl_S *gtk_ml_builder_get_and_inc(GtkMl_Context *ctx, GtkMl_Builder *b) {
+    GtkMl_S *value = b->counter->value.s_var.expr;
+    b->counter->value.s_var.expr = gtk_ml_new_int(ctx, NULL, value->value.s_int.value + 1);
+    return value;
 }
 
 gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {

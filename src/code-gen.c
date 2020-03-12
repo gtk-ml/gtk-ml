@@ -327,6 +327,23 @@ gboolean gtk_ml_builder_append_basic_block(GtkMl_Context *ctx, GtkMl_Builder *b,
     return compile_std_call(ctx, b, basic_block, err, GTKML_STD_APPEND_BASIC_BLOCK, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
+gboolean gtk_ml_builder_global_counter(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) b;
+    (void) basic_block;
+    (void) allow_intr;
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_GLOBAL_COUNTER, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
 gboolean gtk_ml_builder_do(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_S *args = gtk_ml_cdr(*stmt);
 
@@ -418,7 +435,7 @@ gboolean gtk_ml_builder_cond(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     }
 
     GtkMl_BasicBlock **branches = malloc(sizeof(GtkMl_BasicBlock *) * (n + 1));
-    uint32_t cond_number = b->counter++;
+    uint32_t cond_number = gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value;
 
     char *linkage_name = malloc(strlen("cond$$end") + 16);
     snprintf(linkage_name, strlen("cond$$end") + 16, "cond$%u$end", cond_number);
@@ -567,7 +584,7 @@ gboolean gtk_ml_builder_while(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
         return 0;
     }
 
-    uint32_t while_number = b->counter++;
+    uint32_t while_number = gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value;
 
     char *linkage_name = malloc(strlen("while$$cond") + 16);
     snprintf(linkage_name, strlen("while$$cond") + 16, "while$%u$cond", while_number);
@@ -1440,7 +1457,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         return gtk_ml_build_get_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, *stmt));
     case GTKML_S_LAMBDA: {
         char *linkage_name = malloc(strlen("lambda$") + 16);
-        snprintf(linkage_name, strlen("lambda$") + 16, "lambda$%u", b->counter++);
+        snprintf(linkage_name, strlen("lambda$") + 16, "lambda$%lu", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
         GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(b, linkage_name);
         if (!gtk_ml_compile_program_internal(ctx, b, &bb, err, linkage_name, *stmt, 1, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, GTKML_PROG_RUNTIME)) {
             return 0;
@@ -1449,7 +1466,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     }
     case GTKML_S_MACRO: if (allow_macro) {
         char *linkage_name = malloc(strlen("macro$") + 16);
-        snprintf(linkage_name, strlen("macro$") + 16, "macro$%u", b->counter++);
+        snprintf(linkage_name, strlen("macro$") + 16, "macro$%lu", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
         GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(b, linkage_name);
         if (!gtk_ml_compile_program_internal(ctx, b, &bb, err, linkage_name, *stmt, 1, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, GTKML_PROG_MACRO)) {
             return 0;

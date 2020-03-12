@@ -39,6 +39,7 @@
 #define GTKML_STD_COMPILE_EXPR 0x100
 #define GTKML_STD_EMIT_BYTECODE 0x101
 #define GTKML_STD_APPEND_BASIC_BLOCK 0x102
+#define GTKML_STD_GLOBAL_COUNTER 0x103
 
 #define GTKML_I_ARITH 0x1
 #define GTKML_I_IMM 0x2
@@ -597,7 +598,7 @@ struct GtkMl_Builder {
     size_t len_static;
     size_t cap_static;
 
-    unsigned int counter;
+    GtkMl_S *counter; // (var 0)
     unsigned int flags;
 
     GtkMl_Context *intr_ctx;
@@ -683,6 +684,8 @@ GTKML_PUBLIC void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
 GTKML_PUBLIC void gtk_ml_builder_set_cond(GtkMl_Builder *b, unsigned int flags);
 // clears and returns the currently set conditional flags
 GTKML_PUBLIC unsigned int gtk_ml_builder_clear_cond(GtkMl_Builder *b);
+// returns the current counter value and post-increments it
+GTKML_PUBLIC GtkMl_S *gtk_ml_builder_get_and_inc(GtkMl_Context *ctx, GtkMl_Builder *b);
 // builds a halt instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err);
 // builds a push in the chosen basic_block
