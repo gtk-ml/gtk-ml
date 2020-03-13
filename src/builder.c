@@ -45,7 +45,10 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_add_builder(b, "emit-bytecode", gtk_ml_builder_emit_bytecode, 1, 0, 0);
     gtk_ml_add_builder(b, "append-basic-block", gtk_ml_builder_append_basic_block, 1, 0, 0);
     gtk_ml_add_builder(b, "global-counter", gtk_ml_builder_global_counter, 1, 0, 0);
+    gtk_ml_add_builder(b, "string->symbol", gtk_ml_builder_string_to_symbol, 0, 0, 0);
     gtk_ml_add_builder(b, "do", gtk_ml_builder_do, 0, 0, 0);
+    gtk_ml_add_builder(b, "let", gtk_ml_builder_let, 0, 0, 0);
+    gtk_ml_add_builder(b, "let*", gtk_ml_builder_let_star, 0, 0, 0);
     gtk_ml_add_builder(b, "lambda", gtk_ml_builder_lambda, 0, 0, 0);
     gtk_ml_add_builder(b, "macro", gtk_ml_builder_macro, 0, 1, 0);
     gtk_ml_add_builder(b, "cond", gtk_ml_builder_cond, 0, 0, 0);
@@ -84,6 +87,7 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_add_builder(b, "get", gtk_ml_builder_getvar, 0, 0, 0);
     gtk_ml_add_builder(b, "assign", gtk_ml_builder_assignvar, 0, 0, 0);
     gtk_ml_add_builder(b, "error", gtk_ml_builder_error, 0, 0, 0);
+    gtk_ml_add_builder(b, "dbg", gtk_ml_builder_dbg, 0, 0, 0);
 
     gtk_ml_new_hash_set(&b->intr_fns, &GTKML_DEFAULT_HASHER);
     gtk_ml_new_hash_set(&b->macro_fns, &GTKML_DEFAULT_HASHER);
@@ -1341,7 +1345,7 @@ GTKML_PRIVATE gboolean build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **e
     }
 
     if (!complete) {
-        n += 2;
+        n += 1;
     }
 
     GtkMl_Instruction *result = malloc(sizeof(GtkMl_Instruction) * n);

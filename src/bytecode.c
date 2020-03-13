@@ -895,7 +895,7 @@ gboolean gtk_ml_ii_len(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, gtk_ml_hash_set_len(&container->value.s_set.set)));
         break;
     default:
-        *err = gtk_ml_error(vm->ctx, "container-error", GTKML_ERR_CONTAINER_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_CONTAINER_ERROR, 0, 0, 0, 0);
         return 0;
     }
 

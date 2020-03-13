@@ -55,7 +55,7 @@
     (= offset (len fmt))
       (cond
         (nil? args) acc
-        :else       (error '{:err arity-error :desc "too many format arguments"}))
+        :else       (error {:err 'arity-error :desc "too many format arguments" :args args}))
     (> offset (len fmt))
       (error {:err 'index-out-of-bounds :desc "fmt offset is greater than (len fmt)" :len (len fmt) :offset offset})
     (= (index fmt offset) \~)
@@ -128,7 +128,7 @@
 (Application "de.walterpi.example" flags-none {
   :activate (Window
     ;; title
-    (format "~a ~u" "window" 42) 
+    (format "~a ~u" "window" 42)
     ;; width
     (cond
       #f          (error {:err 'cond-error :desc "cond evaluated in an incorrect way"})

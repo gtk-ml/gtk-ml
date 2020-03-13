@@ -36,6 +36,8 @@
 #define GTKML_STD_APPLICATION 0x0
 #define GTKML_STD_NEW_WINDOW 0x1
 #define GTKML_STD_ERROR 0x2
+#define GTKML_STD_DBG 0x3
+#define GTKML_STD_STRING_TO_SYMBOL 0x4
 #define GTKML_STD_COMPILE_EXPR 0x100
 #define GTKML_STD_EMIT_BYTECODE 0x101
 #define GTKML_STD_APPEND_BASIC_BLOCK 0x102
@@ -235,6 +237,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_ESCAPE_ERROR "invalid escape sequence"
 #define GTKML_ERR_EOF_ERROR "unexpected eof"
 #define GTKML_ERR_NULL_ERROR "null dereference"
+#define GTKML_ERR_SCOPE_ERROR "cannot leave an empty scope"
 #define GTKML_ERR_INVALID_SEXPR "invalid s-expression"
 #define GTKML_ERR_ARGUMENT_ERROR "invalid arguments"
 #define GTKML_ERR_TYPE_ERROR "invalid type for expression"
@@ -243,6 +246,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_BYTECODE_ERROR "unrecognized bytecode keyword"
 #define GTKML_ERR_BOOLEAN_ERROR "expected a boolean expression"
 #define GTKML_ERR_ARITY_ERROR "invalid argument count"
+#define GTKML_ERR_LET_ERROR "let requires and even number of key-value pairs"
 #define GTKML_ERR_BINDING_ERROR "binding not found"
 #define GTKML_ERR_CONSTANT_ERROR "constant not found"
 #define GTKML_ERR_VARARG_ERROR "free-standing vararg expression"
@@ -590,7 +594,7 @@ typedef struct GtkMl_BuilderMacro {
 } GtkMl_BuilderMacro;
 
 struct GtkMl_Builder {
-    GtkMl_BasicBlock *basic_blocks;
+    GtkMl_BasicBlock **basic_blocks;
     size_t len_bb;
     size_t cap_bb;
 
@@ -957,6 +961,7 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_get(GtkMl_Array *array, size_t index);
 GTKML_PUBLIC gboolean gtk_ml_array_trie_contains(GtkMl_Array *array, size_t *index, GtkMl_S *value);
 GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_delete(GtkMl_Array *out, GtkMl_Array *array, size_t index);
 GTKML_PUBLIC void gtk_ml_array_trie_foreach(GtkMl_Array *ht, GtkMl_ArrayFn fn, void *data);
+GTKML_PUBLIC void gtk_ml_array_trie_foreach_rev(GtkMl_Array *ht, GtkMl_ArrayFn fn, void *data);
 GTKML_PUBLIC gboolean gtk_ml_array_trie_equal(GtkMl_Array *lhs, GtkMl_Array *rhs);
 
 #endif /* ifndef GTK_ML_H */

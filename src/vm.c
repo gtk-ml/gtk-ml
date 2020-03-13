@@ -27,6 +27,8 @@ GTKML_PRIVATE gboolean (*CATEGORY[])(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction *
 GTKML_PRIVATE GtkMl_S *vm_std_application(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_new_window(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_error(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
+GTKML_PRIVATE GtkMl_S *vm_std_dbg(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
+GTKML_PRIVATE GtkMl_S *vm_std_string_to_symbol(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_compile_expr(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_emit_bytecode(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
 GTKML_PRIVATE GtkMl_S *vm_std_append_basic_block(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr);
@@ -36,6 +38,8 @@ GTKML_PRIVATE GtkMl_S *(*STD[])(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = {
     [GTKML_STD_APPLICATION] = vm_std_application,
     [GTKML_STD_NEW_WINDOW] = vm_std_new_window,
     [GTKML_STD_ERROR] = vm_std_error,
+    [GTKML_STD_DBG] = vm_std_dbg,
+    [GTKML_STD_STRING_TO_SYMBOL] = vm_std_string_to_symbol,
     [GTKML_STD_COMPILE_EXPR] = vm_std_compile_expr,
     [GTKML_STD_EMIT_BYTECODE] = vm_std_emit_bytecode,
     [GTKML_STD_APPEND_BASIC_BLOCK] = vm_std_append_basic_block,
@@ -206,6 +210,27 @@ GtkMl_S *vm_std_error(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
     *err = error_expr;
 
     return NULL;
+}
+
+GtkMl_S *vm_std_dbg(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
+    (void) expr;
+
+    GtkMl_S *value = gtk_ml_pop(ctx);
+    if (!gtk_ml_dumpf(ctx, stderr, err, value)) {
+        return NULL;
+    }
+
+    return value;
+}
+
+GtkMl_S *vm_std_string_to_symbol(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
+    (void) expr;
+    (void) err;
+
+    GtkMl_S *str = gtk_ml_pop(ctx);
+    char *c_str = gtk_ml_to_c_str(str);
+
+    return gtk_ml_new_symbol(ctx, &expr->span, 1, c_str, strlen(c_str));
 }
 
 GtkMl_S *vm_std_compile_expr(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_S *expr) {
