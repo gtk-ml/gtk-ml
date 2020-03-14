@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"
@@ -205,6 +206,15 @@ void *insert(GtkMl_Hasher *hasher, GtkMl_HashTrieNode **out, size_t *inc, GtkMl_
             gtk_ml_hash(hasher, &_hash, node->value.h_leaf.key);
             uint32_t _idx = (_hash >> shift) & GTKML_H_MASK;
             (*out)->value.h_branch.nodes[_idx] = copy_node(node);
+
+            if (hash == _hash) {
+                fprintf(stderr, "fatal error: two non-equal keys in a hash map have the same hashes at %p, %p\n  ", node->value.h_leaf.key, key);
+                gtk_ml_dumpf(NULL, stderr, NULL, node->value.h_leaf.key);
+                fprintf(stderr, ";");
+                gtk_ml_dumpf(NULL, stderr, NULL, key);
+                fprintf(stderr, "\n");
+                exit(1);
+            }
 
             uint32_t idx = (hash >> shift) & GTKML_H_MASK;
             return insert(hasher, &(*out)->value.h_branch.nodes[idx], inc, (*out)->value.h_branch.nodes[idx], key, value, hash, shift + GTKML_H_BITS);

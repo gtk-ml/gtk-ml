@@ -1,7 +1,7 @@
 #include <gtk/gtk.h>
 #include "gtk-ml.h"
 
-#define GUI "examples/hello.gtkml"
+#define GUI "examples/match.gtkml"
 
 int main() {
     GtkMl_S *err = NULL;
@@ -40,7 +40,7 @@ int main() {
 
     GtkMl_Serializer serf;
     gtk_ml_new_serializer(&serf);
-    FILE *bgtkml = fopen("hello.bgtkml", "wb");
+    FILE *bgtkml = fopen("match.bgtkml", "wb");
     if (!gtk_ml_serf_program(&serf, ctx, bgtkml, &err, linked)) {
         free(src);
         gtk_ml_dumpf(ctx, stderr, NULL, err);
@@ -51,7 +51,7 @@ int main() {
 
     GtkMl_Deserializer deserf;
     gtk_ml_new_deserializer(&deserf);
-    bgtkml = freopen("hello.bgtkml", "r", bgtkml);
+    bgtkml = freopen("match.bgtkml", "r", bgtkml);
     GtkMl_Program *loaded = gtk_ml_deserf_program(&deserf, ctx, bgtkml, &err);
     if (!loaded) {
         free(src);
@@ -90,9 +90,9 @@ int main() {
         return 1;
     }
 
-    GtkMl_S *app = gtk_ml_peek(ctx);
+    GtkMl_S *result = gtk_ml_peek(ctx);
 
-    if (!app) {
+    if (!result) {
         free(src);
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
@@ -100,10 +100,11 @@ int main() {
         return 1;
     }
 
-    int status = g_application_run(G_APPLICATION(app->value.s_userdata.userdata), 0, NULL);
+    gtk_ml_dumpf(ctx, stdout, NULL, result);
+    printf("\n");
 
     gtk_ml_del_context(ctx);
     free(src);
 
-    return status;
+    return 0;
 }

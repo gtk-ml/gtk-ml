@@ -9,11 +9,11 @@
 #include "gtk-ml-internal.h"
 
 GtkMl_S *gtk_ml_new_value(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKind kind) {
-    ++ctx->n_values;
+    ++ctx->gc->n_values;
 
     GtkMl_S *s = malloc(sizeof(GtkMl_S));
-    s->next = ctx->first;
-    ctx->first = s;
+    s->next = ctx->gc->first;
+    ctx->gc->first = s;
 
     s->flags = GTKML_FLAG_NONE;
     s->kind = kind;
