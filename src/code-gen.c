@@ -109,10 +109,7 @@ gboolean gtk_ml_builder_assignvar(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Ba
     if (!gtk_ml_compile_expression(ctx, b, basic_block, err, &newvalue, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
         return 0;
     }
-    if (!gtk_ml_build_assignvar_imm(ctx, b, *basic_block, err)) {
-        return 0;
-    }
-    return gtk_ml_build_push_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, gtk_ml_new_nil(ctx, NULL)));
+    return gtk_ml_build_assignvar_imm(ctx, b, *basic_block, err);
 }
 
 gboolean gtk_ml_builder_error(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -232,14 +229,13 @@ gboolean gtk_ml_builder_intr_apply(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     (void) allow_runtime;
     (void) allow_macro_expansion;
 
-    GtkMl_Program program;
-    if (!gtk_ml_build_intr_apply(&program, err, b)) {
+    GtkMl_Program *program = gtk_ml_build_intr_apply(ctx, err, b);
+    if (!program) {
         return 0;
     }
 
-    GtkMl_Context *tmp_ctx = gtk_ml_new_context();
-    gtk_ml_load_program(tmp_ctx, &program);
-    gtk_ml_del_program(&program);
+    GtkMl_Context *tmp_ctx = gtk_ml_new_context_with_gc(gtk_ml_gc_copy(ctx->gc));
+    gtk_ml_load_program(tmp_ctx, program);
     GtkMl_S *intr_program = gtk_ml_get_export(tmp_ctx, err, "_start");
     if (!intr_program) {
         return 0;
@@ -275,15 +271,6 @@ gboolean gtk_ml_builder_intr_apply(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         }
     }
 
-    // first we transfer the values from the temporary context into the real context
-    GtkMl_S *values = tmp_ctx->first;
-    tmp_ctx->first = NULL;
-    GtkMl_S **prev = &b->intr_ctx->first;
-    while (*prev) {
-        prev = &(*prev)->next;
-    }
-    *prev = values;
-    // then it's safe to delete the temporary context and vm
     gtk_ml_del_context(tmp_ctx);
 
     return gtk_ml_build_push_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, gtk_ml_new_nil(ctx, NULL)));
@@ -330,6 +317,25 @@ gboolean gtk_ml_builder_emit_bytecode(GtkMl_Context *ctx, GtkMl_Builder *b, GtkM
     return compile_std_call(ctx, b, basic_block, err, GTKML_STD_EMIT_BYTECODE, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
+gboolean gtk_ml_builder_export_symbol(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) b;
+    (void) basic_block;
+    (void) allow_intr;
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL
+            || gtk_ml_cdr(args)->kind == GTKML_S_NIL
+            || gtk_ml_cddr(args)->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_EXPORT_SYMBOL, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
 gboolean gtk_ml_builder_append_basic_block(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     (void) b;
     (void) basic_block;
@@ -363,6 +369,23 @@ gboolean gtk_ml_builder_global_counter(GtkMl_Context *ctx, GtkMl_Builder *b, Gtk
     }
 
     return compile_std_call(ctx, b, basic_block, err, GTKML_STD_GLOBAL_COUNTER, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_basic_block_name(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    (void) b;
+    (void) basic_block;
+    (void) allow_intr;
+    (void) allow_macro;
+    (void) allow_runtime;
+    (void) allow_macro_expansion;
+    GtkMl_S *args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_BASIC_BLOCK_NAME, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean gtk_ml_builder_string_to_symbol(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -2359,12 +2382,11 @@ gboolean gtk_ml_compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **
         return 0;
     }
 
-    GtkMl_Program intrinsics;
-    if (!gtk_ml_build_intrinsics(&intrinsics, err, b)) {
+    GtkMl_Program *intrinsics = gtk_ml_build_intrinsics(ctx, err, b);
+    if (!intrinsics) {
         return 0;
     }
-    gtk_ml_load_program(b->intr_ctx, &intrinsics);
-    gtk_ml_del_program(&intrinsics);
+    gtk_ml_load_program(b->intr_ctx, intrinsics);
     GtkMl_S *intr_program = gtk_ml_get_export(b->intr_ctx, err, "_start");
     if (!intr_program) {
         return 0;
@@ -2407,12 +2429,11 @@ gboolean gtk_ml_compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **
         return 0;
     }
 
-    GtkMl_Program macros;
-    if (!gtk_ml_build_macros(&macros, err, b)) {
+    GtkMl_Program *macros = gtk_ml_build_macros(ctx, err, b);
+    if (!macros) {
         return 0;
     }
-    gtk_ml_load_program(b->macro_ctx, &macros);
-    gtk_ml_del_program(&macros);
+    gtk_ml_load_program(b->macro_ctx, macros);
     GtkMl_S *macro_program = gtk_ml_get_export(b->macro_ctx, err, "_start");
     if (!macro_program) {
         return 0;

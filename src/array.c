@@ -131,8 +131,8 @@ GtkMl_S *gtk_ml_array_trie_delete(GtkMl_Array *out, GtkMl_Array *array, size_t i
 
     gboolean shiftme = 0;
     GtkMl_S *result = delete(&out->root, &shiftme, array->root, index);
-    if (shiftme) {
-        size_t len = out->root->value.a_branch.len;
+    if (array->root->kind != GTKML_A_LEAF && shiftme) {
+        size_t len = array->root->value.a_branch.len;
         size_t idx = index;
         memmove(&out->root->value.a_branch.nodes[idx], &out->root->value.a_branch.nodes[idx + 1], sizeof(GtkMl_ArrayNode *) * (len - idx - 1));
     }

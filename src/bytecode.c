@@ -153,7 +153,7 @@ gboolean gtk_ml_ibr(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
 gboolean gtk_ml_eii(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
     gboolean (*opcode)(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction, GtkMl_S *) = EI_IMM[instr->imm.opcode];
     if (opcode) {
-        return opcode(vm, err, instr[0], vm->program.statics[instr[1].imm64]);
+        return opcode(vm, err, instr[0], vm->program->statics[instr[1].imm64]);
     } else {
         *err = gtk_ml_error(vm->ctx, "opcode-error", GTKML_ERR_OPCODE_ERROR, 0, 0, 0, 0);
         return 0;
@@ -163,7 +163,7 @@ gboolean gtk_ml_eii(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
 gboolean gtk_ml_eibr(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
     gboolean (*opcode)(GtkMl_Vm *, GtkMl_S **, GtkMl_Instruction, GtkMl_S *) = EI_BR[instr->br.opcode];
     if (opcode) {
-        return opcode(vm, err, instr[0], vm->program.statics[instr[1].imm64]);
+        return opcode(vm, err, instr[0], vm->program->statics[instr[1].imm64]);
     } else {
         *err = gtk_ml_error(vm->ctx, "opcode-error", GTKML_ERR_OPCODE_ERROR, 0, 0, 0, 0);
         return 0;
@@ -232,7 +232,7 @@ gboolean gtk_ml_ia_add(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, lhs->value.s_float.value + rhs->value.s_float.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -254,7 +254,7 @@ gboolean gtk_ml_ia_subtract(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, lhs->value.s_float.value - rhs->value.s_float.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -276,7 +276,7 @@ gboolean gtk_ml_ia_signed_multiply(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instructio
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, lhs->value.s_float.value * rhs->value.s_float.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -298,7 +298,7 @@ gboolean gtk_ml_ia_unsigned_multiply(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruct
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, lhs->value.s_float.value * rhs->value.s_float.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -320,7 +320,7 @@ gboolean gtk_ml_ia_signed_divide(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction 
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, lhs->value.s_float.value / rhs->value.s_float.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -342,7 +342,7 @@ gboolean gtk_ml_ia_unsigned_divide(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instructio
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, lhs->value.s_float.value / rhs->value.s_float.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -364,7 +364,7 @@ gboolean gtk_ml_ia_signed_modulo(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction 
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, fmod(lhs->value.s_float.value, rhs->value.s_float.value)));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -386,7 +386,7 @@ gboolean gtk_ml_ia_unsigned_modulo(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instructio
     } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_float(vm->ctx, NULL, fmod(lhs->value.s_float.value, rhs->value.s_float.value)));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -402,7 +402,7 @@ gboolean gtk_ml_ia_bit_and(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
     if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, lhs->value.s_int.value & rhs->value.s_int.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -418,7 +418,7 @@ gboolean gtk_ml_ia_bit_or(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) 
     if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, lhs->value.s_int.value | rhs->value.s_int.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -434,7 +434,7 @@ gboolean gtk_ml_ia_bit_xor(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
     if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, lhs->value.s_int.value ^ rhs->value.s_int.value));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -450,7 +450,7 @@ gboolean gtk_ml_ia_bit_nand(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr
     if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, ~(lhs->value.s_int.value & rhs->value.s_int.value)));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -466,7 +466,7 @@ gboolean gtk_ml_ia_bit_nor(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
     if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, ~(lhs->value.s_int.value | rhs->value.s_int.value)));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -482,7 +482,7 @@ gboolean gtk_ml_ia_bit_xnor(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr
     if (lhs->kind == GTKML_S_INT && rhs->kind == GTKML_S_INT) {
         gtk_ml_push(vm->ctx, gtk_ml_new_int(vm->ctx, NULL, ~(lhs->value.s_int.value ^ rhs->value.s_int.value)));
     } else {
-        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+        *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
         return 0;
     }
     set_flags(vm, lhs, rhs, gtk_ml_peek(vm->ctx));
@@ -562,7 +562,7 @@ gboolean gtk_ml_ia_leave(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
     (void) instr;
 
-    if (vm->ctx->bindings->kind == GTKML_S_NIL) {
+    if (vm->ctx->bindings->value.s_var.expr->kind == GTKML_S_NIL) {
         *err = gtk_ml_error(vm->ctx, "scope-error", GTKML_ERR_SCOPE_ERROR, 0, 0, 0, 0);
         return 0;
     }
@@ -662,7 +662,7 @@ gboolean gtk_ml_ia_list(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
 gboolean gtk_ml_ii_push_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
     (void) instr;
-    gtk_ml_push(vm->ctx, vm->program.statics[instr.imm.imm]);
+    gtk_ml_push(vm->ctx, vm->program->statics[instr.imm.imm]);
     PC_INCREMENT;
     return 1;
 }
@@ -670,7 +670,7 @@ gboolean gtk_ml_ii_push_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr
 gboolean gtk_ml_ii_setf_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
     (void) instr;
-    switch (vm->program.statics[instr.imm.imm]->kind) {
+    switch (vm->program->statics[instr.imm.imm]->kind) {
     case GTKML_S_TRUE:
         vm->reg[GTKML_R_FLAGS].flags |= GTKML_F_ZERO;
         break;
@@ -714,14 +714,14 @@ gboolean gtk_ml_ii_pop(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
 gboolean gtk_ml_ii_get_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
     (void) instr;
-    GtkMl_S *value = gtk_ml_get(vm->ctx, vm->program.statics[instr.imm.imm]);
+    GtkMl_S *value = gtk_ml_get(vm->ctx, vm->program->statics[instr.imm.imm]);
     if (value) {
         gtk_ml_push(vm->ctx, value);
     } else {
         GtkMl_S *error = gtk_ml_error(vm->ctx, "binding-error", GTKML_ERR_BINDING_ERROR, 0, 0, 0, 0);
         GtkMl_S *new = gtk_ml_new_map(vm->ctx, NULL, NULL);
         gtk_ml_del_hash_trie(vm->ctx, &new->value.s_map.map, gtk_ml_delete_void_reference);
-        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, gtk_ml_new_keyword(vm->ctx, NULL, 0, "binding", strlen("binding")), vm->program.statics[instr.imm.imm]);
+        gtk_ml_hash_trie_insert(&new->value.s_map.map, &error->value.s_map.map, gtk_ml_new_keyword(vm->ctx, NULL, 0, "binding", strlen("binding")), vm->program->statics[instr.imm.imm]);
         error = new;
         *err = error;
         return 0;
@@ -733,7 +733,7 @@ gboolean gtk_ml_ii_get_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
 gboolean gtk_ml_ii_list_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
 
-    int64_t n = vm->program.statics[instr.imm.imm]->value.s_int.value;
+    int64_t n = vm->program->statics[instr.imm.imm]->value.s_int.value;
 
     GtkMl_S *list = gtk_ml_new_nil(vm->ctx, NULL);
 
@@ -751,7 +751,7 @@ gboolean gtk_ml_ii_list_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr
 gboolean gtk_ml_ii_map_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
 
-    int64_t n = vm->program.statics[instr.imm.imm]->value.s_int.value;
+    int64_t n = vm->program->statics[instr.imm.imm]->value.s_int.value;
 
     GtkMl_S *map = gtk_ml_new_map(vm->ctx, NULL, NULL);
 
@@ -772,7 +772,7 @@ gboolean gtk_ml_ii_map_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
 gboolean gtk_ml_ii_set_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
 
-    int64_t n = vm->program.statics[instr.imm.imm]->value.s_int.value;
+    int64_t n = vm->program->statics[instr.imm.imm]->value.s_int.value;
 
     GtkMl_S *set = gtk_ml_new_set(vm->ctx, NULL);
 
@@ -792,7 +792,7 @@ gboolean gtk_ml_ii_set_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr)
 gboolean gtk_ml_ii_array_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) err;
 
-    int64_t n = vm->program.statics[instr.imm.imm]->value.s_int.value;
+    int64_t n = vm->program->statics[instr.imm.imm]->value.s_int.value;
 
     GtkMl_S *array = gtk_ml_new_array(vm->ctx, NULL);
 
@@ -1297,6 +1297,11 @@ gboolean gtk_ml_ibr_call(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
 
     GtkMl_S *program = gtk_ml_pop(vm->ctx);
 
+    if (vm->call_stack_ptr == vm->call_stack_cap) {
+        *err = gtk_ml_error(vm->ctx, "stack-overflow", GTKML_ERR_STACK_ERROR, 0, 0, 0, 0);
+        return 0;
+    }
+
     uint64_t flags = vm->reg[GTKML_R_FLAGS].flags & GTKML_F_TOPCALL;
     vm->call_stack[vm->call_stack_ptr++] = flags;
     vm->reg[GTKML_R_FLAGS].flags &= ~GTKML_F_TOPCALL;
@@ -1319,7 +1324,7 @@ gboolean gtk_ml_ibr_ret(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
         vm->reg[GTKML_R_FLAGS].flags |= GTKML_F_HALT;
         PC_INCREMENT;
     } else {
-        if (vm->ctx->bindings->kind == GTKML_S_NIL) {
+        if (vm->ctx->bindings->value.s_var.expr->kind == GTKML_S_NIL) {
             *err = gtk_ml_error(vm->ctx, "scope-error", GTKML_ERR_SCOPE_ERROR, 0, 0, 0, 0);
             return 0;
         }
@@ -1337,7 +1342,7 @@ gboolean gtk_ml_ibr_ret(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
 
 gboolean gtk_ml_ibr_call_std(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction instr) {
     (void) instr;
-    GtkMl_S *(*function)(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = vm->std[vm->program.statics[instr.br.imm]->value.s_int.value];
+    GtkMl_S *(*function)(GtkMl_Context *, GtkMl_S **, GtkMl_S *) = vm->std[vm->program->statics[instr.br.imm]->value.s_int.value];
     GtkMl_S *expr = gtk_ml_pop(vm->ctx);
     GtkMl_S *value = function(vm->ctx, err, expr);
     if (value) {
@@ -1353,7 +1358,7 @@ gboolean gtk_ml_ibr_branch_absolute(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instructi
     (void) err;
     (void) instr;
     vm->reg[GTKML_R_FLAGS].flags &= ~GTKML_F_GENERIC;
-    GtkMl_S *addr = vm->program.statics[instr.br.imm];
+    GtkMl_S *addr = vm->program->statics[instr.br.imm];
     vm->reg[GTKML_R_PC].pc = addr->value.s_address.addr;
     return 1;
 }
@@ -1362,7 +1367,7 @@ gboolean gtk_ml_ibr_branch_relative(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instructi
     (void) err;
     (void) instr;
     vm->reg[GTKML_R_FLAGS].flags &= ~GTKML_F_GENERIC;
-    GtkMl_S *addr = vm->program.statics[instr.br.imm];
+    GtkMl_S *addr = vm->program->statics[instr.br.imm];
     vm->reg[GTKML_R_PC].pc += 8 + addr->value.s_address.addr;
     return 1;
 }
@@ -1548,7 +1553,7 @@ gboolean gtk_ml_eii_cmp_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction i
         } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
             gtk_ml_push(vm->ctx, (lhs->value.s_float.value < rhs->value.s_float.value)? gtk_ml_new_true(vm->ctx, NULL) : gtk_ml_new_false(vm->ctx, NULL));
         } else {
-            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
             return 0;
         }
         break;
@@ -1562,7 +1567,7 @@ gboolean gtk_ml_eii_cmp_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction i
         } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
             gtk_ml_push(vm->ctx, (lhs->value.s_float.value > rhs->value.s_float.value)? gtk_ml_new_true(vm->ctx, NULL) : gtk_ml_new_false(vm->ctx, NULL));
         } else {
-            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
             return 0;
         }
         break;
@@ -1576,7 +1581,7 @@ gboolean gtk_ml_eii_cmp_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction i
         } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
             gtk_ml_push(vm->ctx, (lhs->value.s_float.value <= rhs->value.s_float.value)? gtk_ml_new_true(vm->ctx, NULL) : gtk_ml_new_false(vm->ctx, NULL));
         } else {
-            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
             return 0;
         }
         break;
@@ -1590,7 +1595,7 @@ gboolean gtk_ml_eii_cmp_ext_imm(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction i
         } else if (lhs->kind == GTKML_S_FLOAT && rhs->kind == GTKML_S_FLOAT) {
             gtk_ml_push(vm->ctx, (lhs->value.s_float.value >= rhs->value.s_float.value)? gtk_ml_new_true(vm->ctx, NULL) : gtk_ml_new_false(vm->ctx, NULL));
         } else {
-            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 0);
+            *err = gtk_ml_error(vm->ctx, "arithmetic-error", GTKML_ERR_ARITH_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(vm->ctx, NULL, 0, "lhs", strlen("lhs")), lhs, gtk_ml_new_keyword(vm->ctx, NULL, 0, "rhs", strlen("rhs")), rhs);
             return 0;
         }
         break;

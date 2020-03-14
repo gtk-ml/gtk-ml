@@ -1,9 +1,11 @@
-(match '(1 2 3)
-  (cons _ (cons x _)) x
-  :else               #nil)
-
 (define (= a b) (cmp 0 a b))
 (define (> a b) (cmp 3 a b))
+
+(define (cddr l) (cdr (cdr l)))
+(define (cdddr l) (cdr (cdr (cdr l))))
+(define (cdar l) (car (cdr l)))
+(define (cddar l) (car (cdr (cdr l))))
+(define (cdddar l) (car (cdr (cdr (cdr l)))))
 
 (define (get-and-inc v)
   (let [value @v]
@@ -14,6 +16,39 @@
 (define (nil? list) (= (typeof list) :nil))
 
 (define (reverse-index array ridx) (index array (- (len array) ridx)))
+
+(define (digit->char digit)
+  (cond
+    (= digit 0) \0
+    (= digit 1) \1
+    (= digit 2) \2
+    (= digit 3) \3
+    (= digit 4) \4
+    (= digit 5) \5
+    (= digit 6) \6
+    (= digit 7) \7
+    (= digit 8) \8
+    (= digit 9) \9
+    :else       (error {:err 'digit-error :desc "number is not a digit" :value digit})))
+
+(define (rev-array* acc array)
+  (cond
+    (empty? array) acc
+    :else          (rev-array* (push acc (reverse-index array 1)) (pop array))))
+
+(define (rev-array array)
+  (rev-array* [] array))
+
+(define (unsigned->string* acc rest digit)
+  (let [acc*   (push acc (digit->char digit))
+        rest*  (/ rest 10) ; 0
+        digit* (% rest 10)] ; 1
+    (cond
+      (= rest 0) acc*
+      :else      (unsigned->string* acc* rest* digit*))))
+
+(define (unsigned->string num)
+  (rev-array (unsigned->string* "" (/ num 10) (% num 10))))
 
 (define (format-v-impl acc offset fmt args)
   (cond
@@ -46,39 +81,67 @@
 (define (format fmt ...args) (format-v fmt args))
 
 (define-intrinsic (gensym name)
-  (string->symbol (format "~a$~d" name (get-and-inc (global-counter CODE-BUILDER)))))
+  (string->symbol (format "~a$~u" name (get-and-inc (global-counter CODE-BUILDER)))))
 
 (define-intrinsic (compile-pattern ctx code-builder basic-block pattern no cnt sym-value)
   (cond
-    (= pat :else) (let* [else (format "match$~d$else" no)
-                         bb   (append-basic-block code-builder else)]
+    (= pattern :else) (let* [else    (format "match$~u$~u" no (get-and-inc cnt))
+                             bb      (append-basic-block code-builder else)
+                             cont    (format "match$~u$~u" no (get-and-inc cnt))
+                             cont-bb (append-basic-block code-builder cont)]
+      (export-symbol ctx code-builder bb)
       (emit-bytecode ctx code-builder @basic-block cond-none :push-imm #t)
-      [else bb])
-    (= pat '_) (let* [wildcard (format "match$~d$wildcard" no)
-                      bb       (append-basic-block code-builder wildcard)]
+      (export-symbol ctx code-builder cont-bb)
+      [else bb cont cont-bb])
+    (= pattern '_) (let* [wildcard (format "match$~u$~u" no (get-and-inc cnt))
+                          bb       (append-basic-block code-builder wildcard)
+                          cont     (format "match$~u$~u" no (get-and-inc cnt))
+                          cont-bb  (append-basic-block code-builder cont)]
+      (export-symbol ctx code-builder bb)
       (emit-bytecode ctx code-builder @basic-block cond-none :push-imm #t)
-      [wildcard bb])
-    (= (typeof pat) :int) (let* [br-name (format "match$~d$~d" no (get-and-inc cnt))
-                                 bb      (append-basic-block code-builder br-name)]
-      (emit-bytecode ctx code-builder @basic-block cond-none :push-imm pat)
+      (export-symbol ctx code-builder cont-bb)
+      [wildcard bb cont cont-bb])
+    (= (typeof pattern) :int) (let* [br-name (format "match$~u$~u" no (get-and-inc cnt))
+                                     bb      (append-basic-block code-builder br-name)
+                                     cont    (format "match$~u$~u" no (get-and-inc cnt))
+                                     cont-bb (append-basic-block code-builder cont)]
+      (export-symbol ctx code-builder bb)
+      (emit-bytecode ctx code-builder @basic-block cond-none :push-imm pattern)
       (compile-expr ctx code-builder basic-block sym-value)
       (emit-bytecode ctx code-builder @basic-block cond-none :cmp 0)
-      [br-name bb])
-    (= (typeof pat) :symbol) (let* [br-name (format "match$~d$~d" no (get-and-inc cnt))
-                                    bb      (append-basic-block code-builder br-name)]
+      (export-symbol ctx code-builder cont-bb)
+      [br-name bb cont cont-bb])
+    (= (typeof pattern) :symbol) (let* [br-name (format "match$~u$~u" no (get-and-inc cnt))
+                                        bb      (append-basic-block code-builder br-name)
+                                        cont    (format "match$~u$~u" no (get-and-inc cnt))
+                                        cont-bb (append-basic-block code-builder cont)]
+      (export-symbol ctx code-builder bb)
       (compile-expr ctx code-builder basic-block sym-value)
-      (emit-bytecode ctx code-builder @basic-block cond-none :push-imm pat)
+      (emit-bytecode ctx code-builder @basic-block cond-none :push-imm pattern)
       (emit-bytecode ctx code-builder @basic-block cond-none :bind)
       (emit-bytecode ctx code-builder @basic-block cond-none :push-imm #t)
-      [br-name bb])
-    (= (typeof pat) :list) (let [decons (car pat)]
+      (export-symbol ctx code-builder cont-bb)
+      [br-name bb cont cont-bb])
+    (= (typeof pattern) :list) (let [decons (car pattern)]
       (cond
-        (= decons 'cons) (let [sym-car   (gensym "car")
-                               sym-cdr   (gensym "cdr")
-                               pat-car   (cdar pat)
-                               pat-cdr   (cddar pat)
-                               cont-name (format "match$~d$~d" no (get-and-inc cnt))
-                               cont-bb   (append-basic-block code-builder cont-name)]
+        (= decons 'cons) (let [is-list (format "match$~u$~u" no (get-and-inc cnt))
+                               il-bb   (append-basic-block code-builder is-list)
+                               sym-car (gensym "car")
+                               sym-cdr (gensym "cdr")
+                               pat-car (cdar pattern)
+                               pat-cdr (cddar pattern)
+                               cont    (format "match$~u$~u" no (get-and-inc cnt))
+                               cont-bb (append-basic-block code-builder cont)]
+          (emit-bytecode ctx code-builder @basic-block cond-none :push-imm :list)
+          (compile-expr ctx code-builder basic-block sym-value)
+          (emit-bytecode ctx code-builder @basic-block cond-none :typeof)
+          (emit-bytecode ctx code-builder @basic-block cond-none :cmp 0)
+          (emit-bytecode ctx code-builder @basic-block cond-none :popf)
+          (emit-bytecode ctx code-builder @basic-block cond-eq :branch-absolute is-list)
+          (emit-bytecode ctx code-builder @basic-block cond-none :push-imm #f)
+          (emit-bytecode ctx code-builder @basic-block cond-none :branch-absolute cont)
+          (export-symbol ctx code-builder il-bb)
+          (assign basic-block il-bb)
           (compile-expr ctx code-builder basic-block sym-value)
           (emit-bytecode ctx code-builder @basic-block cond-none :car)
           (emit-bytecode ctx code-builder @basic-block cond-none :push-imm sym-car)
@@ -87,32 +150,48 @@
           (emit-bytecode ctx code-builder @basic-block cond-none :cdr)
           (emit-bytecode ctx code-builder @basic-block cond-none :push-imm sym-cdr)
           (emit-bytecode ctx code-builder @basic-block cond-none :bind)
-          (let* [result  (compile-pattern ctx code-builder basic-block pat-car no cnt sym-car)
-                 br-name (index result 0)
-                 bb      (var (index result 1))]
+          (export-symbol ctx code-builder cont-bb)
+          (let* [result   (compile-pattern ctx code-builder basic-block pat-car no cnt sym-car)
+                 br-name  (index result 0)
+                 bb       (var (index result 1))
+                 cont*    (index result 2)
+                 cont*-bb (index result 3)]
+            (emit-bytecode ctx code-builder cont-bb cond-none :branch-absolute cont*)
             (emit-bytecode ctx code-builder @basic-block cond-none :popf)
             (emit-bytecode ctx code-builder @basic-block cond-eq :branch-absolute br-name)
-            (emit-bytecode ctx code-builder @basic-block cond-none :branch-absolute cont-name)
-            (let* [result   (compile-pattern ctx code-builder bb pat-cdr no cnt sym-cdr)
-                   br-name* (index result 0)
-                   bb*      (var (index result 1))]
-              (assign basic-block cont-bb)
-              (emit-bytecode ctx code-builder @bb* cond-none :branch-absolute @basic-block)
-              [br-name bb*])))
+            (emit-bytecode ctx code-builder @basic-block cond-none :push-imm #f)
+            (emit-bytecode ctx code-builder @basic-block cond-none :branch-absolute cont*)
+            (assign basic-block cont*-bb)
+            (let [result* (compile-pattern ctx code-builder bb pat-cdr no cnt sym-cdr)]
+              (emit-bytecode ctx code-builder @bb cond-none :popf)
+              (emit-bytecode ctx code-builder @bb cond-eq :branch-absolute (index result* 0)) ; br*-name
+              (emit-bytecode ctx code-builder @bb cond-none :branch-absolute cont*)
+              (emit-bytecode ctx code-builder cont*-bb cond-none :branch-absolute (index result* 2)) ; cont**
+              result*)))
         :else (error '{:err match-error :desc "unsupported deconstructor"})))
-    :else (error {:err 'match-error :desc "unsupported pattern type" :type (typeof pat)})))
+    :else (error {:err 'match-error :desc "unsupported pattern type" :type (typeof pattern)})))
 
 (define-intrinsic (match-impl no cnt end-name sym-value pat branch rest)
-  (let* [result  (compile-pattern CTX CODE-BUILDER BASIC-BLOCK pat no cnt sym-value)
-         br-name (index result 0)
-         bb      (var (index result 1))]
-    (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :popf)
-    (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-eq :branch-absolute br-name)
-    (compile-expr CTX CODE-BUILDER bb branch)
-    (emit-bytecode CTX CODE-BUILDER @bb cond-none :branch-absolute end-name)
-    (cond
-      (nil? (cdr rest)) (error '{:err arity-error :desc "(match value ...cases) expects an even count of pattern-branch pairs"})
-      :else             (match-impl no cnt end-name sym-value (car rest) (cdar rest) (cddr rest)))))
+  (cond
+    (nil? rest)
+      (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :push-imm #nil)
+    (nil? (cdr rest))
+      (error '{:err arity-error :desc "(match value ...cases) expects an even count of pattern-branch pairs"})
+    :else 
+      (let* [result  (compile-pattern CTX CODE-BUILDER BASIC-BLOCK pat no cnt sym-value)
+             br-name (index result 0)
+             bb      (var (index result 1))
+             cont    (index result 2)
+             cont-bb (index result 3)]
+        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :branch-absolute cont)
+        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :popf)
+        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-eq :branch-absolute br-name)
+        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :branch-absolute cont)
+        (compile-expr CTX CODE-BUILDER bb branch)
+        (emit-bytecode CTX CODE-BUILDER @bb cond-none :branch-absolute end-name)
+        (assign BASIC-BLOCK cont-bb)
+        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :branch-absolute end-name)
+        (match-impl no cnt end-name sym-value (car rest) (cdar rest) (cddr rest)))))
 
 (define-intrinsic (match value ...cases)
   (cond
@@ -120,16 +199,20 @@
       (compile-expr CTX CODE-BUILDER BASIC-BLOCK value)
       (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :pop)
       (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :push-imm #nil))
-    :else        (cond
-      (nil? (cdr cases)) (error '{:err arity-error :desc "(match value ...cases) expects an even count of pattern-branch pairs"})
-      :else              (let [sym-value (gensym "value")
-                               end-name  (format "match$~d$end" (get-and-inc (global-counter CODE-BUILDER)))
-                               end       (append-basic-block CODE-BUILDER end-name)
-                               no        (get-and-inc (global-counter CODE-BUILDER))]
-        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :enter)
-        (compile-expr CTX CODE-BUILDER BASIC-BLOCK value)
-        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :push-imm sym-value)
-        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :bind)
-        (match-impl no (var 0) end-name sym-value (car cases) (cdar cases) (cddr cases))
-        (assign BASIC-BLOCK end)
-        (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :leave)))))
+    (nil? (cdr cases)) (error '{:err arity-error :desc "(match value ...cases) expects an even count of pattern-branch pairs"})
+    :else              (let [sym-value (gensym "value")
+                             end-name  (format "match$~u$end" (get-and-inc (global-counter CODE-BUILDER)))
+                             end       (append-basic-block CODE-BUILDER end-name)
+                             no        (get-and-inc (global-counter CODE-BUILDER))]
+      (export-symbol CTX CODE-BUILDER end)
+      (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :enter)
+      (compile-expr CTX CODE-BUILDER BASIC-BLOCK value)
+      (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :push-imm sym-value)
+      (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :bind)
+      (match-impl no (var 0) end-name sym-value (car cases) (cdar cases) (cddr cases))
+      (assign BASIC-BLOCK end)
+      (emit-bytecode CTX CODE-BUILDER @BASIC-BLOCK cond-none :leave))))
+
+(match '(1 2 3)
+  (cons _ (cons x y)) `(,y ,x)
+  :else               #f)

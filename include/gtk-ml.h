@@ -40,8 +40,10 @@
 #define GTKML_STD_STRING_TO_SYMBOL 0x4
 #define GTKML_STD_COMPILE_EXPR 0x100
 #define GTKML_STD_EMIT_BYTECODE 0x101
-#define GTKML_STD_APPEND_BASIC_BLOCK 0x102
-#define GTKML_STD_GLOBAL_COUNTER 0x103
+#define GTKML_STD_EXPORT_SYMBOL 0x102
+#define GTKML_STD_APPEND_BASIC_BLOCK 0x103
+#define GTKML_STD_GLOBAL_COUNTER 0x104
+#define GTKML_STD_BASIC_BLOCK_NAME 0x105
 
 #define GTKML_I_ARITH 0x1
 #define GTKML_I_IMM 0x2
@@ -225,7 +227,6 @@ typedef enum GtkMl_Cmp {
 
 #define GTKML_R_ZERO 0
 #define GTKML_R_FLAGS 1
-#define GTKML_R_SP 2
 #define GTKML_R_BP 3
 #define GTKML_R_LR 4
 #define GTKML_R_PC 5
@@ -241,7 +242,9 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_INVALID_SEXPR "invalid s-expression"
 #define GTKML_ERR_ARGUMENT_ERROR "invalid arguments"
 #define GTKML_ERR_TYPE_ERROR "invalid type for expression"
+#define GTKML_ERR_INDEX_ERROR "index out of bounds"
 #define GTKML_ERR_CONTAINER_ERROR "not a container"
+#define GTKML_ERR_STACK_ERROR "stack overflow"
 #define GTKML_ERR_CMP_ERROR "invalid comparison enum"
 #define GTKML_ERR_BYTECODE_ERROR "unrecognized bytecode keyword"
 #define GTKML_ERR_BOOLEAN_ERROR "expected a boolean expression"
@@ -256,6 +259,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_OPCODE_ERROR "invalid opcode"
 #define GTKML_ERR_ARITH_ERROR "attempt to perform arithmetic on something not a number"
 #define GTKML_ERR_PROGRAM_ERROR "not a program"
+#define GTKML_ERR_EXPORT_ERROR "export is not a program or address"
 #define GTKML_ERR_LINKAGE_ERROR "symbol not found while linking"
 #define GTKML_ERR_SER_ERROR "serialization error"
 #define GTKML_ERR_DESER_ERROR "deserialization error"
@@ -275,6 +279,7 @@ typedef enum GtkMl_Cmp {
 
 typedef struct GtkMl_S GtkMl_S;
 typedef struct GtkMl_Context GtkMl_Context;
+typedef struct GtkMl_Gc GtkMl_Gc;
 typedef struct GtkMl_Vm GtkMl_Vm;
 typedef struct GtkMl_Builder GtkMl_Builder;
 typedef uint64_t GtkMl_Static;
@@ -606,10 +611,7 @@ struct GtkMl_Builder {
     unsigned int flags;
 
     GtkMl_Context *intr_ctx;
-    GtkMl_Vm *intr_vm;
-
     GtkMl_Context *macro_ctx;
-    GtkMl_Vm *macro_vm;
 
     GtkMl_BuilderMacro *builders;
     size_t len_builder;
@@ -670,9 +672,9 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_get_export(GtkMl_Context *ctx, GtkMl_S **err, const
 GTKML_PUBLIC gboolean gtk_ml_compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_S **err, GtkMl_S *lambda);
 
 // creates a new builder on the heap
-GTKML_PUBLIC GtkMl_Builder *gtk_ml_new_builder();
+GTKML_PUBLIC GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx);
 // builds the program
-GTKML_PUBLIC gboolean gtk_ml_build(GtkMl_Context *ctx, GtkMl_Program *out, GtkMl_S **err, GtkMl_Builder *b);
+GTKML_PUBLIC GtkMl_Program *gtk_ml_build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Builder *b);
 // deletes a program returned by `gtk_ml_build`
 GTKML_PUBLIC void gtk_ml_del_program(GtkMl_Program* program);
 // appends and returns a basic block to builder
@@ -912,7 +914,7 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Cont
 // serializes a program and returns a heap-allocated pointer to it
 GTKML_PUBLIC gboolean gtk_ml_serf_program(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *stream, GtkMl_S **err, const GtkMl_Program *program);
 // deserializes a program from a sequence of bytes
-GTKML_PUBLIC gboolean gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, GtkMl_Program *program, FILE *stream, GtkMl_S **err);
+GTKML_PUBLIC GtkMl_Program *gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FILE *stream, GtkMl_S **err);
 
 /* data structures */
 
