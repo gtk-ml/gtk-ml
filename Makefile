@@ -35,12 +35,17 @@ EMFLAGS:=-O2 -Wall -Wextra -Werror -std=gnu11 \
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
 INCLUDE:=-I$(INCDIR) -I/usr/local/include
 
+ifdef ENABLE_ALL
+ENABLE_GTK:=1
+ENABLE_POSIX:=1
+endif
+
 ifdef ENABLE_GTK
 CFLAGS+=-DGTKML_ENABLE_GTK=1 $(shell pkg-config --cflags gtk+-3.0)
 
 GTKMLI=$(BINDIR)/gtkmli
-BINARIES+=$(GTKMLDBG)
-TESTS+=$(TEST_HELLO)
+BINARIES+=$(GTKMLI)
+TESTS+=$(TEST_HELLO) $(TEST_MATCH)
 endif
 
 # posix allows us to use the debugger

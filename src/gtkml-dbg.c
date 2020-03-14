@@ -3,6 +3,7 @@
 #endif /* GTKML_ENABLE_POSIX */
 
 #define _GNU_SOURCE 1
+#include <stdlib.h>
 #include <errno.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
@@ -409,8 +410,6 @@ int main(int argc, const char **argv, char *const *envp) {
             line = _line;
 
             if (paren <= 0) {
-                GtkMl_Program program;
-
                 GtkMl_S *lambda;
                 if (!(lambda = gtk_ml_loads(ctx, &err, src))) {
                     free(src);
@@ -421,7 +420,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     continue;
                 }
 
-                GtkMl_Builder *builder = gtk_ml_new_builder();
+                GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
 
                 if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
                     free(src);
@@ -432,7 +431,8 @@ int main(int argc, const char **argv, char *const *envp) {
                     continue;
                 }
 
-                if (!gtk_ml_build(ctx, &program, &err, builder)) {
+                GtkMl_Program *program = gtk_ml_build(ctx, &err, builder);
+                if (!program) {
                     free(src);
                     src = NULL;
                     free(line);
@@ -441,9 +441,9 @@ int main(int argc, const char **argv, char *const *envp) {
                     continue;
                 }
 
-                gtk_ml_load_program(ctx, &program);
+                gtk_ml_load_program(ctx, program);
 
-                GtkMl_S *start = gtk_ml_get_export(ctx, &err, program.start);
+                GtkMl_S *start = gtk_ml_get_export(ctx, &err, program->start);
                 if (!start) {
                     free(src);
                     src = NULL;
@@ -452,7 +452,6 @@ int main(int argc, const char **argv, char *const *envp) {
                     fprintf(stderr, "\n");
                     continue;
                 }
-                gtk_ml_del_program(&program);
 
                 if (!gtk_ml_run_program(ctx, &err, start, NULL)) {
                     free(src);

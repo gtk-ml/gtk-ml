@@ -722,7 +722,7 @@ void gtk_ml_del_vm(GtkMl_Vm *vm) {
     free(vm);
 }
 
-GTKML_PRIVATE gboolean gtk_ml_vm_step(GtkMl_Vm *vm, GtkMl_S **err, GtkMl_Instruction *instr) {
+GTKML_PRIVATE gboolean gtk_ml_vm_step(GtkMl_Vm *vm, GtkMl_S **err, size_t pc, GtkMl_Instruction *instr) {
 #ifdef GTKML_ENABLE_ASM
     gtk_ml_breakpoint(vm->ctx);
 #endif /* GTKML_ENABLE_ASM */

@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <gtk/gtk.h>
 #include "gtk-ml.h"
@@ -99,6 +101,9 @@ int main(int argc, const char **argv) {
 
     GtkMl_HashTrie opts;
     gtk_ml_new_hash_trie(&opts, &GTKML_DEFAULT_HASHER);
+
+    GtkMl_S *s_flags = gtk_ml_new_map(ctx, NULL, NULL);
+    GtkMl_S *s_opts = gtk_ml_new_map(ctx, NULL, NULL);
 
     for (size_t i = 0; i < array_len(PARAMS); i++) {
         if (PARAMS[i].exists) {
@@ -209,6 +214,11 @@ int main(int argc, const char **argv) {
         }
     }
 
+    s_flags->value.s_map.map = flags;
+    s_opts->value.s_map.map = opts;
+    gtk_ml_push(ctx, s_flags);
+    gtk_ml_push(ctx, s_opts);
+
     GtkMl_S *help_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['h'].long_opt, strlen(PARAMS['h'].long_opt));
     GtkMl_S *help_opt = gtk_ml_hash_trie_get(&flags, help_kw);
     if (help_opt->kind == GTKML_S_TRUE) {
@@ -247,7 +257,6 @@ int main(int argc, const char **argv) {
         for (size_t i = 0; i < gtk_ml_array_trie_len(&eval_opt->value.s_array.array); i++) {
             GtkMl_S *eval = gtk_ml_array_trie_get(&eval_opt->value.s_array.array, i);
             char *src = gtk_ml_to_c_str(eval);
-            GtkMl_Program program;
 
             GtkMl_S *lambda;
             if (!(lambda = gtk_ml_loads(ctx, &err, src))) {
@@ -260,7 +269,7 @@ int main(int argc, const char **argv) {
 
             gtk_ml_push(ctx, lambda);
 
-            GtkMl_Builder *builder = gtk_ml_new_builder();
+            GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
 
             if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
                 free(src);
@@ -270,7 +279,8 @@ int main(int argc, const char **argv) {
                 return 1;
             }
 
-            if (!gtk_ml_build(ctx, &program, &err, builder)) {
+            GtkMl_Program *program = gtk_ml_build(ctx, &err, builder);
+            if (!program) {
                 free(src);
                 gtk_ml_dumpf(ctx, stderr, NULL, err);
                 fprintf(stderr, "\n");
@@ -278,7 +288,7 @@ int main(int argc, const char **argv) {
                 return 1;
             }
 
-            gtk_ml_load_program(ctx, &program);
+            gtk_ml_load_program(ctx, program);
 
             GtkMl_S *dump_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['D'].long_opt, strlen(PARAMS['D'].long_opt));
             GtkMl_S *dump_opt = gtk_ml_hash_trie_get(&flags, dump_kw);
@@ -292,7 +302,7 @@ int main(int argc, const char **argv) {
                 }
             }
 
-            GtkMl_S *start = gtk_ml_get_export(ctx, &err, program.start);
+            GtkMl_S *start = gtk_ml_get_export(ctx, &err, program->start);
             if (!start) {
                 free(src);
                 gtk_ml_dumpf(ctx, stderr, NULL, err);
@@ -300,7 +310,6 @@ int main(int argc, const char **argv) {
                 gtk_ml_del_context(ctx);
                 return 1;
             }
-            gtk_ml_del_program(&program);
 
             if (!gtk_ml_run_program(ctx, &err, start, NULL)) {
                 free(src);
@@ -341,12 +350,13 @@ int main(int argc, const char **argv) {
             }
         }
 
-        GtkMl_Program program;
+        GtkMl_Program *program;
         if (is_binary) {
             GtkMl_Deserializer deserf;
             gtk_ml_new_deserializer(&deserf);
             FILE *bgtkml = fopen(file, "r");
-            if (!gtk_ml_deserf_program(&deserf, ctx, &program, bgtkml, &err)) {
+            program = gtk_ml_deserf_program(&deserf, ctx, bgtkml, &err);
+            if (!program) {
                 free(file);
                 gtk_ml_dumpf(ctx, stderr, NULL, err);
                 fprintf(stderr, "\n");
@@ -356,7 +366,7 @@ int main(int argc, const char **argv) {
 
             fclose(bgtkml);
 
-            gtk_ml_load_program(ctx, &program);
+            gtk_ml_load_program(ctx, program);
         } else {
             GtkMl_S *lambda;
             if (!(lambda = gtk_ml_load(ctx, &src, &err, file))) {
@@ -394,7 +404,7 @@ int main(int argc, const char **argv) {
 
             gtk_ml_push(ctx, lambda);
 
-            GtkMl_Builder *builder = gtk_ml_new_builder();
+            GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
 
             if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
                 if (src) {
@@ -407,7 +417,8 @@ int main(int argc, const char **argv) {
                 return 1;
             }
 
-            if (!gtk_ml_build(ctx, &program, &err, builder)) {
+            program = gtk_ml_build(ctx, &err, builder);
+            if (!program) {
                 if (src) {
                     free(src);
                 }
@@ -418,7 +429,7 @@ int main(int argc, const char **argv) {
                 return 1;
             }
 
-            gtk_ml_load_program(ctx, &program);
+            gtk_ml_load_program(ctx, program);
         }
         free(file);
 
@@ -436,7 +447,7 @@ int main(int argc, const char **argv) {
             }
         }
 
-        GtkMl_S *start = gtk_ml_get_export(ctx, &err, program.start);
+        GtkMl_S *start = gtk_ml_get_export(ctx, &err, program->start);
         if (!start) {
             if (src) {
                 free(src);
@@ -446,7 +457,6 @@ int main(int argc, const char **argv) {
             gtk_ml_del_context(ctx);
             return 1;
         }
-        gtk_ml_del_program(&program);
 
         if (!gtk_ml_run_program(ctx, &err, start, NULL)) {
             if (src) {
