@@ -20,8 +20,6 @@ const char *gtk_ml_web_version() {
 char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
     GtkMl_S *err = NULL;
 
-    GtkMl_Program program;
-
     GtkMl_S *lambda;
     if (!(lambda = gtk_ml_loads(ctx, &err, line))) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
@@ -29,7 +27,7 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
         return ":error";
     }
 
-    GtkMl_Builder *builder = gtk_ml_new_builder();
+    GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
 
     if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
@@ -37,21 +35,21 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
         return ":error";
     }
 
-    if (!gtk_ml_build(ctx, &program, &err, builder)) {
+    GtkMl_Program *program = gtk_ml_build(ctx, &err, builder);
+    if (!program) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         return ":error";
     }
 
-    gtk_ml_load_program(ctx, &program);
+    gtk_ml_load_program(ctx, program);
 
-    GtkMl_S *start = gtk_ml_get_export(ctx, &err, program.start);
+    GtkMl_S *start = gtk_ml_get_export(ctx, &err, program->start);
     if (!start) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         return ":error";
     }
-    gtk_ml_del_program(&program);
 
     if (!gtk_ml_run_program(ctx, &err, start, NULL)) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);

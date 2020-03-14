@@ -1616,7 +1616,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         return gtk_ml_build_get_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, *stmt));
     case GTKML_S_LAMBDA: {
         char *linkage_name = malloc(strlen("lambda$") + 16);
-        snprintf(linkage_name, strlen("lambda$") + 16, "lambda$%lu", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
+        snprintf(linkage_name, strlen("lambda$") + 16, "lambda$%"GTKML_FMT_64"u", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
         GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(b, linkage_name);
         if (!gtk_ml_compile_program_internal(ctx, b, &bb, err, linkage_name, *stmt, 1, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, GTKML_PROG_RUNTIME)) {
             return 0;
@@ -1625,7 +1625,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     }
     case GTKML_S_MACRO: if (allow_macro) {
         char *linkage_name = malloc(strlen("macro$") + 16);
-        snprintf(linkage_name, strlen("macro$") + 16, "macro$%lu", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
+        snprintf(linkage_name, strlen("macro$") + 16, "macro$%"GTKML_FMT_64"u", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
         GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(b, linkage_name);
         if (!gtk_ml_compile_program_internal(ctx, b, &bb, err, linkage_name, *stmt, 1, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, GTKML_PROG_MACRO)) {
             return 0;
