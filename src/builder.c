@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"
@@ -34,7 +35,9 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_push(ctx, b->counter);
 
     b->intr_ctx = gtk_ml_new_context_with_gc(gtk_ml_gc_copy(ctx->gc));
+    b->intr_ctx->dbg_done = 1; // fake done sending dbg data
     b->macro_ctx = gtk_ml_new_context_with_gc(gtk_ml_gc_copy(ctx->gc));
+    b->macro_ctx->dbg_done = 1; // fake done sending dbg data
 
     b->builders = malloc(sizeof(GtkMl_BuilderMacro) * 64);
     b->len_builder = 0;
@@ -81,14 +84,24 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_add_builder(b, "define-macro", gtk_ml_builder_define_macro, 0, 0, 0);
     gtk_ml_add_builder(b, "define-intrinsic", gtk_ml_builder_define_intrinsic, 0, 0, 0);
     gtk_ml_add_builder(b, "intr-apply", gtk_ml_builder_intr_apply, 1, 0, 0);
+#ifdef GTKML_ENABLE_GTK
     gtk_ml_add_builder(b, "Application", gtk_ml_builder_application, 0, 0, 1);
     gtk_ml_add_builder(b, "new-window", gtk_ml_builder_new_window, 0, 0, 1);
+#endif /* GTKML_ENABLE_GTK */
     gtk_ml_add_builder(b, "setmetamap", gtk_ml_builder_setmetamap, 0, 0, 0);
     gtk_ml_add_builder(b, "getmetamap", gtk_ml_builder_getmetamap, 0, 0, 0);
     gtk_ml_add_builder(b, "get", gtk_ml_builder_getvar, 0, 0, 0);
     gtk_ml_add_builder(b, "assign", gtk_ml_builder_assignvar, 0, 0, 0);
     gtk_ml_add_builder(b, "error", gtk_ml_builder_error, 0, 0, 0);
     gtk_ml_add_builder(b, "dbg", gtk_ml_builder_dbg, 0, 0, 0);
+#ifdef GTKML_ENABLE_POSIX
+    gtk_ml_add_builder(b, "dbg-run", gtk_ml_builder_dbg_run, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-cont", gtk_ml_builder_dbg_cont, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-step", gtk_ml_builder_dbg_step, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-disasm", gtk_ml_builder_dbg_disasm, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-stack", gtk_ml_builder_dbg_stack, 0, 0, 1);
+    gtk_ml_add_builder(b, "dbg-backtrace", gtk_ml_builder_dbg_backtrace, 0, 0, 1);
+#endif /* GTKML_ENABLE_POSIX */
 
     gtk_ml_new_hash_set(&b->intr_fns, &GTKML_DEFAULT_HASHER);
     gtk_ml_new_hash_set(&b->macro_fns, &GTKML_DEFAULT_HASHER);

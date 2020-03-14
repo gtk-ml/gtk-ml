@@ -3,28 +3,74 @@ INCDIR=include
 BINDIR=bin
 OBJDIR=$(BINDIR)/obj
 DBDIR=$(BINDIR)/db
+WEBDIR=public
+EMCC?=emcc
 CC=clang
+CXX=clang++
 
 INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
 TEST_HELLO=$(BINDIR)/hello 
 TEST_MATCH=$(BINDIR)/match 
-TESTS=$(TEST_HELLO) $(TEST_MATCH)
-OBJ=$(OBJDIR)/gtk-ml.c.o $(OBJDIR)/value.c.o $(OBJDIR)/builder.c.o \
-	$(OBJDIR)/lex.c.o $(OBJDIR)/parse.c.o $(OBJDIR)/code-gen.c.o \
-	$(OBJDIR)/serf.c.o $(OBJDIR)/vm.c.o $(OBJDIR)/bytecode.c.o \
-	$(OBJDIR)/hashtrie.c.o $(OBJDIR)/hashset.c.o $(OBJDIR)/array.c.o
+TESTS=
+BINARIES=
+SRC=$(SRCDIR)/gtk-ml.c $(SRCDIR)/value.c $(SRCDIR)/builder.c \
+	$(SRCDIR)/lex.c $(SRCDIR)/parse.c $(SRCDIR)/code-gen.c \
+	$(SRCDIR)/serf.c $(SRCDIR)/vm.c $(SRCDIR)/bytecode.c \
+	$(SRCDIR)/hashtrie.c $(SRCDIR)/hashset.c $(SRCDIR)/array.c
+OBJ=$(patsubst $(SRCDIR)/%,$(OBJDIR)/%.o,$(SRC))
+LIB=/usr/local/lib/liblinenoise.a
+GTKMLWEB=$(WEBDIR)/gtk-ml.js
 
-CFLAGS:=-O0 -g -Wall -Wextra -Werror -pedantic -fPIC -std=c11 -pthread $(shell pkg-config --cflags gtk+-3.0)
+CFLAGS:=-O2 -g -Wall -Wextra -Werror -pedantic -std=c11 -fPIC -pthread \
+	-DGTKML_ENABLE_ASM=1 -DGTKML_STACK_SIZE=16*1024*1024 \
+	-DGTKML_LONG_WIDTH=64 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
+EMFLAGS:=-O2 -Wall -Wextra -Werror -std=gnu11 \
+	-s ASSERTIONS=1 -s NO_EXIT_RUNTIME=1 \
+	-s EXPORTED_FUNCTIONS='["_main", "_gtk_ml_web_init", "_gtk_ml_web_deinit", "_gtk_ml_web_version", "_gtk_ml_web_eval"]' \
+	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' \
+	-DGTKML_STACK_SIZE=16*1024 \
+	-DGTKML_LONG_WIDTH=32 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
-INCLUDE:=-I$(INCDIR)
+INCLUDE:=-I$(INCDIR) -I/usr/local/include
 
-.PHONY: default all test install clean
+ifdef ENABLE_ALL
+ENABLE_GTK:=1
+ENABLE_POSIX:=1
+endif
+
+ifdef ENABLE_GTK
+CFLAGS+=-DGTKML_ENABLE_GTK=1 $(shell pkg-config --cflags gtk+-3.0)
+
+GTKMLI=$(BINDIR)/gtkmli
+BINARIES+=$(GTKMLI)
+TESTS+=$(TEST_HELLO) $(TEST_MATCH)
+endif
+
+# posix allows us to use the debugger
+ifdef ENABLE_POSIX
+CFLAGS+=-DGTKML_ENABLE_POSIX=1
+
+GTKMLDBG=$(BINDIR)/gtkml-dbg
+BINARIES+=$(GTKMLDBG)
+endif
+
+ifdef ENABLE_EMRUN
+EMFLAGS+=--emrun
+endif
+
+.PHONY: default all build test install clean
 
 default: all
 
-all: $(TARGET) $(TESTS) compile_commands.json
+all: $(TARGET) $(BINARIES) $(TESTS) compile_commands.json
+
+web: $(WEBDIR) $(GTKMLWEB)
+	cp src/gtkml-web.html public/index.html
+	cp src/gtkml-web.js public/
+
+build: $(BINARIES)
 
 test: $(TESTS)
 
@@ -41,11 +87,30 @@ $(OBJDIR)/%.c.o: $(SRCDIR)/%.c $(OBJDIR) $(DBDIR)
 compile_commands.json: $(OBJ) $(DBDIR)
 	sed -e '1s/^/[\n/' -e '$$s/,$$/\n]/' $(patsubst $(OBJDIR)/%.c.o,$(DBDIR)/%.c.o.json,$<) > $@
 
-$(TARGET): $(OBJ)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIB)
+$(TARGET): $(OBJ) $(LIB)
+	$(CXX) $(LDFLAGS) -shared -o $@ $^
 
-$(TEST_HELLO): test/hello.c $(TARGET)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
+ifdef ENABLE_GTK
+$(GTKMLI): src/gtkmli.c $(TARGET) $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
+	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
+	rm $@.o
+endif
+
+ifdef ENABLE_POSIX
+$(GTKMLDBG): src/gtkml-dbg.c $(TARGET) $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
+	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
+	rm $@.o
+endif
+
+$(GTKMLWEB): $(WEBDIR) $(SRC) $(SRCDIR)/gtkml-web.c
+	$(EMCC) $(EMFLAGS) $(INCLUDE) -o $@ $(SRC) $(SRCDIR)/gtkml-web.c
+
+$(TEST_HELLO): test/hello.c $(TARGET) $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
+	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
+	rm $@.o
 
 $(TEST_MATCH): test/match.c $(TARGET)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
@@ -56,9 +121,12 @@ $(OBJDIR): $(BINDIR)
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-$(DBDIR): 
+$(DBDIR):
 	mkdir -p $(DBDIR)
+
+$(WEBDIR):
+	mkdir -p $(WEBDIR)
 
 clean:
 	rm -rf bin/
-
+	rm -rf public/

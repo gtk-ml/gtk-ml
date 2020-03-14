@@ -1,5 +1,8 @@
 #include <stdlib.h>
+#include <string.h>
+#ifdef GTKML_ENABLE_GTK
 #include <gtk/gtk.h>
+#endif /* GTKML_ENABLE_GTK */
 #include <math.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
@@ -8,6 +11,7 @@
 GTKML_PRIVATE gboolean compile_std_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, uint64_t function, GtkMl_S *args, gboolean compile_first, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion);
 GTKML_PRIVATE gboolean compile_runtime_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, const char *linkage_name, GtkMl_S *stmt, gboolean ret);
 
+#ifdef GTKML_ENABLE_GTK
 gboolean gtk_ml_builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_S *args = gtk_ml_cdr(*stmt);
     if (args->kind == GTKML_S_NIL
@@ -21,11 +25,6 @@ gboolean gtk_ml_builder_application(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_
 }
 
 gboolean gtk_ml_builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
-    (void) allow_intr;
-    (void) allow_macro;
-    (void) allow_runtime;
-    (void) allow_macro_expansion;
-
     GtkMl_S *args = gtk_ml_cdr(*stmt);
     if (args->kind == GTKML_S_NIL
             || gtk_ml_cdr(args)->kind == GTKML_S_NIL
@@ -36,6 +35,33 @@ gboolean gtk_ml_builder_new_window(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
 
     return compile_std_call(ctx, b, basic_block, err, GTKML_STD_NEW_WINDOW, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
+#endif /* GTKML_ENABLE_GTK */
+
+#ifdef GTKML_ENABLE_POSIX
+gboolean gtk_ml_builder_dbg_run(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_DBG_RUN, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_dbg_cont(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_DBG_RUN, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_dbg_step(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_DBG_STEP, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_dbg_disasm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_DBG_DISASM, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_dbg_stack(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_DBG_STACK, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_dbg_backtrace(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    return compile_std_call(ctx, b, basic_block, err, GTKML_STD_DBG_BACKTRACE, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+#endif /* GTKML_ENABLE_POSIX */
 
 gboolean gtk_ml_builder_setmetamap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_S **err, GtkMl_S **stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_S *args = gtk_ml_cdr(*stmt);
@@ -235,6 +261,7 @@ gboolean gtk_ml_builder_intr_apply(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     }
 
     GtkMl_Context *tmp_ctx = gtk_ml_new_context_with_gc(gtk_ml_gc_copy(ctx->gc));
+    tmp_ctx->dbg_done = 1;
     gtk_ml_load_program(tmp_ctx, program);
     GtkMl_S *intr_program = gtk_ml_get_export(tmp_ctx, err, "_start");
     if (!intr_program) {
@@ -1589,7 +1616,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         return gtk_ml_build_get_extended_imm(ctx, b, *basic_block, err, gtk_ml_append_static(b, *stmt));
     case GTKML_S_LAMBDA: {
         char *linkage_name = malloc(strlen("lambda$") + 16);
-        snprintf(linkage_name, strlen("lambda$") + 16, "lambda$%lu", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
+        snprintf(linkage_name, strlen("lambda$") + 16, "lambda$%"GTKML_FMT_64"u", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
         GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(b, linkage_name);
         if (!gtk_ml_compile_program_internal(ctx, b, &bb, err, linkage_name, *stmt, 1, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, GTKML_PROG_RUNTIME)) {
             return 0;
@@ -1598,7 +1625,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     }
     case GTKML_S_MACRO: if (allow_macro) {
         char *linkage_name = malloc(strlen("macro$") + 16);
-        snprintf(linkage_name, strlen("macro$") + 16, "macro$%lu", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
+        snprintf(linkage_name, strlen("macro$") + 16, "macro$%"GTKML_FMT_64"u", gtk_ml_builder_get_and_inc(ctx, b)->value.s_int.value);
         GtkMl_BasicBlock *bb = gtk_ml_append_basic_block(b, linkage_name);
         if (!gtk_ml_compile_program_internal(ctx, b, &bb, err, linkage_name, *stmt, 1, allow_intr, allow_macro, allow_runtime, allow_macro_expansion, GTKML_PROG_MACRO)) {
             return 0;

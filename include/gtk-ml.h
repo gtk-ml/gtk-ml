@@ -4,7 +4,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
+#ifdef GTKML_ENABLE_GTK
 #include <gtk/gtk.h>
+#else
+typedef int gboolean;
+#endif /* GTKML_ENABLE_GTK */
 
 #ifdef __cplusplus
 #define GTKML_PUBLIC extern "C"
@@ -12,7 +17,37 @@
 #define GTKML_PUBLIC extern
 #endif
 
+#ifndef GTKML_INTWIDTH_DEFINED
+
+#if defined(__LONG_WIDTH__)
+#define GTKML_LONG_WIDTH __LONG_WIDTH__
+#elif defined(LONG_WIDTH)
+#define GTKML_LONG_WIDTH LONG_WIDTH
+#else
+#define GTKML_LONG_WIDTH 32
+#endif /* defined(__LONG_WIDTH__) */
+
+#if defined(__LONG_LONG_WIDTH__)
+#define GTKML_LLONG_WIDTH __LONG_LONG_WIDTH__
+#elif defined(LLONG_WIDTH)
+#define GTKML_LLONG_WIDTH LLONG_WIDTH
+#else
+#define GTKML_LLONG_WIDTH 64
+#endif /* defined(__LONG_LONG_WIDTH__) */
+
+#endif /* GTKML_INTWIDTH_DEFINED */
+
+#if GTKML_LONG_WIDTH == 64
+#define GTKML_FMT_64 "l"
+#elif GTKML_LLONG_WIDTH == 64
+#define GTKML_FMT_64 "ll"
+#else
+#error "gtk-ml: i don't know a type that's 64-bit long"
+#endif /* GTKML_LONG_WIDTH == 64 */
+
 #define GTKML_PRIVATE static
+
+#define GTKML_VERSION "libgtkml ver. 0.0.0"
 
 #define GTKML_FLAG_NONE 0x0
 #define GTKML_FLAG_REACHABLE 0x1
@@ -21,8 +56,8 @@
 #define GTKML_GC_COUNT_THRESHOLD 1024
 #define GTKML_GC_STEP_THRESHOLD 256
 
-#define GTKML_VM_STACK 16 * 1024 * 1024
-#define GTKML_VM_CALL_STACK 16 * 1024 * 1024
+#define GTKML_VM_STACK (GTKML_STACK_SIZE)
+#define GTKML_VM_CALL_STACK (GTKML_STACK_SIZE)
 
 #define GTKML_F_TOPCALL 0x20
 #define GTKML_F_HALT 0x10
@@ -33,8 +68,10 @@
 #define GTKML_F_NONE 0x0
 #define GTKML_F_GENERIC (GTKML_F_ZERO | GTKML_F_SIGN | GTKML_F_OVERFLOW | GTKML_F_CARRY)
 
+#ifdef GTKML_ENABLE_GTK
 #define GTKML_STD_APPLICATION 0x0
 #define GTKML_STD_NEW_WINDOW 0x1
+#endif /* GTKML_ENABLE_GTK */
 #define GTKML_STD_ERROR 0x2
 #define GTKML_STD_DBG 0x3
 #define GTKML_STD_STRING_TO_SYMBOL 0x4
@@ -44,6 +81,14 @@
 #define GTKML_STD_APPEND_BASIC_BLOCK 0x103
 #define GTKML_STD_GLOBAL_COUNTER 0x104
 #define GTKML_STD_BASIC_BLOCK_NAME 0x105
+#ifdef GTKML_ENABLE_POSIX
+#define GTKML_STD_DBG_RUN 0x200
+#define GTKML_STD_DBG_CONT 0x201
+#define GTKML_STD_DBG_STEP 0x202
+#define GTKML_STD_DBG_DISASM 0x203
+#define GTKML_STD_DBG_STACK 0x204
+#define GTKML_STD_DBG_BACKTRACE 0x205
+#endif /* GTKML_ENABLE_POSIX */
 
 #define GTKML_I_ARITH 0x1
 #define GTKML_I_IMM 0x2
@@ -263,6 +308,7 @@ typedef enum GtkMl_Cmp {
 #define GTKML_ERR_LINKAGE_ERROR "symbol not found while linking"
 #define GTKML_ERR_SER_ERROR "serialization error"
 #define GTKML_ERR_DESER_ERROR "deserialization error"
+#define GTKML_ERR_DEBUGGER_ERROR "process is not a debugger"
 #define GTKML_ERR_UNIMPLEMENTED "unimplemented"
 
 #define gtk_ml_car(x) ((x)->value.s_list.car)
@@ -541,35 +587,35 @@ typedef struct GtkMl_S {
 } GtkMl_S;
 
 typedef struct GtkMl_InstrGen {
-    unsigned long cond : 4;
-    unsigned long category : 4;
-    unsigned long _pad : 56;
+    uint64_t cond : 4;
+    uint64_t category : 4;
+    uint64_t _pad : 56;
 } GtkMl_InstrGen;
 
 typedef struct GtkMl_InstrArith {
-    unsigned long cond : 4;
-    unsigned long category : 4; // must be 0001
-    unsigned long opcode : 8;
-    unsigned long rd : 8;
-    unsigned long rs : 8;
-    unsigned long ra : 8;
-    unsigned long _pad : 24;
+    uint64_t cond : 4;
+    uint64_t category : 4; // must be 0001
+    uint64_t opcode : 8;
+    uint64_t rd : 8;
+    uint64_t rs : 8;
+    uint64_t ra : 8;
+    uint64_t _pad : 24;
 } GtkMl_InstrArith;
 
 typedef struct GtkMl_InstrImm {
-    unsigned long cond : 4;
-    unsigned long category : 4; // must be 0010 or 1010
-    unsigned long opcode : 8;
-    unsigned long rd : 8;
-    unsigned long rs : 8;
-    unsigned long imm : 32;
+    uint64_t cond : 4;
+    uint64_t category : 4; // must be 0010 or 1010
+    uint64_t opcode : 8;
+    uint64_t rd : 8;
+    uint64_t rs : 8;
+    uint64_t imm : 32;
 } GtkMl_InstrImm;
 
 typedef struct GtkMl_InstrBr {
-    unsigned long cond : 4;
-    unsigned long category : 4; // must be 0011 or 1011
-    unsigned long opcode : 8;
-    unsigned long imm : 48;
+    uint64_t cond : 4;
+    uint64_t category : 4; // must be 0011 or 1011
+    uint64_t opcode : 8;
+    uint64_t imm : 48;
 } GtkMl_InstrBr;
 
 typedef union GtkMl_Instruction {
@@ -660,6 +706,13 @@ GTKML_PUBLIC GtkMl_Hasher GTKML_PTR_HASHER;
 // creates a new context on the heap
 // must be deleted with `gtk_ml_del_context`
 GTKML_PUBLIC GtkMl_Context *gtk_ml_new_context();
+#ifdef GTKML_ENABLE_POSIX
+// creates a new debugger context on the heap
+// must be deleted with `gtk_ml_del_context`
+GTKML_PUBLIC GtkMl_Context *gtk_ml_new_debugger(pid_t dbg_process);
+// sets the debug process of a debugger context
+GTKML_PUBLIC void gtk_ml_set_debug(GtkMl_Context *ctx, pid_t dbg_process, GtkMl_Context *debugee);
+#endif /* GTKML_ENABLE_POSIX */
 // deletes a context created with `gtk_ml_new_context`
 GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
 // loads an executable program into the context
@@ -684,7 +737,9 @@ GTKML_PUBLIC GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value)
 
 GTKML_PUBLIC void gtk_ml_delete(GtkMl_Context *ctx, GtkMl_S *s);
 GTKML_PUBLIC void gtk_ml_del(GtkMl_Context *ctx, GtkMl_S *s);
+#ifdef GTKML_ENABLE_GTK
 GTKML_PUBLIC void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
+#endif /* GTKML_ENABLE_GTK */
 
 // sets the conditional flags of the next instruction
 GTKML_PUBLIC void gtk_ml_builder_set_cond(GtkMl_Builder *b, unsigned int flags);
@@ -955,6 +1010,7 @@ GTKML_PUBLIC gboolean gtk_ml_hash_set_equal(GtkMl_HashSet *lhs, GtkMl_HashSet *r
 GTKML_PUBLIC void gtk_ml_new_array_trie(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_del_array_trie(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_S *));
 GTKML_PUBLIC void gtk_ml_array_trie_copy(GtkMl_Array *out, GtkMl_Array *array);
+GTKML_PUBLIC gboolean gtk_ml_array_trie_is_string(GtkMl_Array *array);
 GTKML_PUBLIC size_t gtk_ml_array_trie_len(GtkMl_Array *array);
 GTKML_PUBLIC void gtk_ml_array_trie_concat(GtkMl_Array *out, GtkMl_Array *lhs, GtkMl_Array *rhs);
 GTKML_PUBLIC void gtk_ml_array_trie_push(GtkMl_Array *out, GtkMl_Array *array, GtkMl_S *value);
@@ -965,6 +1021,12 @@ GTKML_PUBLIC GtkMl_S *gtk_ml_array_trie_delete(GtkMl_Array *out, GtkMl_Array *ar
 GTKML_PUBLIC void gtk_ml_array_trie_foreach(GtkMl_Array *ht, GtkMl_ArrayFn fn, void *data);
 GTKML_PUBLIC void gtk_ml_array_trie_foreach_rev(GtkMl_Array *ht, GtkMl_ArrayFn fn, void *data);
 GTKML_PUBLIC gboolean gtk_ml_array_trie_equal(GtkMl_Array *lhs, GtkMl_Array *rhs);
+
+/* miscelaneous */
+
+GTKML_PUBLIC void gtk_ml_delete_value_reference(GtkMl_Context *ctx, GtkMl_S *value);
+GTKML_PUBLIC void gtk_ml_delete_void_reference(GtkMl_Context *ctx, void *);
+GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, void *);
 
 #endif /* ifndef GTK_ML_H */
 
