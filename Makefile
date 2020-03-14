@@ -9,7 +9,8 @@ INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
 TEST_HELLO=$(BINDIR)/hello 
-TESTS=$(TEST_HELLO)
+TEST_MATCH=$(BINDIR)/match 
+TESTS=$(TEST_HELLO) $(TEST_MATCH)
 OBJ=$(OBJDIR)/gtk-ml.c.o $(OBJDIR)/value.c.o $(OBJDIR)/builder.c.o \
 	$(OBJDIR)/lex.c.o $(OBJDIR)/parse.c.o $(OBJDIR)/code-gen.c.o \
 	$(OBJDIR)/serf.c.o $(OBJDIR)/vm.c.o $(OBJDIR)/bytecode.c.o \
@@ -38,12 +39,15 @@ $(OBJDIR)/%.c.o: $(SRCDIR)/%.c $(OBJDIR) $(DBDIR)
 	$(CC) $(CFLAGS) $(INCLUDE) -MJ $(DBDIR)/$*.c.o.json -c -o $@ $<
 
 compile_commands.json: $(OBJ) $(DBDIR)
-	sed -e '1s/^/[\n/' -e '$$s/,$$/\n]/' $(patsubst $(OBJDIR)/%.c.o,$(DBDIR)/%.c.o.json,$^) > $@
+	sed -e '1s/^/[\n/' -e '$$s/,$$/\n]/' $(patsubst $(OBJDIR)/%.c.o,$(DBDIR)/%.c.o.json,$<) > $@
 
 $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIB)
 
 $(TEST_HELLO): test/hello.c $(TARGET)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
+
+$(TEST_MATCH): test/match.c $(TARGET)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
 
 $(OBJDIR): $(BINDIR)

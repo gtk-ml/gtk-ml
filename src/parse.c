@@ -187,6 +187,10 @@ GtkMl_S *gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token
         return NULL;
     }
 
+    if (!expr) {
+        return NULL;
+    }
+
     span_add(&span, &span, &expr->span);
     if (expr) {
         expr->span = span;
@@ -236,6 +240,9 @@ GtkMl_S *gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token *
     }
 
     GtkMl_S *car = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    if (!car) {
+        return NULL;
+    }
     GtkMl_S *cdr = gtk_ml_parse_list_rest(ctx, err, tokenv, tokenc);
     if (!cdr) {
         return NULL;
@@ -378,6 +385,59 @@ GtkMl_S *gtk_ml_parse_float(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tok
     return result;
 }
 
+GtkMl_S *gtk_ml_parse_char(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+    if ((*tokenv)[0].kind != GTKML_TOK_CHAR) {
+        *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+        return NULL;
+    }
+    size_t len = (*tokenv)[0].span.len;
+    GtkMl_S *result;
+    if (len == 2) {
+        result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, (*tokenv)[0].span.ptr[1]);
+    } else {
+        const char *ptr = (*tokenv)[0].span.ptr;
+        if (strncmp(ptr, "\\newline", len) == 0) {
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, '\n');
+        } else if (strncmp(ptr, "\\space", len) == 0) {
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, ' ');
+        } else if (strncmp(ptr, "\\tab", len) == 0) {
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, '\t');
+        } else if (strncmp(ptr, "\\escape", len) == 0) {
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, '\x1b');
+        } else if (len == 4 && strncmp(ptr, "\\x", 2) == 0) {
+            char *endptr;
+            uint8_t ascii = strtoul(ptr + 2, &endptr, 16);
+            if (gtk_ml_is_ident_cont(*endptr)) {
+                *err = gtk_ml_error(ctx, "escape-error", GTKML_ERR_ESCAPE_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+                return NULL;
+            }
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, ascii);
+        } else if (len == 6 && strncmp(ptr, "\\u", 2) == 0) {
+            char *endptr;
+            uint16_t unicode = strtoul(ptr + 2, &endptr, 16);
+            if (gtk_ml_is_ident_cont(*endptr)) {
+                *err = gtk_ml_error(ctx, "escape-error", GTKML_ERR_ESCAPE_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+                return NULL;
+            }
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, unicode);
+        } else if (len == 10 && strncmp(ptr, "\\U", 2) == 0) {
+            char *endptr;
+            uint32_t unicode = strtoul(ptr + 2, &endptr, 16);
+            if (gtk_ml_is_ident_cont(*endptr)) {
+                *err = gtk_ml_error(ctx, "escape-error", GTKML_ERR_ESCAPE_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+                return NULL;
+            }
+            result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, unicode);
+        } else {
+            *err = gtk_ml_error(ctx, "escape-error", GTKML_ERR_ESCAPE_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+            return NULL;
+        }
+    }
+    ++*tokenv;
+    --*tokenc;
+    return result;
+}
+
 GtkMl_S *gtk_ml_parse_string(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_STRING) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
@@ -424,6 +484,8 @@ GtkMl_S *gtk_ml_parse(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, s
         return gtk_ml_parse_int(ctx, err, tokenv, tokenc);
     case GTKML_TOK_FLOAT:
         return gtk_ml_parse_float(ctx, err, tokenv, tokenc);
+    case GTKML_TOK_CHAR:
+        return gtk_ml_parse_char(ctx, err, tokenv, tokenc);
     case GTKML_TOK_STRING:
         return gtk_ml_parse_string(ctx, err, tokenv, tokenc);
     case GTKML_TOK_IDENT:

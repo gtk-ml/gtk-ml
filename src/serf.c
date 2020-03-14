@@ -118,6 +118,7 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
         break;
     }
     case GTKML_S_PROGRAM: {
+        fwrite(&value->value.s_program.kind, sizeof(uint32_t), 1, stream);
         if (!gtk_ml_serf_value(serf, ctx, stream, err, value->value.s_program.linkage_name)) {
             return 0;
         }
@@ -134,6 +135,9 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
         break;
     }
     case GTKML_S_ADDRESS:
+        if (!gtk_ml_serf_value(serf, ctx, stream, err, value->value.s_address.linkage_name)) {
+            return 0;
+        }
         fwrite(&value->value.s_address.addr, sizeof(uint64_t), 1, stream);
         break;
     case GTKML_S_LIGHTDATA:
@@ -165,7 +169,17 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
     case GTKML_S_MAP: {
         struct SerfData data = { ctx, serf, stream, err, 0, 1 }; 
         gtk_ml_hash_trie_foreach(&value->value.s_map.map, serf_hash_trie, &data);
-        result = data.result;
+        if (!data.result) {
+            return 0;
+        }
+        fwrite(";", 1, 1, stream);
+        uint32_t has_metamap = value->value.s_map.metamap != NULL;
+        fwrite(&has_metamap, sizeof(uint32_t), 1, stream);
+        if (has_metamap) {
+            if (!gtk_ml_serf_value(serf, ctx, stream, err, value->value.s_map.metamap)) {
+                return 0;
+            }
+        }
     } break;
     case GTKML_S_SET: {
         struct SerfData data = { ctx, serf, stream, err, 0, 1 }; 
@@ -213,6 +227,9 @@ gboolean gtk_ml_serf_value(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *str
             }
         }
         break;
+    default:
+        *err = gtk_ml_error(ctx, "invalid-sexpr", GTKML_ERR_INVALID_SEXPR, 0, 0, 0, 0);
+        return 0;
     }
     fprintf(stream, ")");
     return result;
@@ -303,6 +320,7 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         break;
     }
     case GTKML_S_LIST: {
+        result->kind = GTKML_S_NIL;
         char next = 0;
         fread(&next, 1, 1, stream);
         if (next != ')') {
@@ -324,11 +342,11 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
     case GTKML_S_MAP: {
         char next = 0;
         fread(&next, 1, 1, stream);
-        if (next != ')') {
+        if (next != ';') {
             fseek(stream, -1, SEEK_CUR);
         }
         gtk_ml_new_hash_trie(&result->value.s_map.map, &GTKML_DEFAULT_HASHER);
-        while (next != ')') {
+        while (next != ';') {
             GtkMl_S *key = gtk_ml_deserf_value(deserf, ctx, stream, err);
             if (!key) {
                 return NULL;
@@ -348,7 +366,16 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
             result = new;
             fread(&next, 1, 1, stream);
         }
-        fseek(stream, -1, SEEK_CUR);
+        uint32_t has_metamap;
+        fread(&has_metamap, sizeof(uint32_t), 1, stream);
+        GtkMl_S *metamap = NULL;
+        if (has_metamap) {
+            metamap = gtk_ml_deserf_value(deserf, ctx, stream, err);
+            if (!metamap) {
+                return 0;
+            }
+        }
+        result->value.s_map.metamap = metamap;
         break;
     }
     case GTKML_S_SET: {
@@ -445,6 +472,8 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         break;
     }
     case GTKML_S_PROGRAM: {
+        GtkMl_ProgramKind kind;
+        fread(&kind, sizeof(uint32_t), 1, stream);
         GtkMl_S *linkage_name = gtk_ml_deserf_value(deserf, ctx, stream, err);
         if (!linkage_name) {
             return NULL;
@@ -465,12 +494,18 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
         if (!capture) {
             return NULL;
         }
+        result->value.s_program.kind = kind;
         result->value.s_program.args = args;
         result->value.s_program.body = body;
         result->value.s_program.capture = capture;
         break;
     }
     case GTKML_S_ADDRESS: {
+        GtkMl_S *linkage_name = gtk_ml_deserf_value(deserf, ctx, stream, err);
+        if (!linkage_name) {
+            return NULL;
+        }
+        result->value.s_address.linkage_name = linkage_name;
         uint64_t addr;
         fread(&addr, sizeof(uint64_t), 1, stream);
         result->value.s_address.addr = addr;
@@ -497,6 +532,9 @@ GtkMl_S *gtk_ml_deserf_value(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FIL
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
         *err = gtk_ml_error(ctx, "deser-error", GTKML_ERR_DESER_ERROR, 0, 0, 0, 0);
+        return 0;
+    default:
+        *err = gtk_ml_error(ctx, "invalid-sexpr", GTKML_ERR_INVALID_SEXPR, 0, 0, 0, 0);
         return 0;
     }
 
@@ -544,14 +582,21 @@ gboolean gtk_ml_serf_program(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *s
     return 1;
 }
 
-gboolean gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, GtkMl_Program *program, FILE *stream, GtkMl_S **err) {
+GtkMl_Program *gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, FILE *stream, GtkMl_S **err) {
+    if (ctx->gc->program_len == ctx->gc->program_cap) {
+        ctx->gc->program_cap *= 2;
+        ctx->gc->programs = realloc(ctx->gc->programs, sizeof(GtkMl_Program *) * ctx->gc->program_cap);
+    }
+    ctx->gc->programs[ctx->gc->program_len] = malloc(sizeof(GtkMl_Program));
+    GtkMl_Program *program = ctx->gc->programs[ctx->gc->program_len++];
+
     char *gtkml_p = malloc(strlen("GTKML-P(") + 1);
     fread(gtkml_p, 1, strlen("GTKML-P("), stream);
     gtkml_p[strlen("GTKML-P(")] = 0;
     if (strcmp(gtkml_p, "GTKML-P(") != 0) {
         free(gtkml_p);
         *err = gtk_ml_error(ctx, "deser-error", GTKML_ERR_DESER_ERROR, 0, 0, 0, 0);
-        return 0;
+        return NULL;
     }
     free(gtkml_p);
 
@@ -574,7 +619,7 @@ gboolean gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, G
     for (size_t i = 1; i < program->n_static; i++) {
         GtkMl_S *value = gtk_ml_deserf_value(deserf, ctx, stream, err);
         if (!value) {
-            return 0;
+            return NULL;
         }
         program->statics[i] = value;
     }
@@ -585,11 +630,11 @@ gboolean gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *ctx, G
     if (strcmp(end, ")") != 0) {
         free(end);
         *err = gtk_ml_error(ctx, "deser-error", GTKML_ERR_DESER_ERROR, 0, 0, 0, 0);
-        return 0;
+        return NULL;
     }
     free(end);
 
     gtk_ml_del_hash_trie(ctx, &deserf->ptr_map, gtk_ml_delete_void_reference);
 
-    return 1;
+    return program;
 }

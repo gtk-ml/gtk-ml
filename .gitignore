@@ -1,4 +1,4 @@
 /bin
-.*.sw?
+.*sw?
 compile_commands.json
 *.bgtkml
