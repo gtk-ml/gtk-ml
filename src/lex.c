@@ -54,7 +54,7 @@ gboolean gtk_ml_is_ident_cont(unsigned char c) {
     return IDENT_CONT[c];
 }
 
-gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, GtkMl_S **err, const char *src) {
+gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, GtkMl_SObj *err, const char *src) {
     *tokenv = malloc(sizeof(GtkMl_Token) * 64);
     *tokenc = 0;
     size_t cap = 64;

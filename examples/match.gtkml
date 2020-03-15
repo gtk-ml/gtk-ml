@@ -16,6 +16,7 @@
 (define (nil? list) (= (typeof list) :nil))
 
 (define (reverse-index array ridx) (index array (- (len array) ridx)))
+(define (str-index array idx) (->sobject (index array idx)))
 
 (define (digit->char digit)
   (cond
@@ -31,24 +32,24 @@
     (= digit 9) \9
     :else       (error {:err 'digit-error :desc "number is not a digit" :value digit})))
 
-(define (rev-array* acc array)
-  (cond
-    (empty? array) acc
-    :else          (rev-array* (push acc (reverse-index array 1)) (pop array))))
-
-(define (rev-array array)
-  (rev-array* [] array))
-
 (define (unsigned->string* acc rest digit)
-  (let [acc*   (push acc (digit->char digit))
+  (let [acc*   (push acc (->prim (digit->char digit)))
         rest*  (/ rest 10) ; 0
         digit* (% rest 10)] ; 1
     (cond
       (= rest 0) acc*
       :else      (unsigned->string* acc* rest* digit*))))
 
+(define (rev-string* acc array)
+  (cond
+    (empty? array) acc
+    :else          (rev-string* (push acc (reverse-index array 1)) (pop array))))
+
+(define (rev-string array)
+  (rev-string* "" array))
+
 (define (unsigned->string num)
-  (rev-array (unsigned->string* "" (/ num 10) (% num 10))))
+  (rev-string (unsigned->string* "" (/ num 10) (% num 10))))
 
 (define (format-v-impl acc offset fmt args)
   (cond
@@ -58,20 +59,20 @@
         :else       (error {:err 'arity-error :desc "too many format arguments" :args args}))
     (> offset (len fmt))
       (error {:err 'index-out-of-bounds :desc "fmt offset is greater than (len fmt)" :len (len fmt) :offset offset})
-    (= (index fmt offset) \~)
+    (= (str-index fmt offset) \~)
       (cond
         (= (+ offset 1) (len fmt))
-          (error {:err 'fmt-error :desc "invalid format string" :char (index fmt (+ offset 1))})
-        (= (index fmt (+ offset 1)) \a)
+          (error {:err 'fmt-error :desc "invalid format string" :char (str-index fmt (+ offset 1))})
+        (= (str-index fmt (+ offset 1)) \a)
           (cond
             (nil? args) (error '{:err arity-error :desc "too few format arguments"})
             :else       (format-v-impl (concat acc (car args)) (+ offset 2) fmt (cdr args)))
-        (= (index fmt (+ offset 1)) \u)
+        (= (str-index fmt (+ offset 1)) \u)
           (cond
             (nil? args) (error '{:err arity-error :desc "too few format arguments"})
             :else       (format-v-impl (concat acc (unsigned->string (car args))) (+ offset 2) fmt (cdr args)))
         :else
-          (error {:err 'fmt-error :desc "invalid format string" :char (index fmt (+ offset 1))}))
+          (error {:err 'fmt-error :desc "invalid format string" :char (str-index fmt (+ offset 1))}))
     :else
       (format-v-impl (push acc (index fmt offset)) (+ offset 1) fmt args)))
 

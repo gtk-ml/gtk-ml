@@ -6,6 +6,10 @@
 
 #define gtk_ml_add_builder(b, _builder_name, builder, _require_intrinsic, _require_macro, _require_runtime) \
     do { \
+        if (b->len_builder >= b->cap_builder) { \
+            b->cap_builder *= 2; \
+            b->builders = realloc(b->builders, sizeof(GtkMl_BuilderMacro) * b->cap_builder); \
+        } \
         char *_name = _builder_name; \
         char *name = malloc(strlen(_name) + 1); \
         strcpy(name, _name); \
@@ -24,7 +28,7 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     b->len_bb = 0;
     b->cap_bb = 64;
 
-    b->statics = malloc(sizeof(GtkMl_S *) * 64);
+    b->statics = malloc(sizeof(GtkMl_SObj) * 64);
     b->statics[0] = NULL;
     b->len_static = 1;
     b->cap_static = 64;
@@ -32,7 +36,7 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     b->counter = gtk_ml_new_var(ctx, NULL, gtk_ml_new_int(ctx, NULL, 0));
     b->flags = 0;
 
-    gtk_ml_push(ctx, b->counter);
+    gtk_ml_push(ctx, gtk_ml_value_sobject(b->counter));
 
     b->intr_ctx = gtk_ml_new_context_with_gc(gtk_ml_gc_copy(ctx->gc));
     b->intr_ctx->dbg_done = 1; // fake done sending dbg data
@@ -61,6 +65,8 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_add_builder(b, "car", gtk_ml_builder_car, 0, 0, 0);
     gtk_ml_add_builder(b, "cdr", gtk_ml_builder_cdr, 0, 0, 0);
     gtk_ml_add_builder(b, "typeof", gtk_ml_builder_typeof, 0, 0, 0);
+    gtk_ml_add_builder(b, "->sobject", gtk_ml_builder_to_sobject, 0, 0, 0);
+    gtk_ml_add_builder(b, "->prim", gtk_ml_builder_to_prim, 0, 0, 0);
     gtk_ml_add_builder(b, "index", gtk_ml_builder_index, 0, 0, 0);
     gtk_ml_add_builder(b, "push", gtk_ml_builder_push, 0, 0, 0);
     gtk_ml_add_builder(b, "pop", gtk_ml_builder_pop, 0, 0, 0);
@@ -121,1197 +127,1233 @@ unsigned int gtk_ml_builder_clear_cond(GtkMl_Builder *b) {
     return flags;
 }
 
-GtkMl_S *gtk_ml_builder_get_and_inc(GtkMl_Context *ctx, GtkMl_Builder *b) {
-    GtkMl_S *value = b->counter->value.s_var.expr;
+GtkMl_SObj gtk_ml_builder_get_and_inc(GtkMl_Context *ctx, GtkMl_Builder *b) {
+    GtkMl_SObj value = b->counter->value.s_var.expr;
     b->counter->value.s_var.expr = gtk_ml_new_int(ctx, NULL, value->value.s_int.value + 1);
     return value;
 }
 
-gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_HALT;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_HALT;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_push_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_push_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_push_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_PUSH_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_PUSH_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_PUSH_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_PUSH_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_setf_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_setf_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_setf_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_SETF_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_SETF_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_setf_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_setf_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_SETF_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_SETF_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_popf(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_popf(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_POPF;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_POPF;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_push_extended_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static linkage_name) {
+gboolean gtk_ml_build_push_extended_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static linkage_name) {
     if (linkage_name < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_push_addr(ctx, b, basic_block, err, linkage_name);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM | GTKML_EI_IMM_EXTERN;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_PUSH_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM | GTKML_EI_IMM_EXTERN;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_PUSH_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = linkage_name;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = linkage_name;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static linkage_name) {
+gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static linkage_name) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM | GTKML_I_IMM_EXTERN;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_PUSH_IMM;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM | GTKML_I_IMM_EXTERN;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_PUSH_IMM;
 
-    basic_block->exec[basic_block->len_exec].imm.imm = linkage_name;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm.imm = linkage_name;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_POP;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_POP;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_DEFINE;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_DEFINE;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_car(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_car(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_CAR;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_CAR;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_cdr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_cdr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_CDR;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_CDR;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_bind(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_bind(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_BIND;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_BIND;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_bind_args(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_bind_args(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_BIND_ARGS;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_BIND_ARGS;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_list(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_list(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_LIST;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_LIST;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_enter(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_enter(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_ENTER;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_ENTER;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_leave(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_leave(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_LEAVE;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_LEAVE;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_unwrap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_unwrap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_UNWRAP;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_UNWRAP;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_typeof(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_typeof(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].arith.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].arith.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].arith.opcode = GTKML_IA_TYPEOF;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_TYPEOF;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_to_sobject(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
+    (void) ctx;
+    (void) err;
+
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
+    }
+
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_TO_SOBJ;
+    ++basic_block->len_text;
+
+    return 1;
+}
+
+gboolean gtk_ml_build_to_prim(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
+    (void) ctx;
+    (void) err;
+
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
+    }
+
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].arith.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].arith.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].arith.opcode = GTKML_IA_TO_PRIM;
+    ++basic_block->len_text;
+
+    return 1;
+}
+
+gboolean gtk_ml_build_get_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_get_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_GET_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_GET_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_GET_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_GET_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_list_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_list_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_list_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_LIST_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_LIST_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_list_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_list_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_LIST_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_LIST_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_map_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_map_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_map_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_MAP_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_MAP_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_map_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_map_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_MAP_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_MAP_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_set_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_set_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_set_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_SET_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_SET_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_set_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_set_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_SET_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_SET_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_array_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_array_extended_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_array_imm(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_ARRAY_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_ARRAY_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_array_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_array_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_IMM;
-    basic_block->exec[basic_block->len_exec].imm.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_ARRAY_IMM;
+    basic_block->text[basic_block->len_text].imm.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_setmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_setmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_SETMM_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_SETMM_IMM;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_getmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_getmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_GETMM_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_GETMM_IMM;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_var_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_var_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_VAR_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_VAR_IMM;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_getvar_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_getvar_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_GETVAR_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_GETVAR_IMM;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_assignvar_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_assignvar_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ASSIGNVAR_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_ASSIGNVAR_IMM;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_len(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_len(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_LEN;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_LEN;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_array_index(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_array_index(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_INDEX;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_ARRAY_INDEX;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_array_push(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_array_push(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_PUSH;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_ARRAY_PUSH;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_array_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_array_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_POP;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_ARRAY_POP;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_array_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_array_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_ARRAY_CONCAT;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_ARRAY_CONCAT;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_map_get(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_map_get(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_MAP_GET;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_MAP_GET;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_map_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_map_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_MAP_INSERT;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_MAP_INSERT;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_map_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_map_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_MAP_DELETE;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_MAP_DELETE;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_set_contains(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_set_contains(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_SET_CONTAINS;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_SET_CONTAINS;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_set_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_set_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_SET_INSERT;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_SET_INSERT;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_set_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_set_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_I_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_II_SET_DELETE;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_I_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_II_SET_DELETE;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_call_extended_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_call_extended_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     if (imm64 < ((GtkMl_Static) 1 << 48)) {
         return gtk_ml_build_call_std(ctx, b, basic_block, err, imm64);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_EI_BR;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_EIBR_CALL_EXT_STD;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_EI_BR;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_EIBR_CALL_EXT_STD;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_call_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_call_std(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_BR;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IBR_CALL_STD;
-    basic_block->exec[basic_block->len_exec].br.imm = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_BR;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IBR_CALL_STD;
+    basic_block->text[basic_block->len_text].br.imm = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_BR;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IBR_CALL;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_BR;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IBR_CALL;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_branch_absolute_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static linkage_name) {
+gboolean gtk_ml_build_branch_absolute_extended(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static linkage_name) {
     if (linkage_name < ((GtkMl_Static) 1 << 32)) {
         return gtk_ml_build_branch_absolute(ctx, b, basic_block, err, linkage_name);
     }
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_EI_BR | GTKML_EI_BR_EXTERN;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_EIBR_BRANCH_ABSOLUTE_EXT;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_EI_BR | GTKML_EI_BR_EXTERN;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_EIBR_BRANCH_ABSOLUTE_EXT;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = linkage_name;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = linkage_name;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_branch_absolute(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static linkage_name) {
+gboolean gtk_ml_build_branch_absolute(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static linkage_name) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_BR | GTKML_I_BR_EXTERN;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IBR_BRANCH_ABSOLUTE;
-    basic_block->exec[basic_block->len_exec].br.imm = linkage_name;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_BR | GTKML_I_BR_EXTERN;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IBR_BRANCH_ABSOLUTE;
+    basic_block->text[basic_block->len_text].br.imm = linkage_name;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_BR;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IBR_RET;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_BR;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IBR_RET;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_add(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_add(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_ADD;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_ADD;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_sub(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_sub(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_SUBTRACT;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_SUBTRACT;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_mul(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_mul(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_SIGNED_MULTIPLY;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_SIGNED_MULTIPLY;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_div(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_div(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_SIGNED_DIVIDE;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_SIGNED_DIVIDE;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_mod(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_mod(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_SIGNED_MODULO;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_SIGNED_MODULO;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err, GtkMl_Static imm64) {
+gboolean gtk_ml_build_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Static imm64) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].imm.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].imm.category = GTKML_EI_IMM;
-    basic_block->exec[basic_block->len_exec].imm.opcode = GTKML_EII_CMP_EXT_IMM;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].imm.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].imm.category = GTKML_EI_IMM;
+    basic_block->text[basic_block->len_text].imm.opcode = GTKML_EII_CMP_EXT_IMM;
+    ++basic_block->len_text;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].imm64 = imm64;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].imm64 = imm64;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_bitand(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_bitand(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_BIT_AND;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_BIT_AND;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_bitor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_bitor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_BIT_AND;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_BIT_AND;
+    ++basic_block->len_text;
 
     return 1;
 }
 
-gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_S **err) {
+gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
     (void) ctx;
     (void) err;
 
-    if (basic_block->len_exec == basic_block->cap_exec) {
-        basic_block->cap_exec *= 2;
-        basic_block->exec = realloc(basic_block->exec, sizeof(GtkMl_Instruction) * basic_block->cap_exec);
+    if (basic_block->len_text == basic_block->cap_text) {
+        basic_block->cap_text *= 2;
+        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
     }
 
-    basic_block->exec[basic_block->len_exec].instr = 0;
-    basic_block->exec[basic_block->len_exec].br.cond = gtk_ml_builder_clear_cond(b);
-    basic_block->exec[basic_block->len_exec].br.category = GTKML_I_ARITH;
-    basic_block->exec[basic_block->len_exec].br.opcode = GTKML_IA_BIT_XOR;
-    ++basic_block->len_exec;
+    basic_block->text[basic_block->len_text].instr = 0;
+    basic_block->text[basic_block->len_text].br.cond = gtk_ml_builder_clear_cond(b);
+    basic_block->text[basic_block->len_text].br.category = GTKML_I_ARITH;
+    basic_block->text[basic_block->len_text].br.opcode = GTKML_IA_BIT_XOR;
+    ++basic_block->len_text;
 
     return 1;
 }
@@ -1327,14 +1369,14 @@ GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name) 
     ++b->len_bb;
 
     basic_block->name = name;
-    basic_block->exec = malloc(sizeof(GtkMl_Instruction) * 256);
-    basic_block->len_exec = 0;
-    basic_block->cap_exec = 256;
+    basic_block->text = malloc(sizeof(GtkMl_Instruction) * 256);
+    basic_block->len_text = 0;
+    basic_block->cap_text = 256;
 
     return basic_block;
 }
 
-GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value) {
+GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_SObj value) {
     for (GtkMl_Static i = 1; i < b->len_static; i++) {
         if (b->statics[i] == value) {
             return i;
@@ -1343,7 +1385,7 @@ GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value) {
 
     if (b->len_static == b->cap_static) {
         b->cap_static *= 2;
-        b->statics = realloc(b->statics, sizeof(GtkMl_S *) * b->cap_static);
+        b->statics = realloc(b->statics, sizeof(GtkMl_SObj ) * b->cap_static);
     }
 
     GtkMl_Static handle = b->len_static;
@@ -1353,7 +1395,7 @@ GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_S *value) {
     return handle;
 }
 
-GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Builder *b, GtkMl_Stage stage, gboolean complete) {
+GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Stage stage, gboolean complete) {
     if (ctx->gc->program_len == ctx->gc->program_cap) {
         ctx->gc->program_cap *= 2;
         ctx->gc->programs = realloc(ctx->gc->programs, sizeof(GtkMl_Program *) * ctx->gc->program_cap);
@@ -1364,7 +1406,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
     size_t n = 0;
     size_t n_static = b->len_static;
     for (size_t i = 0; i < b->len_bb; i++) {
-        n += b->basic_blocks[i]->len_exec;
+        n += b->basic_blocks[i]->len_text;
     }
 
     if (!complete) {
@@ -1372,13 +1414,13 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
     }
 
     GtkMl_Instruction *result = malloc(sizeof(GtkMl_Instruction) * n);
-    GtkMl_S **statics = malloc(sizeof(GtkMl_S *) * n_static);
-    memcpy(statics, b->statics, sizeof(GtkMl_S *) * n_static);
+    GtkMl_SObj *statics = malloc(sizeof(GtkMl_SObj ) * n_static);
+    memcpy(statics, b->statics, sizeof(GtkMl_SObj ) * n_static);
     uint64_t pc = 0;
 
     for (size_t i = 0; i < b->len_bb; i++) {
-        size_t n = b->basic_blocks[i]->len_exec;
-        memcpy(result + pc, b->basic_blocks[i]->exec, sizeof(GtkMl_Instruction) * n);
+        size_t n = b->basic_blocks[i]->len_text;
+        memcpy(result + pc, b->basic_blocks[i]->text, sizeof(GtkMl_Instruction) * n);
         pc += n;
 
         // add a halt instruction to the end of _start
@@ -1394,7 +1436,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
     for (size_t i = 0; i < n;) {
         GtkMl_Instruction instr = result[i];
         if (instr.gen.category == GTKML_EI_EXPORT) {
-            GtkMl_S *addr = statics[result[i + 1].imm64];
+            GtkMl_SObj addr = statics[result[i + 1].imm64];
             if (addr->kind == GTKML_S_PROGRAM) {
                 addr->value.s_program.addr = 8 * i;
             } else if (addr->kind == GTKML_S_ADDRESS) {
@@ -1414,7 +1456,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
     for (size_t i = 0; i < n;) {
         GtkMl_Instruction instr = result[i];
         if (instr.gen.category != GTKML_EI_EXPORT && (instr.gen.category & GTKML_I_IMM_EXTERN)) {
-            GtkMl_S *ext;
+            GtkMl_SObj ext;
             if (instr.gen.category & GTKML_I_EXTENDED) {
                 ext = statics[result[i + 1].imm64];
             } else if (instr.gen.category == (GTKML_I_IMM | GTKML_I_IMM_EXTERN)) {
@@ -1436,8 +1478,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
             for (size_t l = 0; l < n;) {
                 GtkMl_Instruction instr = result[l];
                 if (instr.gen.category == GTKML_EI_EXPORT) {
-                    GtkMl_S *addr = statics[result[l + 1].imm64];
-                    GtkMl_S *exp;
+                    GtkMl_SObj addr = statics[result[l + 1].imm64];
+                    GtkMl_SObj exp;
                     if (addr->kind == GTKML_S_PROGRAM) {
                         exp = addr->value.s_program.linkage_name;
                     } else if (addr->kind == GTKML_S_ADDRESS) {
@@ -1447,8 +1489,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
                         return NULL;
                     }
                     GtkMl_Array new;
-                    gtk_ml_array_trie_push(&new, &all_exports, exp);
-                    gtk_ml_del_array_trie(ctx, &all_exports, gtk_ml_delete_value_reference);
+                    gtk_ml_array_trie_push(&new, &all_exports, gtk_ml_value_sobject(exp));
+                    gtk_ml_del_array_trie(ctx, &all_exports, gtk_ml_delete_value);
                     all_exports = new;
                     if (gtk_ml_equal(ext, exp)) {
                         result[i].gen.category &= ~GTKML_EI_IMM_EXTERN;
@@ -1474,11 +1516,11 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
             }
 
             if (found) {
-                gtk_ml_del_array_trie(ctx, &all_exports, gtk_ml_delete_value_reference);
+                gtk_ml_del_array_trie(ctx, &all_exports, gtk_ml_delete_value);
             } else {
-                GtkMl_S *exports = gtk_ml_new_array(ctx, NULL);
+                GtkMl_SObj exports = gtk_ml_new_array(ctx, NULL);
                 exports->value.s_array.array = all_exports;
-                GtkMl_S *error = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(ctx, NULL, 0, "linkage-name", strlen("linkage-name")), ext, gtk_ml_new_keyword(ctx, NULL, 0, "all-exports", strlen("all-exports")), exports);
+                GtkMl_SObj error = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(ctx, NULL, 0, "linkage-name", strlen("linkage-name")), ext, gtk_ml_new_keyword(ctx, NULL, 0, "all-exports", strlen("all-exports")), exports);
                 *err = error;
                 return NULL;
             }
@@ -1494,15 +1536,15 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
         char *start = malloc(strlen("_start") + 1);
         strcpy(start, "_start");
         out->start = start;
-        out->exec = result;
-        out->n_exec = n;
+        out->text = result;
+        out->n_text = n;
         out->statics = statics;
         out->n_static = n_static;
     } else {
         switch (stage) {
         case GTKML_STAGE_INTR:
             for (size_t i = 0; i < b->len_bb; i++) {
-                free(b->basic_blocks[i]->exec);
+                free(b->basic_blocks[i]->text);
                 free(b->basic_blocks[i]);
             }
             b->len_bb = 0;
@@ -1511,14 +1553,14 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
             char *start = malloc(strlen("_start") + 1);
             strcpy(start, "_start");
             out->start = start;
-            out->exec = result;
-            out->n_exec = n;
+            out->text = result;
+            out->n_text = n;
             out->statics = statics;
             out->n_static = n_static;
             break;
         case GTKML_STAGE_MACRO: {
             for (size_t i = 0; i < b->len_bb; i++) {
-                free(b->basic_blocks[i]->exec);
+                free(b->basic_blocks[i]->text);
                 free(b->basic_blocks[i]);
             }
             b->len_bb = 0;
@@ -1527,8 +1569,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
             char *start = malloc(strlen("_start") + 1);
             strcpy(start, "_start");
             out->start = start;
-            out->exec = result;
-            out->n_exec = n;
+            out->text = result;
+            out->n_text = n;
             out->statics = statics;
             out->n_static = n_static;
         } break;
@@ -1537,7 +1579,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
             gtk_ml_del_context(b->intr_ctx);
 
             for (size_t i = 0; i < b->len_bb; i++) {
-                free(b->basic_blocks[i]->exec);
+                free(b->basic_blocks[i]->text);
                 free(b->basic_blocks[i]);
             }
             for (size_t i = 0; i < b->len_builder; i++) {
@@ -1552,8 +1594,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
             char *start = malloc(strlen("_start") + 1);
             strcpy(start, "_start");
             out->start = start;
-            out->exec = result;
-            out->n_exec = n;
+            out->text = result;
+            out->n_text = n;
             out->statics = statics;
             out->n_static = n_static;
         } break;
@@ -1563,18 +1605,18 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Buil
     return out;
 }
 
-GtkMl_Program *gtk_ml_build_intr_apply(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Builder *b) {
+GtkMl_Program *gtk_ml_build_intr_apply(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
     return build(ctx, err, b, GTKML_STAGE_INTR, 0);
 }
 
-GtkMl_Program *gtk_ml_build_intrinsics(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Builder *b) {
+GtkMl_Program *gtk_ml_build_intrinsics(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
     return build(ctx, err, b, GTKML_STAGE_INTR, 1);
 }
 
-GtkMl_Program *gtk_ml_build_macros(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Builder *b) {
+GtkMl_Program *gtk_ml_build_macros(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
     return build(ctx, err, b, GTKML_STAGE_MACRO, 1);
 }
 
-GtkMl_Program *gtk_ml_build(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Builder *b) {
+GtkMl_Program *gtk_ml_build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
     return build(ctx, err, b, GTKML_STAGE_RUNTIME, 1);
 }

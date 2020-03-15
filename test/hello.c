@@ -4,12 +4,12 @@
 #define GUI "examples/hello.gtkml"
 
 int main() {
-    GtkMl_S *err = NULL;
+    GtkMl_SObj err = NULL;
 
     GtkMl_Context *ctx = gtk_ml_new_context(NULL, 0);
 
     char *src;
-    GtkMl_S *gui;
+    GtkMl_SObj gui;
     if (!(gui = gtk_ml_load(ctx, &src, &err, GUI))) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
@@ -17,7 +17,7 @@ int main() {
         return 1;
     }
 
-    gtk_ml_push(ctx, gui);
+    gtk_ml_push(ctx, gtk_ml_value_sobject(gui));
 
     GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
 
@@ -73,7 +73,7 @@ int main() {
         return 1;
     }
 
-    GtkMl_S *program = gtk_ml_get_export(ctx, &err, loaded->start);
+    GtkMl_SObj program = gtk_ml_get_export(ctx, &err, loaded->start);
     if (!program) {
         free(src);
         gtk_ml_dumpf(ctx, stderr, NULL, err);
@@ -90,7 +90,7 @@ int main() {
         return 1;
     }
 
-    GtkMl_S *app = gtk_ml_peek(ctx);
+    GtkMl_SObj app = gtk_ml_peek(ctx).value.sobj;
 
     if (!app) {
         free(src);

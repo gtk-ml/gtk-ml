@@ -18,9 +18,9 @@ const char *gtk_ml_web_version() {
 }
 
 char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
-    GtkMl_S *err = NULL;
+    GtkMl_SObj err = NULL;
 
-    GtkMl_S *lambda;
+    GtkMl_SObj lambda;
     if (!(lambda = gtk_ml_loads(ctx, &err, line))) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
@@ -44,7 +44,7 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
 
     gtk_ml_load_program(ctx, program);
 
-    GtkMl_S *start = gtk_ml_get_export(ctx, &err, program->start);
+    GtkMl_SObj start = gtk_ml_get_export(ctx, &err, program->start);
     if (!start) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
@@ -59,7 +59,7 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
 
     size_t cap = 1024;
     char *result = malloc(cap);
-    result = gtk_ml_dumpsnr(ctx, result, cap, &err, gtk_ml_peek(ctx));
+    result = gtk_ml_dumpsnr(ctx, result, cap, &err, gtk_ml_peek(ctx).sobj);
     if (!result) {
         gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");

@@ -24,7 +24,7 @@ LIB=/usr/local/lib/liblinenoise.a
 GTKMLWEB=$(WEBDIR)/gtk-ml.js
 
 CFLAGS:=-O2 -g -Wall -Wextra -Werror -pedantic -std=c11 -fPIC -pthread \
-	-DGTKML_ENABLE_ASM=1 -DGTKML_STACK_SIZE=16*1024*1024 \
+	-DGTKML_ENABLE_ASM=1 -DGTKML_STACK_SIZE=16*1024 \
 	-DGTKML_LONG_WIDTH=64 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
 EMFLAGS:=-O2 -Wall -Wextra -Werror -std=gnu11 \
 	-s ASSERTIONS=1 -s NO_EXIT_RUNTIME=1 \
