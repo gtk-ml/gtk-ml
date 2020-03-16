@@ -277,14 +277,16 @@ int main(int argc, const char **argv, char *const *envp) {
         return 0;
     }
 
+    GtkMl_SObj s_flags = gtk_ml_new_map(ctx, NULL, NULL);
+    s_flags->value.s_map.map = flags;
+    gtk_ml_push(ctx, gtk_ml_value_sobject(s_flags));
+    GtkMl_SObj s_opts = gtk_ml_new_map(ctx, NULL, NULL);
+    s_opts->value.s_map.map = opts;
+    gtk_ml_push(ctx, gtk_ml_value_sobject(s_opts));
+
     GtkMl_SObj verbose_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['v'].long_opt, strlen(PARAMS['v'].long_opt));
     GtkMl_TaggedValue verbose_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(verbose_kw));
     if (verbose_opt.value.sobj->kind == GTKML_S_TRUE) {
-        GtkMl_SObj s_flags = gtk_ml_new_map(ctx, NULL, NULL);
-        s_flags->value.s_map.map = flags;
-        GtkMl_SObj s_opts = gtk_ml_new_map(ctx, NULL, NULL);
-        s_opts->value.s_map.map = opts;
-
         fprintf(stderr, "running with flags: ");
         (void) gtk_ml_dumpf(ctx, stderr, &err, s_flags);
         fprintf(stderr, "\nrunning with options: ");
@@ -364,6 +366,10 @@ int main(int argc, const char **argv, char *const *envp) {
 
         gtk_ml_set_debug(ctx, pid, (GtkMl_Context *) regs.rax);
 
+        GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
+        GtkMl_Program *previous_program = NULL;
+        size_t n_previous = 0;
+
         linenoiseInstallWindowChangeHandler();
 
         //linenoiseSetCompletionCallback(completionHook);
@@ -420,8 +426,6 @@ int main(int argc, const char **argv, char *const *envp) {
                     continue;
                 }
 
-                GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
-
                 if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
                     free(src);
                     src = NULL;
@@ -431,7 +435,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     continue;
                 }
 
-                GtkMl_Program *program = gtk_ml_build(ctx, &err, builder);
+                GtkMl_Program *program = gtk_ml_build(ctx, &err, builder, &previous_program, n_previous);
                 if (!program) {
                     free(src);
                     src = NULL;
@@ -440,6 +444,9 @@ int main(int argc, const char **argv, char *const *envp) {
                     fprintf(stderr, "\n");
                     continue;
                 }
+
+                previous_program = program;
+                n_previous = 1;
 
                 gtk_ml_load_program(ctx, program);
 

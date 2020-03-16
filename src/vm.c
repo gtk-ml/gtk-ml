@@ -14,7 +14,6 @@
 
 GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [GTKML_I_NOP] = gtk_ml_i_nop,
-    [GTKML_I_HALT] = gtk_ml_i_halt,
     [GTKML_I_ADD] = gtk_ml_i_signed_add,
     [GTKML_I_SUBTRACT] = gtk_ml_i_signed_subtract,
     [GTKML_I_SIGNED_MULTIPLY] = gtk_ml_i_signed_multiply,
@@ -400,9 +399,7 @@ GtkMl_TaggedValue vm_core_emit_bytecode(GtkMl_Context *ctx, GtkMl_SObj *err, Gtk
     }
 
     gtk_ml_builder_set_cond(arg_b, arg_cond);
-    if (strlen(GTKML_SI_HALT) == len && strncmp(ptr, GTKML_SI_HALT, len) == 0) {
-        return gtk_ml_build_halt(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
-    } else if (strlen(GTKML_SI_PUSH_IMM) == len && strncmp(ptr, GTKML_SI_PUSH_IMM, len) == 0) {
+    if (strlen(GTKML_SI_PUSH_IMM) == len && strncmp(ptr, GTKML_SI_PUSH_IMM, len) == 0) {
         if (!gtk_ml_has_value(data)) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return gtk_ml_value_none();

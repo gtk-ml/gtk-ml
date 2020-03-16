@@ -27,16 +27,35 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     b->basic_blocks = malloc(sizeof(GtkMl_BasicBlock *) * 64);
     b->len_bb = 0;
     b->cap_bb = 64;
+    b->bb_offset_intr = 0;
+    b->bb_offset_macro = 0;
+    b->bb_offset_runtime = 0;
 
     b->data = malloc(sizeof(GtkMl_TaggedValue) * 64);
     b->data[0] = gtk_ml_value_none();
     b->len_data = 1;
     b->cap_data = 64;
+    b->data_offset_intr = 1;
+    b->data_offset_macro = 1;
+    b->data_offset_runtime = 1;
 
     b->statics = malloc(sizeof(GtkMl_SObj) * 64);
     b->statics[0] = NULL;
     b->len_static = 1;
     b->cap_static = 64;
+    b->static_offset_intr = 1;
+    b->static_offset_macro = 1;
+    b->static_offset_runtime = 1;
+
+    b->intrinsics = malloc(sizeof(GtkMl_Program *) * 8);
+    b->idx_prev_intr = -1;
+    b->len_intrinsics = 0;
+    b->cap_intrinsics = 8;
+
+    b->macros = malloc(sizeof(GtkMl_Program *) * 8);
+    b->idx_prev_macro = -1;
+    b->len_macros = 0;
+    b->cap_macros = 8;
 
     b->counter = gtk_ml_new_var(ctx, NULL, gtk_ml_new_int(ctx, NULL, 0));
     b->flags = GTKML_F_NONE;
@@ -229,24 +248,6 @@ void gtk_ml_builder_leave(GtkMl_Context *ctx, GtkMl_Builder *b) {
     gtk_ml_array_trie_pop(&tmp->value.s_array.array, &b->bindings->value.s_array.array);
     b->bindings = tmp;
     --b->len_base;
-}
-
-gboolean gtk_ml_build_halt(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) {
-    (void) ctx;
-    (void) err;
-
-    if (basic_block->len_text == basic_block->cap_text) {
-        basic_block->cap_text *= 2;
-        basic_block->text = realloc(basic_block->text, sizeof(GtkMl_Instruction) * basic_block->cap_text);
-    }
-
-    basic_block->text[basic_block->len_text].cond = gtk_ml_builder_clear_cond(b);
-    basic_block->text[basic_block->len_text].category = GTKML_I_GENERIC;
-    basic_block->text[basic_block->len_text].opcode = GTKML_I_HALT;
-    basic_block->text[basic_block->len_text].data = 0;
-    ++basic_block->len_text;
-
-    return 1;
 }
 
 gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Data data) {
@@ -1241,7 +1242,7 @@ GtkMl_Static gtk_ml_append_static(GtkMl_Builder *b, GtkMl_SObj value) {
     return handle;
 }
 
-GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Stage stage, gboolean complete) {
+GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Stage stage, gboolean complete, GtkMl_Program **additional_programs, size_t n_programs) {
     if (ctx->gc->program_len == ctx->gc->program_cap) {
         ctx->gc->program_cap *= 2;
         ctx->gc->programs = realloc(ctx->gc->programs, sizeof(GtkMl_Program *) * ctx->gc->program_cap);
@@ -1250,8 +1251,34 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
     GtkMl_Program *out = ctx->gc->programs[ctx->gc->program_len++];
 
     size_t n = 0;
-    size_t n_static = b->len_static;
-    size_t n_data = b->len_data;
+    size_t n_static = b->len_static + 1;
+    size_t n_data = b->len_data + 1;
+    size_t stage_offset_static;
+    size_t stage_offset_data;
+    switch (stage) {
+        case GTKML_STAGE_INTR:
+            stage_offset_static = b->static_offset_intr;
+            stage_offset_data = b->data_offset_intr;
+            break;
+        case GTKML_STAGE_MACRO:
+            stage_offset_static = b->static_offset_macro;
+            stage_offset_data = b->data_offset_macro;
+            break;
+        case GTKML_STAGE_RUNTIME:
+            stage_offset_static = b->static_offset_runtime;
+            stage_offset_data = b->data_offset_runtime;
+            break;
+    }
+    n_static -= stage_offset_static;
+    n_data -= stage_offset_data;
+
+    for (size_t i = 0; i < n_programs; i++) {
+        GtkMl_Program *program = additional_programs[i];
+        n += program->n_text;
+        n_static += program->n_static - 1;
+        n_data += program->n_data - 1;
+    }
+
     for (size_t i = 0; i < b->len_bb; i++) {
         n += b->basic_blocks[i]->len_text;
     }
@@ -1260,12 +1287,30 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
         n += 1;
     }
 
+    const char *start_name = b->basic_blocks[0]->name;
     GtkMl_Instruction *result = malloc(sizeof(GtkMl_Instruction) * n);
     GtkMl_TaggedValue *data = malloc(sizeof(GtkMl_TaggedValue) * n_data);
-    memcpy(data, b->data, sizeof(GtkMl_TaggedValue) * n_data);
     GtkMl_SObj *statics = malloc(sizeof(GtkMl_SObj) * n_static);
-    memcpy(statics, b->statics, sizeof(GtkMl_SObj) * n_static);
-    uint64_t pc = 0;
+
+    size_t offset = 0;
+    size_t offset_static = 1;
+    size_t offset_data = 1;
+    for (size_t i = 0; i < n_programs; i++) {
+        GtkMl_Program *program = additional_programs[i];
+        memcpy(result + offset, program->text, sizeof(GtkMl_Instruction) * program->n_text);
+        memcpy(statics + offset_static, program->statics + 1, sizeof(GtkMl_SObj) * (program->n_static - 1));
+        memcpy(data + offset_data, program->data + 1, sizeof(GtkMl_TaggedValue) * (program->n_data - 1));
+        offset += program->n_text;
+        offset_static += program->n_static - 1;
+        offset_data += program->n_data - 1;
+    }
+
+    data[0] = gtk_ml_value_none();
+    memcpy(data + offset_data, b->data + stage_offset_data, sizeof(GtkMl_TaggedValue) * (n_data - offset_data));
+    statics[0] = NULL;
+    memcpy(statics + offset_static, b->statics + stage_offset_static, sizeof(GtkMl_SObj) * (n_static - offset_static));
+
+    uint64_t pc = offset;
 
     for (size_t i = 0; i < b->len_bb; i++) {
         size_t n = b->basic_blocks[i]->len_text;
@@ -1276,15 +1321,21 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
         if (!complete && i == 0) {
             result[pc].cond = GTKML_F_NONE;
             result[pc].category = GTKML_I_GENERIC;
-            result[pc].opcode = GTKML_I_HALT;
+            result[pc].opcode = GTKML_I_LEAVE_RET;
             result[pc].data = 0;
             ++pc;
         }
     }
 
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = offset; i < n; i++) {
         GtkMl_Instruction instr = result[i];
         if (instr.category & GTKML_I_EXPORT) {
+            if (gtk_ml_is_primitive(data[result[i].data])) {
+                *err = gtk_ml_error(ctx, "export-error", GTKML_ERR_EXPORT_ERROR, 0, 0, 0, 2,
+                    gtk_ml_new_keyword(ctx, NULL, 0, "pc", strlen("pc")), gtk_ml_new_int(ctx, NULL, 8 * i),
+                    gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), gtk_ml_to_sobj(ctx, NULL, data[result[i].data]).value.sobj);
+                return NULL;
+            }
             GtkMl_SObj addr = statics[data[result[i].data].value.u64];
             if (addr->kind == GTKML_S_PROGRAM) {
                 addr->value.s_program.addr = 8 * i;
@@ -1299,7 +1350,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
         }
     }
 
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = offset; i < n; i++) {
         GtkMl_Instruction instr = result[i];
         if (instr.category & GTKML_I_EXTERN) {
             GtkMl_SObj ext = statics[data[instr.data].value.u64];
@@ -1357,8 +1408,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
     }
 
     if (!complete) {
-        char *start = malloc(strlen("_start") + 1);
-        strcpy(start, "_start");
+        char *start = malloc(strlen(start_name) + 1);
+        strcpy(start, start_name);
         out->start = start;
         out->text = result;
         out->n_text = n;
@@ -1375,11 +1426,15 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             }
             memset(b->basic_blocks, 0, sizeof(GtkMl_BasicBlock *) * b->len_bb);
             b->len_bb = 0;
-            b->len_static = 1;
-            b->len_data = 1;
+            b->bb_offset_intr = b->len_bb;
+            b->static_offset_intr = b->len_static;
+            b->data_offset_intr = b->len_data;
+            b->len_bb = b->bb_offset_macro;
+            b->len_static = b->static_offset_macro;
+            b->len_data = b->data_offset_macro;
 
-            char *start = malloc(strlen("_start") + 1);
-            strcpy(start, "_start");
+            char *start = malloc(strlen(start_name) + 1);
+            strcpy(start, start_name);
             out->start = start;
             out->text = result;
             out->n_text = n;
@@ -1395,11 +1450,15 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             }
             memset(b->basic_blocks, 0, sizeof(GtkMl_BasicBlock *) * b->len_bb);
             b->len_bb = 0;
-            b->len_static = 1;
-            b->len_data = 1;
+            b->bb_offset_macro = b->len_bb;
+            b->static_offset_macro = b->len_static;
+            b->data_offset_macro = b->len_data;
+            b->len_bb = b->bb_offset_runtime;
+            b->len_static = b->static_offset_runtime;
+            b->len_data = b->data_offset_runtime;
 
-            char *start = malloc(strlen("_start") + 1);
-            strcpy(start, "_start");
+            char *start = malloc(strlen(start_name) + 1);
+            strcpy(start, start_name);
             out->start = start;
             out->text = result;
             out->n_text = n;
@@ -1409,26 +1468,21 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             out->n_static = n_static;
         } break;
         case GTKML_STAGE_RUNTIME: {
-            gtk_ml_del_context(b->macro_ctx);
-            gtk_ml_del_context(b->intr_ctx);
-
             for (size_t i = 0; i < b->len_bb; i++) {
                 free(b->basic_blocks[i]->text);
                 free(b->basic_blocks[i]);
             }
-            for (size_t i = 0; i < b->len_builder; i++) {
-                free((void *) b->builders[i].name);
-            }
-            free(b->builders);
-            free(b->base);
-            free(b->data);
-            free(b->statics);
-            free(b->basic_blocks);
-            free(b);
-            ctx->gc->builder = NULL;
+            memset(b->basic_blocks, 0, sizeof(GtkMl_BasicBlock *) * b->len_bb);
+            b->len_bb = 0;
+            b->bb_offset_runtime = b->len_bb;
+            b->static_offset_runtime = b->len_static;
+            b->data_offset_runtime = b->len_data;
+            b->len_bb = b->bb_offset_intr;
+            b->len_static = b->static_offset_intr;
+            b->len_data = b->data_offset_intr;
 
-            char *start = malloc(strlen("_start") + 1);
-            strcpy(start, "_start");
+            char *start = malloc(strlen(start_name) + 1);
+            strcpy(start, start_name);
             out->start = start;
             out->text = result;
             out->n_text = n;
@@ -1443,18 +1497,18 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
     return out;
 }
 
-GtkMl_Program *gtk_ml_build_intr_apply(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
-    return build(ctx, err, b, GTKML_STAGE_INTR, 0);
+GtkMl_Program *gtk_ml_build_intr_apply(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Program **additional_programs, size_t n_programs) {
+    return build(ctx, err, b, GTKML_STAGE_INTR, 0, additional_programs, n_programs);
 }
 
-GtkMl_Program *gtk_ml_build_intrinsics(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
-    return build(ctx, err, b, GTKML_STAGE_INTR, 1);
+GtkMl_Program *gtk_ml_build_intrinsics(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Program **additional_programs, size_t n_programs) {
+    return build(ctx, err, b, GTKML_STAGE_INTR, 1, additional_programs, n_programs);
 }
 
-GtkMl_Program *gtk_ml_build_macros(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
-    return build(ctx, err, b, GTKML_STAGE_MACRO, 1);
+GtkMl_Program *gtk_ml_build_macros(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Program **additional_programs, size_t n_programs) {
+    return build(ctx, err, b, GTKML_STAGE_MACRO, 1, additional_programs, n_programs);
 }
 
-GtkMl_Program *gtk_ml_build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b) {
-    return build(ctx, err, b, GTKML_STAGE_RUNTIME, 1);
+GtkMl_Program *gtk_ml_build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Program **additional_programs, size_t n_programs) {
+    return build(ctx, err, b, GTKML_STAGE_RUNTIME, 1, additional_programs, n_programs);
 }

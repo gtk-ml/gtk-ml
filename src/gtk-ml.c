@@ -16,7 +16,6 @@
 
 GTKML_PRIVATE const char *S_OPCODES[] = {
     [GTKML_I_NOP] = GTKML_SI_NOP,
-    [GTKML_I_HALT] = GTKML_SI_HALT,
     [GTKML_I_ADD] = GTKML_SI_ADD,
     [GTKML_I_SUBTRACT] = GTKML_SI_SUBTRACT,
     [GTKML_I_SIGNED_MULTIPLY] = GTKML_SI_SIGNED_MULTIPLY,
@@ -810,7 +809,7 @@ GTKML_PRIVATE void mark(GtkMl_Context *ctx) {
     for (size_t sp = 0; sp < ctx->gc->stack_len; sp++) {
         mark_sobject(ctx->gc->stack[sp]);
     }
-    for (size_t sp = 0; sp < ctx->gc->local_len; sp++) {
+    for (int64_t sp = 0; sp < ctx->gc->local_len; sp++) {
         mark_sobject(ctx->gc->local[sp]);
     }
     if (ctx->gc->static_stack) {
