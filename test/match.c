@@ -6,12 +6,12 @@
 int main() {
     GtkMl_SObj err = NULL;
 
-    GtkMl_Context *ctx = gtk_ml_new_context(NULL, 0);
+    GtkMl_Context *ctx = gtk_ml_new_context();
 
     char *src;
     GtkMl_SObj gui;
     if (!(gui = gtk_ml_load(ctx, &src, &err, GUI))) {
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -23,7 +23,7 @@ int main() {
 
     if (!gtk_ml_compile_program(ctx, builder, &err, gui)) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -32,7 +32,7 @@ int main() {
     GtkMl_Program *linked = gtk_ml_build(ctx, &err, builder);
     if (!linked) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -43,7 +43,7 @@ int main() {
     FILE *bgtkml = fopen("match.bgtkml", "wb");
     if (!gtk_ml_serf_program(&serf, ctx, bgtkml, &err, linked)) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -55,7 +55,7 @@ int main() {
     GtkMl_Program *loaded = gtk_ml_deserf_program(&deserf, ctx, bgtkml, &err);
     if (!loaded) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -67,7 +67,7 @@ int main() {
 
     if (!gtk_ml_dumpf_program(ctx, stdout, &err)) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -76,7 +76,7 @@ int main() {
     GtkMl_SObj program = gtk_ml_get_export(ctx, &err, loaded->start);
     if (!program) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -84,7 +84,7 @@ int main() {
 
     if (!gtk_ml_run_program(ctx, &err, program, NULL)) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -94,13 +94,13 @@ int main() {
 
     if (!result) {
         free(src);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
     }
 
-    gtk_ml_dumpf(ctx, stdout, NULL, result);
+    (void) gtk_ml_dumpf(ctx, stdout, NULL, result);
     printf("\n");
 
     gtk_ml_del_context(ctx);

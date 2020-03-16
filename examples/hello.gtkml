@@ -69,7 +69,7 @@
     (= (str-index fmt offset) \~)
       (cond
         (= (+ offset 1) (len fmt))
-          (error {:err 'fmt-error :desc "invalid format string" :char (str-index fmt (+ offset 1))})
+          (error {:err 'fmt-error :desc "invalid format string" :char (str-index fmt offset)})
         (= (str-index fmt (+ offset 1)) \a)
           (cond
             (nil? args) (error '{:err arity-error :desc "too few format arguments"})

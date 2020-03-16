@@ -10,22 +10,29 @@
 
 GtkMl_TaggedValue gtk_ml_value_none() {
     GtkMl_TaggedValue none;
+    none.value.u64 = 0;
     none.tag = 0;
     return none;
 }
 
 GtkMl_TaggedValue gtk_ml_value_sobject(GtkMl_SObj obj) {
-    return (GtkMl_TaggedValue) { (GtkMl_Value) { obj }, GTKML_TAG_HAS };
+    GtkMl_TaggedValue sobj;
+    sobj.value.u64 = 0;
+    sobj.value.sobj = obj;
+    sobj.tag = GTKML_TAG_HAS;
+    return sobj;
 }
 
 GtkMl_TaggedValue gtk_ml_value_nil() {
-    GtkMl_TaggedValue p;
-    p.tag = GTKML_TAG_NIL;
-    return p;
+    GtkMl_TaggedValue nil;
+    nil.value.u64 = 0;
+    nil.tag = GTKML_TAG_NIL;
+    return nil;
 }
 
 GtkMl_TaggedValue gtk_ml_value_true() {
     GtkMl_TaggedValue p;
+    p.value.u64 = 0;
     p.value.boolean = 1;
     p.tag = GTKML_TAG_BOOL;
     return p;
@@ -33,6 +40,7 @@ GtkMl_TaggedValue gtk_ml_value_true() {
 
 GtkMl_TaggedValue gtk_ml_value_false() {
     GtkMl_TaggedValue p;
+    p.value.u64 = 0;
     p.value.boolean = 0;
     p.tag = GTKML_TAG_BOOL;
     return p;
@@ -61,6 +69,7 @@ GtkMl_TaggedValue gtk_ml_value_float(float value) {
 
 GtkMl_TaggedValue gtk_ml_value_char(uint32_t value) {
     GtkMl_TaggedValue v;
+    v.value.u64 = 0;
     v.value.unicode = value;
     v.tag = GTKML_TAG_CHAR;
     return v;
@@ -68,6 +77,7 @@ GtkMl_TaggedValue gtk_ml_value_char(uint32_t value) {
 
 GtkMl_TaggedValue gtk_ml_value_userdata(void *data) {
     GtkMl_TaggedValue v;
+    v.value.u64 = 0;
     v.value.userdata = data;
     v.tag = GTKML_TAG_USERDATA;
     return v;

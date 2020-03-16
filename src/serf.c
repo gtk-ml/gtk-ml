@@ -607,6 +607,10 @@ gboolean gtk_ml_serf_program(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *s
     fwrite(&n_text, sizeof(uint64_t), 1, stream);
     fwrite(program->text, sizeof(GtkMl_Instruction), program->n_text, stream);
 
+    uint64_t n_data = program->n_data;
+    fwrite(&n_data, sizeof(uint64_t), 1, stream);
+    fwrite(program->data, sizeof(GtkMl_TaggedValue), program->n_data, stream);
+
     uint64_t n_static = program->n_static;
     fwrite(&n_static, sizeof(uint64_t), 1, stream);
 
@@ -651,10 +655,16 @@ GtkMl_Program *gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *
     program->text = malloc(sizeof(GtkMl_Instruction) * program->n_text);
     fread(program->text, sizeof(GtkMl_Instruction), program->n_text, stream);
 
+    uint64_t n_data;
+    fread(&n_data, sizeof(uint64_t), 1, stream);
+    program->n_data = n_data;
+    program->data = malloc(sizeof(GtkMl_TaggedValue) * program->n_data);
+    fread(program->data, sizeof(GtkMl_TaggedValue), program->n_data, stream);
+
     uint64_t n_static;
     fread(&n_static, sizeof(uint64_t), 1, stream);
     program->n_static = n_static;
-    program->statics = malloc(sizeof(GtkMl_SObj ) * program->n_static);
+    program->statics = malloc(sizeof(GtkMl_SObj) * program->n_static);
 
     for (size_t i = 1; i < program->n_static; i++) {
         GtkMl_SObj value = gtk_ml_deserf_sobject(deserf, ctx, stream, err);

@@ -189,7 +189,7 @@ int main(int argc, const char **argv, char *const *envp) {
             if (argv[i][2] == 0) {
                 if (!PARAMS[(unsigned char) argv[i][1]].exists) {
                     err = gtk_ml_error(ctx, "param-error", "unrecognized short option", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i])));
-                    gtk_ml_dumpf(ctx, stderr, NULL, err);
+                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     gtk_ml_del_context(ctx);
                     return 1;
@@ -200,7 +200,7 @@ int main(int argc, const char **argv, char *const *envp) {
             }
         } else {
             err = gtk_ml_error(ctx, "param-error", "parameters must be preceded by `:`", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i])));
-            gtk_ml_dumpf(ctx, stderr, NULL, err);
+            (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
             fprintf(stderr, "\n");
             gtk_ml_del_context(ctx);
             return 1;
@@ -234,7 +234,7 @@ int main(int argc, const char **argv, char *const *envp) {
             ++i;
             if (i == argc) {
                 err = gtk_ml_error(ctx, "value-error", "missing value to parameter", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), keyword);
-                gtk_ml_dumpf(ctx, stderr, NULL, err);
+                (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                 fprintf(stderr, "\n");
                 gtk_ml_del_context(ctx);
                 return 1;
@@ -256,7 +256,7 @@ int main(int argc, const char **argv, char *const *envp) {
             }
         } else {
             err = gtk_ml_error(ctx, "param-error", "unrecognized parameter", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), keyword);
-            gtk_ml_dumpf(ctx, stderr, NULL, err);
+            (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
             fprintf(stderr, "\n");
             gtk_ml_del_context(ctx);
             return 1;
@@ -286,9 +286,9 @@ int main(int argc, const char **argv, char *const *envp) {
         s_opts->value.s_map.map = opts;
 
         fprintf(stderr, "running with flags: ");
-        gtk_ml_dumpf(ctx, stderr, &err, s_flags);
+        (void) gtk_ml_dumpf(ctx, stderr, &err, s_flags);
         fprintf(stderr, "\nrunning with options: ");
-        gtk_ml_dumpf(ctx, stderr, &err, s_opts);
+        (void) gtk_ml_dumpf(ctx, stderr, &err, s_opts);
         fprintf(stderr, "\n");
     }
 
@@ -326,7 +326,7 @@ int main(int argc, const char **argv, char *const *envp) {
         args[len] = NULL;
     } else {
         err = gtk_ml_error(ctx, "missing-parameter-error", "a required parameter is missing", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), args_kw);
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -338,7 +338,7 @@ int main(int argc, const char **argv, char *const *envp) {
         execvpe(exec, args, env);
 
         err = gtk_ml_error(ctx, "exec-error", strerror(errno), 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "errno", strlen("errno")), gtk_ml_new_int(ctx, NULL, errno), gtk_ml_new_keyword(ctx, NULL, 0, "path", strlen("path")), gtk_ml_new_string(ctx, NULL, exec, strlen(exec)));
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;
@@ -415,7 +415,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     free(src);
                     src = NULL;
                     free(line);
-                    gtk_ml_dumpf(ctx, stderr, NULL, err);
+                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     continue;
                 }
@@ -426,7 +426,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     free(src);
                     src = NULL;
                     free(line);
-                    gtk_ml_dumpf(ctx, stderr, NULL, err);
+                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     continue;
                 }
@@ -436,7 +436,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     free(src);
                     src = NULL;
                     free(line);
-                    gtk_ml_dumpf(ctx, stderr, NULL, err);
+                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     continue;
                 }
@@ -448,7 +448,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     free(src);
                     src = NULL;
                     free(line);
-                    gtk_ml_dumpf(ctx, stderr, NULL, err);
+                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     continue;
                 }
@@ -457,7 +457,7 @@ int main(int argc, const char **argv, char *const *envp) {
                     free(src);
                     src = NULL;
                     free(line);
-                    gtk_ml_dumpf(ctx, stderr, NULL, err);
+                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     continue;
                 }
@@ -469,7 +469,7 @@ int main(int argc, const char **argv, char *const *envp) {
         }
     } else {
         err = gtk_ml_error(ctx, "fork-error", strerror(errno), 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "errno", strlen("errno")), gtk_ml_new_int(ctx, NULL, errno));
-        gtk_ml_dumpf(ctx, stderr, NULL, err);
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         gtk_ml_del_context(ctx);
         return 1;

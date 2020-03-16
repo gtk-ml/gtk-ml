@@ -52,6 +52,8 @@ void gtk_ml_new_hash_trie(GtkMl_HashTrie *ht, GtkMl_Hasher *hasher) {
 
 void gtk_ml_del_hash_trie(GtkMl_Context *ctx, GtkMl_HashTrie *ht, void (*deleter)(GtkMl_Context *, GtkMl_TaggedValue)) {
     del_node(ctx, ht->root, deleter);
+    ht->root = NULL;
+    ht->len = 0;
 }
 
 void gtk_ml_hash_trie_copy(GtkMl_HashTrie *out, GtkMl_HashTrie *ht) {
@@ -203,18 +205,20 @@ GtkMl_TaggedValue insert(GtkMl_Hasher *hasher, GtkMl_HashTrieNode **out, size_t 
             *out = new_branch();
 
             GtkMl_Hash _hash;
-            gtk_ml_hash(hasher, &_hash, node->value.h_leaf.key);
+            if (!gtk_ml_hash(hasher, &_hash, node->value.h_leaf.key)) {
+                return gtk_ml_value_none();
+            }
             uint32_t _idx = (_hash >> shift) & GTKML_H_MASK;
             (*out)->value.h_branch.nodes[_idx] = copy_node(node);
 
             if (hash == _hash) {
                 fprintf(stderr, "fatal error: two non-equal keys in a hash map have the same hashes %"GTKML_FMT_64"x, %"GTKML_FMT_64"x\n", key.value.u64, node->value.h_leaf.key.value.u64);
                 if (gtk_ml_is_sobject(key)) {
-                    gtk_ml_dumpf(NULL, stderr, NULL, key.value.sobj);
+                    (void) gtk_ml_dumpf(NULL, stderr, NULL, key.value.sobj);
                     fprintf(stderr, ", ");
                 }
                 if (gtk_ml_is_sobject(node->value.h_leaf.key)) {
-                    gtk_ml_dumpf(NULL, stderr, NULL, node->value.h_leaf.key.value.sobj);
+                    (void) gtk_ml_dumpf(NULL, stderr, NULL, node->value.h_leaf.key.value.sobj);
                 }
                 fprintf(stderr, "\n");
                 exit(1);

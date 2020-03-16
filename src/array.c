@@ -60,6 +60,8 @@ void gtk_ml_new_string_trie(GtkMl_Array *array) {
 
 void gtk_ml_del_array_trie(GtkMl_Context *ctx, GtkMl_Array *array, void (*deleter)(GtkMl_Context *, GtkMl_TaggedValue)) {
     del_node(ctx, array->root, deleter);
+    array->root = NULL;
+    array->len = 0;
 }
 
 void gtk_ml_array_trie_copy(GtkMl_Array *out, GtkMl_Array *array) {
