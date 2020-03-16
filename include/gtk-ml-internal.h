@@ -158,6 +158,7 @@ GTKML_PUBLIC GtkMl_SObj gtk_ml_parse_quasiquote(GtkMl_Context *ctx, GtkMl_SObj *
 GTKML_PUBLIC GtkMl_SObj gtk_ml_parse_unquote(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_SObj gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_SObj gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) GTKML_MUST_USE;
+GTKML_PUBLIC GtkMl_SObj gtk_ml_parse_dot(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) GTKML_MUST_USE;
 
 GTKML_PUBLIC gboolean gtk_ml_builder_load(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) GTKML_MUST_USE;
 #ifdef GTKML_ENABLE_GTK

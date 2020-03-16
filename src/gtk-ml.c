@@ -172,6 +172,7 @@ GtkMl_Context *gtk_ml_new_context_with_gc_builder(GtkMl_Gc *gc, GtkMl_Builder *b
     gtk_ml_add_reader(ctx, GTKML_TOK_COMMA, gtk_ml_parse_unquote);
     gtk_ml_add_reader(ctx, GTKML_TOK_POUND, gtk_ml_parse_alternative);
     gtk_ml_add_reader(ctx, GTKML_TOK_AT, gtk_ml_parse_get);
+    gtk_ml_add_reader(ctx, GTKML_TOK_DOT, gtk_ml_parse_dot);
 
     return ctx;
 }
