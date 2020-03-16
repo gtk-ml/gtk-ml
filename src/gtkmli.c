@@ -2,7 +2,9 @@
 #include <string.h>
 #include <errno.h>
 #include <gtk/gtk.h>
+#define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
+#include "gtk-ml-internal.h"
 
 #define GTKMLI_VERSION "gtkmli ver. 0.0.0"
 
@@ -92,7 +94,7 @@ void print_version(const char *arg0) {
 int main(int argc, const char **argv) {
     GtkMl_SObj err = NULL;
 
-    GtkMl_Context *ctx = gtk_ml_new_debugger(-1);
+    GtkMl_Context *ctx = gtk_ml_new_context();
 
     const char *rest = NULL;
 
@@ -242,7 +244,7 @@ int main(int argc, const char **argv) {
         fprintf(stderr, "\n");
     }
 
-    GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
+    GtkMl_Builder *builder = ctx->default_builder;
     GtkMl_Program *previous_program = NULL;
     size_t n_previous = 0;
 

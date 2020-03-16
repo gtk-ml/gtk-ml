@@ -75,6 +75,7 @@ GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [255] = (gboolean (*)(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data)) NULL,
 };
 
+GTKML_PRIVATE GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr);
 #ifdef GTKML_ENABLE_GTK
 GTKML_PRIVATE GtkMl_TaggedValue vm_core_application(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr);
 GTKML_PRIVATE GtkMl_TaggedValue vm_core_new_window(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr);
@@ -99,6 +100,7 @@ GTKML_PRIVATE GtkMl_TaggedValue vm_core_dbg_backtrace(GtkMl_Context *ctx, GtkMl_
 #endif /* GTKML_ENABLE_POSIX */
 
 GTKML_PRIVATE GtkMl_TaggedValue (*CORE[])(GtkMl_Context *, GtkMl_SObj *, GtkMl_TaggedValue) = {
+    [GTKML_CORE_LOAD] = vm_core_load,
 #ifdef GTKML_ENABLE_GTK
     [GTKML_CORE_APPLICATION] = vm_core_application,
     [GTKML_CORE_NEW_WINDOW] = vm_core_new_window,
@@ -156,6 +158,46 @@ GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
     ctx->vm->flags &= ~GTKML_F_TOPCALL;
     ctx->vm->flags |= flags;
     ctx->vm->pc = pc;
+}
+
+GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
+    (void) expr;
+
+    GtkMl_SObj module_expr = gtk_ml_pop(ctx).value.sobj;
+    GtkMl_SObj load = gtk_ml_pop(ctx).value.sobj;
+    (void) load;
+
+    // TODO(walterpi): don't leak this
+    char *filename = gtk_ml_to_c_str(module_expr);
+    char *src;
+    GtkMl_SObj lambda;
+    if (!(lambda = gtk_ml_load(ctx, &src, err, filename))) {
+        return gtk_ml_value_none();
+    }
+
+    if (!gtk_ml_compile_program(ctx, ctx->default_builder, err, lambda)) {
+        return gtk_ml_value_none();
+    }
+
+    GtkMl_Program *program = gtk_ml_build(ctx, err, ctx->default_builder, &ctx->program, (ctx->program == NULL)? 0 : 1);
+    if (!program) {
+        return gtk_ml_value_none();
+    }
+
+    ctx->program = program;
+
+    gtk_ml_load_program(ctx, program);
+
+    GtkMl_SObj start = gtk_ml_get_export(ctx, err, program->start);
+    if (!start) {
+        return gtk_ml_value_none();
+    }
+
+    if (!gtk_ml_run_program(ctx, err, start, NULL)) {
+        return gtk_ml_value_none();
+    }
+
+    return gtk_ml_pop(ctx);
 }
 
 GtkMl_TaggedValue vm_core_application(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
@@ -883,6 +925,7 @@ GtkMl_Vm *gtk_ml_new_vm(GtkMl_Context *ctx) {
     vm->program = NULL;
 
     vm->flags = GTKML_F_NONE;
+    vm->pc = 0;
 
     vm->core = CORE;
 

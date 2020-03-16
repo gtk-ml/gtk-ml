@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <emscripten.h>
+#define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
+#include "gtk-ml-internal.h"
 
 #define GTKMLWEB_VERSION "gtkml-web ver. 0.0.0"
 
@@ -78,6 +80,6 @@ int main() {
     size_t *n_previous = malloc(sizeof(size_t));
     *n_previous = 0;
     GtkMl_Context *ctx = gtk_ml_new_context();
-    EM_ASM({ gtk_ml_js_init($0, $1, $2, $3) }, ctx, gtk_ml_new_builder(ctx), previous_program, n_previous);
+    EM_ASM({ gtk_ml_js_init($0, $1, $2, $3) }, ctx, ctx->default_builder, previous_program, n_previous);
     return 0;
 }

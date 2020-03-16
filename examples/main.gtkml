@@ -1,0 +1,2 @@
+(let [std (load "examples/std.gtkml")]
+  ((map-get std 'foo) 42 54))

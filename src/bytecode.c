@@ -1402,7 +1402,7 @@ gboolean gtk_ml_i_map_insert(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_MAP:
         gtk_ml_hash_trie_insert(&result->value.s_map.map, &container->value.s_map.map, key, value);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1429,7 +1429,7 @@ gboolean gtk_ml_i_map_delete(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_MAP:
         gtk_ml_hash_trie_delete(&result->value.s_map.map, &container->value.s_map.map, key);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1481,7 +1481,7 @@ gboolean gtk_ml_i_set_insert(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_set(vm->ctx, &result->value.s_set.set, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_SET:
         gtk_ml_hash_set_insert(&result->value.s_set.set, &container->value.s_set.set, key);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1508,7 +1508,7 @@ gboolean gtk_ml_i_set_delete(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_set(vm->ctx, &result->value.s_set.set, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_SET:
         gtk_ml_hash_set_delete(&result->value.s_set.set, &container->value.s_set.set, key);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;

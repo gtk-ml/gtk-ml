@@ -1,0 +1,110 @@
+(define gensym-counter (var 0))
+
+(define (gensym name)
+  (string->symbol (format "~a$~u" name (get-and-inc gensym-counter))))
+
+(define (= a b) (cmp 0 a b))
+(define (> a b) (cmp 3 a b))
+
+(define (get-and-inc v)
+  (let [value @v]
+    (assign v (+ value 1))
+    value))
+
+(define (empty? container) (= (len container) 0))
+(define (nil? list) (= (typeof list) :nil))
+
+(define (reverse-index array ridx) (index array (- (len array) ridx)))
+(define (str-index array idx) (->sobject (index array idx)))
+
+(define (digit->char digit)
+  (cond
+    (= digit 0) \0
+    (= digit 1) \1
+    (= digit 2) \2
+    (= digit 3) \3
+    (= digit 4) \4
+    (= digit 5) \5
+    (= digit 6) \6
+    (= digit 7) \7
+    (= digit 8) \8
+    (= digit 9) \9
+    :else       (error {:err 'digit-error :desc "number is not a digit" :value digit})))
+
+(define (unsigned->string* acc rest digit)
+  (let [acc*   (push acc (->prim (digit->char digit)))
+        rest*  (/ rest 10) ; 0
+        digit* (% rest 10)] ; 1
+    (cond
+      (= rest 0) acc*
+      :else      (unsigned->string* acc* rest* digit*))))
+
+(define (rev-string* acc array)
+  (cond
+    (empty? array) acc
+    :else          (rev-string* (push acc (reverse-index array 1)) (pop array))))
+
+(define (rev-string array)
+  (rev-string* "" array))
+
+(define (unsigned->string num)
+  (rev-string (unsigned->string* "" (/ num 10) (% num 10))))
+
+(define (format-v-impl acc offset fmt args)
+  (cond
+    (= offset (len fmt))
+      (cond
+        (nil? args) acc
+        :else       (error {:err 'arity-error :desc "too many format arguments" :args args}))
+    (> offset (len fmt))
+      (error {:err 'index-out-of-bounds :desc "fmt offset is greater than (len fmt)" :len (len fmt) :offset offset})
+    (= (str-index fmt offset) \~)
+      (cond
+        (= (+ offset 1) (len fmt))
+          (error {:err 'fmt-error :desc "invalid format string" :char (str-index fmt (+ offset 1))})
+        (= (str-index fmt (+ offset 1)) \a)
+          (cond
+            (nil? args) (error '{:err arity-error :desc "too few format arguments"})
+            :else       (format-v-impl (concat acc (car args)) (+ offset 2) fmt (cdr args)))
+        (= (str-index fmt (+ offset 1)) \u)
+          (cond
+            (nil? args) (error '{:err arity-error :desc "too few format arguments"})
+            :else       (format-v-impl (concat acc (unsigned->string (car args))) (+ offset 2) fmt (cdr args)))
+        :else
+          (error {:err 'fmt-error :desc "invalid format string" :char (str-index fmt (+ offset 1))}))
+    :else
+      (format-v-impl (push acc (index fmt offset)) (+ offset 1) fmt args)))
+
+(define (format-v fmt args)
+  (format-v-impl "" 0 fmt args))
+
+(define (format fmt ...args) (format-v fmt args))
+
+(define-macro (fn module definition ...body)
+  (let [fn-sym (gensym "lambda")]
+   `(let [,fn-sym (lambda ,(cdr definition) ,...body)]
+      (assign ,module (map-insert (get ,module) (quote ,(car definition)) ,fn-sym))
+      ,fn-sym)))
+
+(define-macro (export-impl acc offset mod-sym definitions)
+  (cond
+    (= offset (len definitions))
+      acc
+    (= (+ offset 1) (len definitions))
+      (error {:err 'arity-error :desc "export expects an even count of key-value pairs" :defs definitions})
+    :else
+      (let* [name   (index definitions offset)
+             value  (index definitions (+ offset 1))
+             n-sym  (gensym "value")
+             def   `(let [,n-sym ,value]
+                      (assign ,mod-sym (map-insert (get ,mod-sym) (quote ,name) ,n-sym))
+                      ,n-sym)
+             acc*   (push (push acc name) def)]
+        (export-impl acc* (+ offset 2) mod-sym definitions))))
+
+(define-macro (export definitions)
+  (let [mod-sym (gensym "module")]
+   `(let [,mod-sym (var {})]
+       (let* ,(export-impl [] 0 mod-sym definitions) (get ,mod-sym)))))
+
+(export [foo (lambda (x y) (+ x y))])

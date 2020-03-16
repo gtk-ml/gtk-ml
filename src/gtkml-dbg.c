@@ -10,7 +10,9 @@
 #include <sys/user.h>
 #include <gtk/gtk.h>
 #include <linenoise.h>
+#define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
+#include "gtk-ml-internal.h"
 
 #define GTKML_DBG_VERSION "gtkml1dbg ver. 0.0.0"
 
@@ -366,7 +368,7 @@ int main(int argc, const char **argv, char *const *envp) {
 
         gtk_ml_set_debug(ctx, pid, (GtkMl_Context *) regs.rax);
 
-        GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
+        GtkMl_Builder *builder = ctx->default_builder;
         GtkMl_Program *previous_program = NULL;
         size_t n_previous = 0;
 

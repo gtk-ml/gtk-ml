@@ -75,13 +75,14 @@ typedef int gboolean;
 #define GTKML_F_NONE 0x0
 #define GTKML_F_GENERIC (GTKML_F_EQUAL | GTKML_F_NEQUAL | GTKML_F_OVERFLOW | GTKML_F_CARRY)
 
+#define GTKML_CORE_LOAD 0x0
 #ifdef GTKML_ENABLE_GTK
-#define GTKML_CORE_APPLICATION 0x0
-#define GTKML_CORE_NEW_WINDOW 0x1
+#define GTKML_CORE_APPLICATION 0x1
+#define GTKML_CORE_NEW_WINDOW 0x2
 #endif /* GTKML_ENABLE_GTK */
-#define GTKML_CORE_ERROR 0x2
-#define GTKML_CORE_DBG 0x3
-#define GTKML_CORE_STRING_TO_SYMBOL 0x4
+#define GTKML_CORE_ERROR 0x3
+#define GTKML_CORE_DBG 0x4
+#define GTKML_CORE_STRING_TO_SYMBOL 0x5
 #define GTKML_CORE_COMPILE_EXPR 0x100
 #define GTKML_CORE_EMIT_BYTECODE 0x101
 #define GTKML_CORE_BIND_SYMBOL 0x102
@@ -848,11 +849,15 @@ GTKML_PUBLIC gboolean gtk_ml_build_map_insert(GtkMl_Context *ctx, GtkMl_Builder 
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_map_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_set_contains(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_set_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_set_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_set_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a call to C in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_call_core(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Data data) GTKML_MUST_USE;
 // builds a call instruction in the chosen basic_block
