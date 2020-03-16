@@ -15,7 +15,7 @@ GTKML_PRIVATE void span_add(GtkMl_Span *dest, GtkMl_Span *lhs, GtkMl_Span *rhs) 
     dest->col = col;
 }
 
-GtkMl_S *gtk_ml_parse_vararg(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_vararg(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_ELLIPSIS) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -26,7 +26,7 @@ GtkMl_S *gtk_ml_parse_vararg(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **to
     ++*tokenv;
     --*tokenc;
 
-    GtkMl_S *expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    GtkMl_SObj expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
     if (!expr) {
         return NULL;
     }
@@ -36,7 +36,7 @@ GtkMl_S *gtk_ml_parse_vararg(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **to
     return gtk_ml_new_vararg(ctx, &span, expr);
 }
 
-GtkMl_S *gtk_ml_parse_quote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_quote(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_TICK) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -47,7 +47,7 @@ GtkMl_S *gtk_ml_parse_quote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tok
     ++*tokenv;
     --*tokenc;
 
-    GtkMl_S *expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    GtkMl_SObj expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
     if (!expr) {
         return NULL;
     }
@@ -57,7 +57,7 @@ GtkMl_S *gtk_ml_parse_quote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tok
     return gtk_ml_new_quote(ctx, &span, expr);
 }
 
-GtkMl_S *gtk_ml_parse_quasiquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_quasiquote(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_BACKTICK) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -68,7 +68,7 @@ GtkMl_S *gtk_ml_parse_quasiquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token 
     ++*tokenv;
     --*tokenc;
 
-    GtkMl_S *expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    GtkMl_SObj expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
     if (!expr) {
         return NULL;
     }
@@ -78,7 +78,7 @@ GtkMl_S *gtk_ml_parse_quasiquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token 
     return gtk_ml_new_quasiquote(ctx, &span, expr);
 }
 
-GtkMl_S *gtk_ml_parse_unquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_unquote(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_COMMA) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -89,7 +89,7 @@ GtkMl_S *gtk_ml_parse_unquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **t
     ++*tokenv;
     --*tokenc;
 
-    GtkMl_S *expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    GtkMl_SObj expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
     if (!expr) {
         return NULL;
     }
@@ -99,7 +99,7 @@ GtkMl_S *gtk_ml_parse_unquote(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **t
     return gtk_ml_new_unquote(ctx, &span, expr);
 }
 
-GtkMl_S *gtk_ml_parse_set(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_set(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_CURLYL) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -115,10 +115,10 @@ GtkMl_S *gtk_ml_parse_set(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
         return NULL;
     }
 
-    GtkMl_S *result = gtk_ml_new_set(ctx, &span);
+    GtkMl_SObj result = gtk_ml_new_set(ctx, &span);
 
     while ((*tokenv)[0].kind != GTKML_TOK_CURLYR) {
-        GtkMl_S *key = gtk_ml_parse(ctx, err, tokenv, tokenc);
+        GtkMl_SObj key = gtk_ml_parse(ctx, err, tokenv, tokenc);
         if (!key) {
             return NULL;
         }
@@ -130,9 +130,9 @@ GtkMl_S *gtk_ml_parse_set(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
 
         span_add(&span, &span, &(*tokenv)[0].span);
 
-        GtkMl_S *set = result;
+        GtkMl_SObj set = result;
         result = gtk_ml_new_set(ctx, &span);
-        gtk_ml_hash_set_insert(&result->value.s_set.set, &set->value.s_set.set, key);
+        gtk_ml_hash_set_insert(&result->value.s_set.set, &set->value.s_set.set, gtk_ml_value_sobject(key));
     }
 
     result->span = span;
@@ -143,12 +143,12 @@ GtkMl_S *gtk_ml_parse_set(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_constant(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_constant(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_IDENT) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
-    GtkMl_S *result = NULL;
+    GtkMl_SObj result = NULL;
     if (strncmp((*tokenv)[0].span.ptr, "nil", (*tokenv)[0].span.len) == 0) {
         result = gtk_ml_new_nil(ctx, &(*tokenv)[0].span);
     } else if (strncmp((*tokenv)[0].span.ptr, "t", (*tokenv)[0].span.len) == 0) {
@@ -164,7 +164,7 @@ GtkMl_S *gtk_ml_parse_constant(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_POUND) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -175,7 +175,7 @@ GtkMl_S *gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token
     ++*tokenv;
     --*tokenc;
 
-    GtkMl_S *expr;
+    GtkMl_SObj expr;
     switch ((*tokenv)[0].kind) {
     case GTKML_TOK_CURLYL:
         expr = gtk_ml_parse_set(ctx, err, tokenv, tokenc);
@@ -200,7 +200,7 @@ GtkMl_S *gtk_ml_parse_alternative(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token
     return expr;
 }
 
-GtkMl_S *gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_AT) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -208,12 +208,12 @@ GtkMl_S *gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
 
     GtkMl_Span span = (*tokenv)[0].span;
 
-    GtkMl_S *get = gtk_ml_new_symbol(ctx, &span, 0, "get", strlen("get"));
+    GtkMl_SObj get = gtk_ml_new_symbol(ctx, &span, 0, "get", strlen("get"));
 
     ++*tokenv;
     --*tokenc;
 
-    GtkMl_S *expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    GtkMl_SObj expr = gtk_ml_parse(ctx, err, tokenv, tokenc);
     if (!expr) {
         return NULL;
     }
@@ -223,7 +223,7 @@ GtkMl_S *gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
     return gtk_ml_new_list(ctx, &span, get, gtk_ml_new_list(ctx, &span, expr, gtk_ml_new_nil(ctx, &span)));
 }
 
-GtkMl_S *gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if (*tokenc == 0) {
         *err = gtk_ml_error(ctx, "eof-error", GTKML_ERR_EOF_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -240,11 +240,11 @@ GtkMl_S *gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token *
         return gtk_ml_new_nil(ctx, &span);
     }
 
-    GtkMl_S *car = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    GtkMl_SObj car = gtk_ml_parse(ctx, err, tokenv, tokenc);
     if (!car) {
         return NULL;
     }
-    GtkMl_S *cdr = gtk_ml_parse_list_rest(ctx, err, tokenv, tokenc);
+    GtkMl_SObj cdr = gtk_ml_parse_list_rest(ctx, err, tokenv, tokenc);
     if (!cdr) {
         return NULL;
     }
@@ -254,7 +254,7 @@ GtkMl_S *gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token *
     return gtk_ml_new_list(ctx, &span, car, cdr);
 }
 
-GtkMl_S *gtk_ml_parse_list(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_list(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_PARENL) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -266,7 +266,7 @@ GtkMl_S *gtk_ml_parse_list(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **toke
     return gtk_ml_parse_list_rest(ctx, err, tokenv, tokenc);
 }
 
-GtkMl_S *gtk_ml_parse_array(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_array(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_SQUAREL) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -282,10 +282,10 @@ GtkMl_S *gtk_ml_parse_array(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tok
         return NULL;
     }
 
-    GtkMl_S *result = gtk_ml_new_array(ctx, &span);
+    GtkMl_SObj result = gtk_ml_new_array(ctx, &span);
 
     while ((*tokenv)[0].kind != GTKML_TOK_SQUARER) {
-        GtkMl_S *elem = gtk_ml_parse(ctx, err, tokenv, tokenc);
+        GtkMl_SObj elem = gtk_ml_parse(ctx, err, tokenv, tokenc);
         if (!elem) {
             return NULL;
         }
@@ -297,9 +297,9 @@ GtkMl_S *gtk_ml_parse_array(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tok
 
         span_add(&span, &span, &(*tokenv)[0].span);
 
-        GtkMl_S *array = result;
+        GtkMl_SObj array = result;
         result = gtk_ml_new_array(ctx, &span);
-        gtk_ml_array_trie_push(&result->value.s_array.array, &array->value.s_array.array, elem);
+        gtk_ml_array_trie_push(&result->value.s_array.array, &array->value.s_array.array, gtk_ml_value_sobject(elem));
     }
 
     result->span = span;
@@ -310,7 +310,7 @@ GtkMl_S *gtk_ml_parse_array(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tok
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_map(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_map(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_CURLYL) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
@@ -326,10 +326,10 @@ GtkMl_S *gtk_ml_parse_map(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
         return NULL;
     }
 
-    GtkMl_S *result = gtk_ml_new_map(ctx, &span, NULL);
+    GtkMl_SObj result = gtk_ml_new_map(ctx, &span, NULL);
 
     while ((*tokenv)[0].kind != GTKML_TOK_CURLYR) {
-        GtkMl_S *key = gtk_ml_parse(ctx, err, tokenv, tokenc);
+        GtkMl_SObj key = gtk_ml_parse(ctx, err, tokenv, tokenc);
         if (!key) {
             return NULL;
         }
@@ -339,7 +339,7 @@ GtkMl_S *gtk_ml_parse_map(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
             return NULL;
         }
 
-        GtkMl_S *value = gtk_ml_parse(ctx, err, tokenv, tokenc);
+        GtkMl_SObj value = gtk_ml_parse(ctx, err, tokenv, tokenc);
         if (!value) {
             return NULL;
         }
@@ -351,9 +351,9 @@ GtkMl_S *gtk_ml_parse_map(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
 
         span_add(&span, &span, &(*tokenv)[0].span);
 
-        GtkMl_S *map = result;
+        GtkMl_SObj map = result;
         result = gtk_ml_new_map(ctx, &span, NULL);
-        gtk_ml_hash_trie_insert(&result->value.s_map.map, &map->value.s_map.map, key, value);
+        gtk_ml_hash_trie_insert(&result->value.s_map.map, &map->value.s_map.map, gtk_ml_value_sobject(key), gtk_ml_value_sobject(value));
     }
 
     result->span = span;
@@ -364,35 +364,35 @@ GtkMl_S *gtk_ml_parse_map(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **token
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_int(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_int(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_INT) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
-    GtkMl_S *result = gtk_ml_new_int(ctx, &(*tokenv)[0].span, (*tokenv)[0].value.intval);
+    GtkMl_SObj result = gtk_ml_new_int(ctx, &(*tokenv)[0].span, (*tokenv)[0].value.intval);
     ++*tokenv;
     --*tokenc;
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_float(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_float(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_FLOAT) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
-    GtkMl_S *result = gtk_ml_new_float(ctx, &(*tokenv)[0].span, (*tokenv)[0].value.floatval);
+    GtkMl_SObj result = gtk_ml_new_float(ctx, &(*tokenv)[0].span, (*tokenv)[0].value.floatval);
     ++*tokenv;
     --*tokenc;
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_char(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_char(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_CHAR) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
     size_t len = (*tokenv)[0].span.len;
-    GtkMl_S *result;
+    GtkMl_SObj result;
     if (len == 2) {
         result = gtk_ml_new_char(ctx, &(*tokenv)[0].span, (*tokenv)[0].span.ptr[1]);
     } else {
@@ -439,41 +439,41 @@ GtkMl_S *gtk_ml_parse_char(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **toke
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_string(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_string(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_STRING) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
     size_t len = (*tokenv)[0].span.len - 2;
-    GtkMl_S *result = gtk_ml_new_string(ctx, &(*tokenv)[0].span, (*tokenv)[0].span.ptr + 1, len);
+    GtkMl_SObj result = gtk_ml_new_string(ctx, &(*tokenv)[0].span, (*tokenv)[0].span.ptr + 1, len);
     ++*tokenv;
     --*tokenc;
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_symbol(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_symbol(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_IDENT) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
-    GtkMl_S *result = gtk_ml_new_symbol(ctx, &(*tokenv)[0].span, 0, (*tokenv)[0].span.ptr, (*tokenv)[0].span.len);
+    GtkMl_SObj result = gtk_ml_new_symbol(ctx, &(*tokenv)[0].span, 0, (*tokenv)[0].span.ptr, (*tokenv)[0].span.len);
     ++*tokenv;
     --*tokenc;
     return result;
 }
 
-GtkMl_S *gtk_ml_parse_keyword(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse_keyword(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if ((*tokenv)[0].kind != GTKML_TOK_KEYWORD) {
         *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
         return NULL;
     }
-    GtkMl_S *result = gtk_ml_new_keyword(ctx, &(*tokenv)[0].span, 0, (*tokenv)[0].span.ptr + 1, (*tokenv)[0].span.len - 1);
+    GtkMl_SObj result = gtk_ml_new_keyword(ctx, &(*tokenv)[0].span, 0, (*tokenv)[0].span.ptr + 1, (*tokenv)[0].span.len - 1);
     ++*tokenv;
     --*tokenc;
     return result;
 }
 
-GtkMl_S *gtk_ml_parse(GtkMl_Context *ctx, GtkMl_S **err, GtkMl_Token **tokenv, size_t *tokenc) {
+GtkMl_SObj gtk_ml_parse(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     switch ((*tokenv)[0].kind) {
     case GTKML_TOK_PARENL:
         return gtk_ml_parse_list(ctx, err, tokenv, tokenc);
