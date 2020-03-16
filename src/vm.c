@@ -135,31 +135,6 @@ GtkMl_TaggedValue gtk_ml_get(GtkMl_Context *ctx, GtkMl_SObj key) {
     return gtk_ml_hash_trie_get(&ctx->bindings->value.s_var.expr->value.s_map.map, gtk_ml_value_sobject(key));
 }
 
-#ifdef GTKML_ENABLE_GTK
-GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
-    (void) app;
-
-    GtkMl_SObj args = userdata;
-    GtkMl_SObj ctx_expr = gtk_ml_car(args);
-    GtkMl_SObj app_expr = gtk_ml_cdar(args);
-    GtkMl_SObj program_expr = gtk_ml_cddar(args);
-
-    GtkMl_Context *ctx = ctx_expr->value.s_lightdata.userdata;
-
-    GtkMl_SObj err;
-    uint64_t pc = ctx->vm->pc;
-    uint64_t flags = ctx->vm->flags & GTKML_F_TOPCALL;
-    if (gtk_ml_run_program_internal(ctx, &err, program_expr, gtk_ml_new_list(ctx, NULL, app_expr, gtk_ml_new_nil(ctx, NULL)), 0)) {
-        GtkMl_SObj result = gtk_ml_pop(ctx).value.sobj;
-        app_expr->value.s_userdata.keep = gtk_ml_new_list(ctx, NULL, result, app_expr->value.s_userdata.keep);
-    } else {
-        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
-    }
-    ctx->vm->flags &= ~GTKML_F_TOPCALL;
-    ctx->vm->flags |= flags;
-    ctx->vm->pc = pc;
-}
-
 GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
     (void) expr;
 
@@ -198,6 +173,31 @@ GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Tagged
     }
 
     return gtk_ml_pop(ctx);
+}
+
+#ifdef GTKML_ENABLE_GTK
+GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
+    (void) app;
+
+    GtkMl_SObj args = userdata;
+    GtkMl_SObj ctx_expr = gtk_ml_car(args);
+    GtkMl_SObj app_expr = gtk_ml_cdar(args);
+    GtkMl_SObj program_expr = gtk_ml_cddar(args);
+
+    GtkMl_Context *ctx = ctx_expr->value.s_lightdata.userdata;
+
+    GtkMl_SObj err;
+    uint64_t pc = ctx->vm->pc;
+    uint64_t flags = ctx->vm->flags & GTKML_F_TOPCALL;
+    if (gtk_ml_run_program_internal(ctx, &err, program_expr, gtk_ml_new_list(ctx, NULL, app_expr, gtk_ml_new_nil(ctx, NULL)), 0)) {
+        GtkMl_SObj result = gtk_ml_pop(ctx).value.sobj;
+        app_expr->value.s_userdata.keep = gtk_ml_new_list(ctx, NULL, result, app_expr->value.s_userdata.keep);
+    } else {
+        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
+    }
+    ctx->vm->flags &= ~GTKML_F_TOPCALL;
+    ctx->vm->flags |= flags;
+    ctx->vm->pc = pc;
 }
 
 GtkMl_TaggedValue vm_core_application(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
