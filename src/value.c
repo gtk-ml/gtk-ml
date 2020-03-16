@@ -152,17 +152,33 @@ GtkMl_SObj gtk_ml_new_string(GtkMl_Context *ctx, GtkMl_Span *span, const char *p
 
 GtkMl_SObj gtk_ml_new_symbol(GtkMl_Context *ctx, GtkMl_Span *span, gboolean owned, const char *ptr, size_t len) {
     GtkMl_SObj s = gtk_ml_new_sobject(ctx, span, GTKML_S_SYMBOL);
-    s->value.s_symbol.owned = owned;
-    s->value.s_symbol.ptr = ptr;
-    s->value.s_symbol.len = len;
+    s->value.s_symbol.owned = 1;
+    if (owned) {
+        s->value.s_symbol.ptr = ptr;
+        s->value.s_symbol.len = len;
+    } else {
+        char *sym = malloc(len + 1);
+        memcpy(sym, ptr, len);
+        sym[len] = 0;
+        s->value.s_symbol.ptr = sym;
+        s->value.s_symbol.len = len;
+    }
     return s;
 }
 
 GtkMl_SObj gtk_ml_new_keyword(GtkMl_Context *ctx, GtkMl_Span *span, gboolean owned, const char *ptr, size_t len) {
     GtkMl_SObj s = gtk_ml_new_sobject(ctx, span, GTKML_S_KEYWORD);
-    s->value.s_keyword.owned = owned;
-    s->value.s_keyword.ptr = ptr;
-    s->value.s_keyword.len = len;
+    s->value.s_keyword.owned = 1;
+    if (owned) {
+        s->value.s_keyword.ptr = ptr;
+        s->value.s_keyword.len = len;
+    } else {
+        char *sym = malloc(len + 1);
+        memcpy(sym, ptr, len);
+        sym[len] = 0;
+        s->value.s_keyword.ptr = sym;
+        s->value.s_keyword.len = len;
+    }
     return s;
 }
 

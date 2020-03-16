@@ -1,0 +1,2 @@
+(let [std (load "examples/std.gtkml")]
+  (.foo std 42 54))

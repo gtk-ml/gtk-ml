@@ -29,7 +29,7 @@ int main() {
         return 1;
     }
 
-    GtkMl_Program *linked = gtk_ml_build(ctx, &err, builder);
+    GtkMl_Program *linked = gtk_ml_build(ctx, &err, builder, NULL, 0);
     if (!linked) {
         free(src);
         (void) gtk_ml_dumpf(ctx, stderr, NULL, err);

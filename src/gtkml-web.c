@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <emscripten.h>
+#define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
+#include "gtk-ml-internal.h"
 
 #define GTKMLWEB_VERSION "gtkml-web ver. 0.0.0"
 
@@ -9,7 +11,9 @@ GtkMl_Context *gtk_ml_web_init() {
     return gtk_ml_new_context();
 }
 
-void gtk_ml_web_deinit(GtkMl_Context *ctx) {
+void gtk_ml_web_deinit(GtkMl_Context *ctx, GtkMl_Program **previous_program, size_t *n_previous) {
+    free(previous_program);
+    free(n_previous);
     gtk_ml_del_context(ctx);
 }
 
@@ -17,7 +21,7 @@ const char *gtk_ml_web_version() {
     return GTKMLWEB_VERSION "\n" GTKML_VERSION;
 }
 
-char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
+char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line, GtkMl_Builder *builder, GtkMl_Program **previous_program, size_t *n_previous) {
     GtkMl_SObj err = NULL;
 
     GtkMl_SObj lambda;
@@ -27,20 +31,21 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
         return ":error";
     }
 
-    GtkMl_Builder *builder = gtk_ml_new_builder(ctx);
-
     if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
         (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         return ":error";
     }
 
-    GtkMl_Program *program = gtk_ml_build(ctx, &err, builder);
+    GtkMl_Program *program = gtk_ml_build(ctx, &err, builder, previous_program, *n_previous);
     if (!program) {
         (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");
         return ":error";
     }
+
+    *previous_program = program;
+    *n_previous = 1;
 
     gtk_ml_load_program(ctx, program);
 
@@ -70,6 +75,11 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line) {
 }
 
 int main() {
-    EM_ASM(gtk_ml_js_init($0), gtk_ml_new_context());
+    fprintf(stdout, "%s\n", GTKMLWEB_VERSION);
+    GtkMl_Program **previous_program = malloc(sizeof(GtkMl_Program *));
+    size_t *n_previous = malloc(sizeof(size_t));
+    *n_previous = 0;
+    GtkMl_Context *ctx = gtk_ml_new_context();
+    EM_ASM({ gtk_ml_js_init($0, $1, $2, $3) }, ctx, ctx->default_builder, previous_program, n_previous);
     return 0;
 }

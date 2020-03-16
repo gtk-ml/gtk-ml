@@ -14,7 +14,6 @@
 
 GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [GTKML_I_NOP] = gtk_ml_i_nop,
-    [GTKML_I_HALT] = gtk_ml_i_halt,
     [GTKML_I_ADD] = gtk_ml_i_signed_add,
     [GTKML_I_SUBTRACT] = gtk_ml_i_signed_subtract,
     [GTKML_I_SIGNED_MULTIPLY] = gtk_ml_i_signed_multiply,
@@ -76,6 +75,7 @@ GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [255] = (gboolean (*)(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data)) NULL,
 };
 
+GTKML_PRIVATE GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr);
 #ifdef GTKML_ENABLE_GTK
 GTKML_PRIVATE GtkMl_TaggedValue vm_core_application(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr);
 GTKML_PRIVATE GtkMl_TaggedValue vm_core_new_window(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr);
@@ -100,6 +100,7 @@ GTKML_PRIVATE GtkMl_TaggedValue vm_core_dbg_backtrace(GtkMl_Context *ctx, GtkMl_
 #endif /* GTKML_ENABLE_POSIX */
 
 GTKML_PRIVATE GtkMl_TaggedValue (*CORE[])(GtkMl_Context *, GtkMl_SObj *, GtkMl_TaggedValue) = {
+    [GTKML_CORE_LOAD] = vm_core_load,
 #ifdef GTKML_ENABLE_GTK
     [GTKML_CORE_APPLICATION] = vm_core_application,
     [GTKML_CORE_NEW_WINDOW] = vm_core_new_window,
@@ -157,6 +158,46 @@ GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
     ctx->vm->flags &= ~GTKML_F_TOPCALL;
     ctx->vm->flags |= flags;
     ctx->vm->pc = pc;
+}
+
+GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
+    (void) expr;
+
+    GtkMl_SObj module_expr = gtk_ml_pop(ctx).value.sobj;
+    GtkMl_SObj load = gtk_ml_pop(ctx).value.sobj;
+    (void) load;
+
+    // TODO(walterpi): don't leak this
+    char *filename = gtk_ml_to_c_str(module_expr);
+    char *src;
+    GtkMl_SObj lambda;
+    if (!(lambda = gtk_ml_load(ctx, &src, err, filename))) {
+        return gtk_ml_value_none();
+    }
+
+    if (!gtk_ml_compile_program(ctx, ctx->default_builder, err, lambda)) {
+        return gtk_ml_value_none();
+    }
+
+    GtkMl_Program *program = gtk_ml_build(ctx, err, ctx->default_builder, &ctx->program, (ctx->program == NULL)? 0 : 1);
+    if (!program) {
+        return gtk_ml_value_none();
+    }
+
+    ctx->program = program;
+
+    gtk_ml_load_program(ctx, program);
+
+    GtkMl_SObj start = gtk_ml_get_export(ctx, err, program->start);
+    if (!start) {
+        return gtk_ml_value_none();
+    }
+
+    if (!gtk_ml_run_program(ctx, err, start, NULL)) {
+        return gtk_ml_value_none();
+    }
+
+    return gtk_ml_pop(ctx);
 }
 
 GtkMl_TaggedValue vm_core_application(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
@@ -400,9 +441,7 @@ GtkMl_TaggedValue vm_core_emit_bytecode(GtkMl_Context *ctx, GtkMl_SObj *err, Gtk
     }
 
     gtk_ml_builder_set_cond(arg_b, arg_cond);
-    if (strlen(GTKML_SI_HALT) == len && strncmp(ptr, GTKML_SI_HALT, len) == 0) {
-        return gtk_ml_build_halt(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
-    } else if (strlen(GTKML_SI_PUSH_IMM) == len && strncmp(ptr, GTKML_SI_PUSH_IMM, len) == 0) {
+    if (strlen(GTKML_SI_PUSH_IMM) == len && strncmp(ptr, GTKML_SI_PUSH_IMM, len) == 0) {
         if (!gtk_ml_has_value(data)) {
             *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
             return gtk_ml_value_none();
@@ -886,6 +925,7 @@ GtkMl_Vm *gtk_ml_new_vm(GtkMl_Context *ctx) {
     vm->program = NULL;
 
     vm->flags = GTKML_F_NONE;
+    vm->pc = 0;
 
     vm->core = CORE;
 

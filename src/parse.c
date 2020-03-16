@@ -223,6 +223,36 @@ GtkMl_SObj gtk_ml_parse_get(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **t
     return gtk_ml_new_list(ctx, &span, get, gtk_ml_new_list(ctx, &span, expr, gtk_ml_new_nil(ctx, &span)));
 }
 
+GtkMl_SObj gtk_ml_parse_dot(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
+    if ((*tokenv)[0].kind != GTKML_TOK_DOT) {
+        *err = gtk_ml_error(ctx, "token-error", GTKML_ERR_TOKEN_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);
+        return NULL;
+    }
+
+    GtkMl_Span span = (*tokenv)[0].span;
+
+    GtkMl_SObj get = gtk_ml_new_symbol(ctx, &span, 0, "map-get", strlen("map-get"));
+
+    ++*tokenv;
+    --*tokenc;
+
+    GtkMl_SObj key = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    if (!key) {
+        return NULL;
+    }
+
+    key = gtk_ml_new_quasiquote(ctx, &key->span, key);
+
+    GtkMl_SObj map = gtk_ml_parse(ctx, err, tokenv, tokenc);
+    if (!map) {
+        return NULL;
+    }
+
+    span_add(&span, &span, &map->span);
+
+    return gtk_ml_new_list(ctx, &span, get, gtk_ml_new_list(ctx, &span, map, gtk_ml_new_list(ctx, &span, key, gtk_ml_new_nil(ctx, &span))));
+}
+
 GtkMl_SObj gtk_ml_parse_list_rest(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Token **tokenv, size_t *tokenc) {
     if (*tokenc == 0) {
         *err = gtk_ml_error(ctx, "eof-error", GTKML_ERR_EOF_ERROR, (*tokenv)[*tokenc].span.ptr != NULL, (*tokenv)[*tokenc].span.line, (*tokenv)[*tokenc].span.col, 0);

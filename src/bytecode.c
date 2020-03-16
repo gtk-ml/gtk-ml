@@ -83,14 +83,6 @@ gboolean gtk_ml_i_nop(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     return 1;
 }
 
-gboolean gtk_ml_i_halt(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
-    (void) err;
-    (void) data;
-    vm->flags |= GTKML_F_HALT;
-    PC_INCREMENT;
-    return 1;
-}
-
 GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
     // TODO(walterpi): overflow, carry
     if (gtk_ml_is_primitive(result)) {
@@ -877,6 +869,7 @@ gboolean gtk_ml_i_define(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     GtkMl_SObj key = gtk_ml_to_sobj(vm->ctx, err, gtk_ml_pop(vm->ctx)).value.sobj;
     GtkMl_TaggedValue value = gtk_ml_pop(vm->ctx);
     gtk_ml_bind(vm->ctx, key, value);
+    gtk_ml_push(vm->ctx, gtk_ml_value_nil());
     PC_INCREMENT;
     return 1;
 }
@@ -1017,7 +1010,7 @@ gboolean gtk_ml_i_get_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
 gboolean gtk_ml_i_local_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     (void) err;
     (void) data;
-    size_t offset = gtk_ml_get_data(vm->program, data).value.u64;
+    int64_t offset = gtk_ml_get_data(vm->program, data).value.s64;
     GtkMl_TaggedValue value = gtk_ml_get_local(vm->ctx, offset);
     if (gtk_ml_has_value(value)) {
         gtk_ml_push(vm->ctx, value);
@@ -1409,7 +1402,7 @@ gboolean gtk_ml_i_map_insert(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_MAP:
         gtk_ml_hash_trie_insert(&result->value.s_map.map, &container->value.s_map.map, key, value);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1436,7 +1429,7 @@ gboolean gtk_ml_i_map_delete(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_trie(vm->ctx, &result->value.s_map.map, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_MAP:
         gtk_ml_hash_trie_delete(&result->value.s_map.map, &container->value.s_map.map, key);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1488,7 +1481,7 @@ gboolean gtk_ml_i_set_insert(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_set(vm->ctx, &result->value.s_set.set, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_SET:
         gtk_ml_hash_set_insert(&result->value.s_set.set, &container->value.s_set.set, key);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1515,7 +1508,7 @@ gboolean gtk_ml_i_set_delete(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     gtk_ml_del_hash_set(vm->ctx, &result->value.s_set.set, gtk_ml_delete_value);
 
     switch (container->kind) {
-    case GTKML_S_ARRAY:
+    case GTKML_S_SET:
         gtk_ml_hash_set_delete(&result->value.s_set.set, &container->value.s_set.set, key);
         gtk_ml_push(vm->ctx, gtk_ml_value_sobject(result));
         break;
@@ -1560,6 +1553,9 @@ gboolean gtk_ml_i_leave_ret(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     (void) data;
 
     if (vm->flags & GTKML_F_TOPCALL) {
+        LEAVE(vm, vm->ctx->gc);
+        LEAVE(vm, vm->ctx->gc);
+
         vm->flags |= GTKML_F_HALT;
         PC_INCREMENT;
     } else {
