@@ -79,6 +79,11 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_add_builder(b, "global-counter", gtk_ml_builder_global_counter, 1, 0, 0);
     gtk_ml_add_builder(b, "basic-block-name", gtk_ml_builder_basic_block_name, 1, 0, 0);
     gtk_ml_add_builder(b, "string->symbol", gtk_ml_builder_string_to_symbol, 0, 0, 0);
+    gtk_ml_add_builder(b, "allocate", gtk_ml_builder_allocate, 0, 0, 0);
+    gtk_ml_add_builder(b, "->cstr", gtk_ml_builder_to_cstr, 0, 0, 0);
+    gtk_ml_add_builder(b, "->buffer", gtk_ml_builder_to_buffer, 0, 0, 0);
+    gtk_ml_add_builder(b, "->array", gtk_ml_builder_to_array, 0, 0, 0);
+    gtk_ml_add_builder(b, "->string", gtk_ml_builder_to_string, 0, 0, 0);
     gtk_ml_add_builder(b, "do", gtk_ml_builder_do, 0, 0, 0);
     gtk_ml_add_builder(b, "let", gtk_ml_builder_let, 0, 0, 0);
     gtk_ml_add_builder(b, "let*", gtk_ml_builder_let_star, 0, 0, 0);
@@ -142,6 +147,10 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     gtk_ml_add_builder(b, "dbg-stack", gtk_ml_builder_dbg_stack, 0, 0, 1);
     gtk_ml_add_builder(b, "dbg-backtrace", gtk_ml_builder_dbg_backtrace, 0, 0, 1);
 #endif /* GTKML_ENABLE_POSIX */
+#ifdef GTKML_ENABLE_WEB
+    gtk_ml_add_builder(b, "web/log", gtk_ml_builder_web_log, 0, 0, 1);
+#include "libs/em_gles3/bind-code-gen.h"
+#endif /* GTKML_ENABLE_WEB */
 
     gtk_ml_new_hash_set(&b->intr_fns, &GTKML_DEFAULT_HASHER);
     gtk_ml_new_hash_set(&b->macro_fns, &GTKML_DEFAULT_HASHER);

@@ -1,8 +1,10 @@
+gtk_ml_web_init_gl = undefined
 gtk_ml_web_init = undefined
 gtk_ml_web_deinit = undefined
 gtk_ml_web_version = undefined
 gtk_ml_web_eval = undefined
 
+gtk_web_objects = []
 gtk_web_ctx = undefined
 gtk_web_builder = undefined
 gtk_web_prev = undefined
@@ -15,7 +17,8 @@ function gtk_ml_js_read_stdin() {
     return result;
 }
 
-function gtk_ml_js_init(_ctx, _builder, _prev, _nprev) {
+function gtk_ml_js_init(_ctx, _builder, _prev, _nprev, do_gl) {
+    gtk_ml_web_init_gl = Module.cwrap('gtk_ml_web_init_gl', 'number', []);
     gtk_ml_web_init = Module.cwrap('gtk_ml_web_init', 'number', []); // number acts as GtkMl_Context *
     gtk_ml_web_deinit = Module.cwrap('gtk_ml_web_deinit', null, ['number', 'number', 'number', 'number']); // numbers act as GtkMl_Context *, GtkMl_Program ** and size_t *
     gtk_ml_web_version = Module.cwrap('gtk_ml_web_version', 'string', []);
@@ -27,6 +30,10 @@ function gtk_ml_js_init(_ctx, _builder, _prev, _nprev) {
     gtk_web_builder = _builder;
     gtk_web_prev = _prev;
     gtk_web_nprev = _nprev;
+
+    if (do_gl) {
+        let gl_ctx = gtk_ml_web_init_gl();
+    }
 }
 
 function gtk_ml_js_run() {

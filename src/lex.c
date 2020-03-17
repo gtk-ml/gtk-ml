@@ -279,6 +279,7 @@ gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, Gt
                 double floatval = strtod(src, &endptr);
                 if (*endptr == ' ' || *endptr == '\n' || *endptr == '\t'
                         || *endptr == '(' || *endptr == ')'
+                        || *endptr == '[' || *endptr == ']'
                         || *endptr == '{' || *endptr == '}') {
                     (*tokenv)[*tokenc].kind = GTKML_TOK_FLOAT;
                     (*tokenv)[*tokenc].value.floatval = floatval;

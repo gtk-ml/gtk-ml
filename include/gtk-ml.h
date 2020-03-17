@@ -10,6 +10,9 @@
 #else
 typedef int gboolean;
 #endif /* GTKML_ENABLE_GTK */
+#ifdef GTKML_ENABLE_WEB
+#include "GLES3/gl32.h"
+#endif /* GTKML_ENABLE_WEB */
 
 #ifdef __cplusplus
 #define GTKML_PUBLIC extern "C"
@@ -83,6 +86,11 @@ typedef int gboolean;
 #define GTKML_CORE_ERROR 0x3
 #define GTKML_CORE_DBG 0x4
 #define GTKML_CORE_STRING_TO_SYMBOL 0x5
+#define GTKML_CORE_ALLOCATE 0x6
+#define GTKML_CORE_TO_CSTR 0x7
+#define GTKML_CORE_TO_BUFFER 0x8
+#define GTKML_CORE_TO_STRING 0x9
+#define GTKML_CORE_TO_ARRAY 0xa
 #define GTKML_CORE_COMPILE_EXPR 0x100
 #define GTKML_CORE_EMIT_BYTECODE 0x101
 #define GTKML_CORE_BIND_SYMBOL 0x102
@@ -98,6 +106,9 @@ typedef int gboolean;
 #define GTKML_CORE_DBG_STACK 0x204
 #define GTKML_CORE_DBG_BACKTRACE 0x205
 #endif /* GTKML_ENABLE_POSIX */
+#ifdef GTKML_ENABLE_WEB
+#define GTKML_CORE_WEB_LOG 0x301
+#endif /* GTKML_ENABLE_WEB */
 
 #define GTKML_I_GENERIC 0x0
 #define GTKML_I_RESERVED 0x1
@@ -590,6 +601,8 @@ typedef struct GtkMl_S {
 #define gtk_ml_has_value(val) (val.tag & GTKML_TAG_HAS)
 #define gtk_ml_is_primitive(val) (val.tag & GTKML_TAG_PRIM)
 #define gtk_ml_is_sobject(val) (!gtk_ml_is_primitive(val))
+#define gtk_ml_prim_to_float(val) ((val.tag == GTKML_TAG_FLOAT)? val.value.flt : (float) val.value.s64)
+#define gtk_ml_prim_to_int(val) (((val.tag & GTKML_TAG_INT) == GTKML_TAG_INT)? val.value.s64 : (int64_t) val.value.flt)
 
 union GtkMl_Value {
     GtkMl_SObj sobj; // a gc object
@@ -923,6 +936,8 @@ GTKML_PUBLIC gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_SObj 
 GTKML_PUBLIC char *gtk_ml_dumpsn(GtkMl_Context *ctx, char *ptr, size_t n, GtkMl_SObj *err, GtkMl_SObj expr) GTKML_MUST_USE;
 // dumps a value to a string and reallocates if necessary
 GTKML_PUBLIC char *gtk_ml_dumpsnr(GtkMl_Context *ctx, char *ptr, size_t n, GtkMl_SObj *err, GtkMl_SObj expr) GTKML_MUST_USE;
+// dumps a value to a string and reallocates if necessary
+GTKML_PUBLIC char *gtk_ml_dumpsnr_value(GtkMl_Context *ctx, char *ptr, size_t n, GtkMl_SObj *err, GtkMl_TaggedValue expr) GTKML_MUST_USE;
 // dumps a program to a file
 GTKML_PUBLIC gboolean gtk_ml_dumpf_program(GtkMl_Context *ctx, FILE *stream, GtkMl_SObj *err) GTKML_MUST_USE;
 // dumps a program to a string
@@ -983,6 +998,8 @@ GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_uint(uint64_t value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_float(float value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_char(uint32_t value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_userdata(void *data) GTKML_MUST_USE;
+
+GTKML_PUBLIC size_t gtk_ml_list_len(GtkMl_SObj list) GTKML_MUST_USE;
 
 /* miscelaneous */
 
@@ -1059,7 +1076,12 @@ GTKML_PUBLIC gboolean gtk_ml_array_trie_equal(GtkMl_Array *lhs, GtkMl_Array *rhs
 
 GTKML_PUBLIC void gtk_ml_delete_sobject_reference(GtkMl_Context *ctx, GtkMl_TaggedValue sobject);
 GTKML_PUBLIC void gtk_ml_delete_sobject(GtkMl_Context *ctx, GtkMl_TaggedValue sobject);
-GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, GtkMl_TaggedValue);
+GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, GtkMl_TaggedValue value);
+GTKML_PUBLIC void gtk_ml_free(GtkMl_Context *ctx, void *value);
+
+#ifdef GTKML_ENABLE_WEB
+#include "libs/em_gles3/core-libs.h"
+#endif /* GTKML_ENABLE_WEB */
 
 #endif /* ifndef GTK_ML_H */
 

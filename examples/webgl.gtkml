@@ -1,0 +1,97 @@
+(define default-vs "#version 300 es
+
+in vec4 in_position;
+in vec4 in_color;
+
+out vec4 v_color;
+
+void main() {
+    v_color = in_color;
+    gl_Position = in_position;
+}
+")
+
+(define default-fs "#version 300 es
+
+precision mediump float;
+
+in vec4 v_color;
+
+out vec4 out_color;
+
+void main() {
+    out_color = v_color;
+}
+")
+
+(define (= a b) (cmp 0 a b))
+
+(define-macro (if p t f)
+ `(cond
+   ,p    ,t
+   :else ,f))
+
+(define (create-shader type source)
+  (let [shader  (webgl/create-shader type)]
+    (webgl/shader-source shader source)
+    (webgl/compile-shader shader)
+    (if (webgl/get-shader-parameter shader webgl/COMPILE-STATUS)
+      shader
+      (do
+        (web/log (webgl/get-shader-info-log shader))
+        (webgl/delete-shader shader)
+        #f))))
+
+(define (create-program vs fs)
+  (let [program (webgl/create-program)]
+    (webgl/attach-shader program vs)
+    (webgl/attach-shader program fs)
+    (webgl/link-program program)
+    (if (webgl/get-program-parameter program webgl/LINK-STATUS)
+      program
+      (do
+        (web/log (webgl/get-program-info-log program))
+        (webgl/delete-program program)
+        #f))))
+
+(let [vs        (create-shader webgl/VERTEX-SHADER default-vs)
+      fs        (create-shader webgl/FRAGMENT-SHADER default-fs)]
+  (cond
+    (= vs #f)
+      (web/log "can't create vertex shader, aborting")
+    (= fs #f)
+      (web/log "can't create fragment shader, aborting")
+    :else
+      (let [program   (create-program vs fs)]
+        (if (= program #f)
+          (web/log "can't create program, aborting")
+          (let [loc-pos   (webgl/get-attrib-location program "in_position")
+                loc-color (webgl/get-attrib-location program "in_color")
+                buf-pos   (webgl/create-buffer)
+                buf-color (webgl/create-buffer)
+                positions [0 0 0 0.5 0.7 0]
+                colors    [0.3 0.4 0.2 1
+                           0.7 0.8 0.1 1
+                           0.5 0.2 0.9 1]
+                vao       (webgl/create-vertex-array)]
+            (webgl/bind-vertex-array vao)
+            ;; bind positions to buffer
+            (webgl/bind-buffer webgl/ARRAY-BUFFER buf-pos)
+            (webgl/buffer-data webgl/ARRAY-BUFFER (web/new-float32-array positions) webgl/STATIC-DRAW)
+            ;; bind position location to vao
+            (webgl/enable-vertex-attrib-array loc-pos)
+            (webgl/vertex-attrib-pointer loc-pos 2 webgl/FLOAT #f 0 0)
+
+            ;; bind colors to buffer
+            (webgl/bind-buffer webgl/ARRAY-BUFFER buf-color)
+            (webgl/buffer-data webgl/ARRAY-BUFFER (web/new-float32-array colors) webgl/STATIC-DRAW)
+            ;; bind color location to vao
+            (webgl/enable-vertex-attrib-array loc-color)
+            (webgl/vertex-attrib-pointer loc-color 4 webgl/FLOAT #f 0 0)
+
+            (webgl/viewport 0 0 (webgl/canvas-width) (webgl/canvas-height))
+            (webgl/clear-color 0 0 0 1)
+            (webgl/clear webgl/COLOR-BUFFER-BIT)
+            (webgl/use-program program)
+            (webgl/bind-vertex-array vao)
+            (webgl/draw-arrays webgl/TRIANGLES 0 3))))))

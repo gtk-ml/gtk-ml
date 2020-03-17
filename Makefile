@@ -22,18 +22,21 @@ SRC=$(SRCDIR)/gtk-ml.c $(SRCDIR)/value.c $(SRCDIR)/builder.c \
 OBJ=$(patsubst $(SRCDIR)/%,$(OBJDIR)/%.o,$(SRC))
 LIB=/usr/local/lib/liblinenoise.a
 GTKMLWEB=$(WEBDIR)/gtk-ml.js
+WEBGL=em_gles3
 
 CFLAGS:=-O2 -g -Wall -Wextra -Werror -pedantic -std=c11 -fPIC -pthread \
 	-DGTKML_ENABLE_ASM=1 -DGTKML_STACK_SIZE=16*1024 \
 	-DGTKML_LONG_WIDTH=64 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
 EMFLAGS:=-O2 -Wall -Wextra -Werror -std=gnu11 \
 	-s ASSERTIONS=1 -s NO_EXIT_RUNTIME=1 \
-	-s EXPORTED_FUNCTIONS='["_main", "_gtk_ml_web_init", "_gtk_ml_web_deinit", "_gtk_ml_web_version", "_gtk_ml_web_eval"]' \
+	-s MAX_WEBGL_VERSION=2 \
+	-s EXPORTED_FUNCTIONS='["_main", "_gtk_ml_web_init_gl", "_gtk_ml_web_init", "_gtk_ml_web_deinit", "_gtk_ml_web_version", "_gtk_ml_web_eval"]' \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' \
+	-DGTKML_ENABLE_WEB=1 \
 	-DGTKML_STACK_SIZE=16*1024 \
 	-DGTKML_LONG_WIDTH=32 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
-INCLUDE:=-I$(INCDIR) -I/usr/local/include
+INCLUDE:=-I$(INCDIR) -I/usr/local/include -I.
 
 ifdef ENABLE_ALL
 ENABLE_GTK:=1
@@ -66,7 +69,7 @@ default: all
 
 all: $(TARGET) $(BINARIES) $(TESTS) compile_commands.json
 
-web: $(WEBDIR) $(GTKMLWEB)
+web: $(WEBGL) $(WEBDIR) $(GTKMLWEB)
 	cp src/gtkml-web.html public/index.html
 	cp src/gtkml-web.js public/
 
@@ -106,6 +109,9 @@ endif
 
 $(GTKMLWEB): $(WEBDIR) $(SRC) $(SRCDIR)/gtkml-web.c
 	$(EMCC) $(EMFLAGS) $(INCLUDE) -o $@ $(SRC) $(SRCDIR)/gtkml-web.c
+
+$(WEBGL): bindgen.py include/GLES3/gl32.h
+	./bindgen.py --skip-file gles3Skip -S glGetShaderInfoLog,glGetProgramInfoLog -k all -p gles3 --out libs/em_gles3 include/GLES3/gl32.h
 
 $(TEST_HELLO): test/hello.c $(TARGET) $(LIB)
 	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<

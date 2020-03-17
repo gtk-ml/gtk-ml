@@ -155,12 +155,16 @@ GtkMl_Context *gtk_ml_new_context_with_gc_builder(GtkMl_Gc *gc, GtkMl_Builder *b
     ctx->gc->static_stack = gtk_ml_new_list(ctx, NULL, bindings, ctx->gc->static_stack);
 
 
+    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "nullptr", 7), gtk_ml_value_userdata(NULL));
 #ifdef GTKML_ENABLE_GTK
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "flags-none", 10), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE)));
 #endif /* GTKML_ENABLE_GTK */
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-none", 9), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, GTKML_F_NONE)));
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-eq", 7), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, GTKML_F_EQUAL)));
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-ne", 7), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, GTKML_F_NEQUAL)));
+#ifdef GTKML_ENABLE_WEB
+#include "libs/em_gles3/const-bindings.h"
+#endif /* GTKML_ENABLE_WEB */
 
     ctx->parser.readers = malloc(sizeof(GtkMl_Reader) * 64);
     ctx->parser.len_reader = 0;
@@ -1365,6 +1369,11 @@ void gtk_ml_delete_value(GtkMl_Context *ctx, GtkMl_TaggedValue reference) {
     (void) reference;
 }
 
+void gtk_ml_free(GtkMl_Context *ctx, void *ptr) {
+    (void) ctx;
+    free(ptr);
+}
+
 #ifdef GTKML_ENABLE_GTK
 void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj) {
     (void) ctx;
@@ -1437,7 +1446,15 @@ GTKML_PRIVATE GtkMl_VisitResult dumpf_debug_string(GtkMl_Context *ctx, GtkMl_SOb
     (void) idx;
     (void) data;
 
-    fprintf(data.value.userdata, "%c", value.value.unicode);
+    if (isprint(value.value.unicode)) {
+        fprintf(data.value.userdata, "%c", value.value.unicode);
+    } else if (value.value.unicode < 0x100) {
+        fprintf(data.value.userdata, "\\x%02x", value.value.unicode);
+    } else if (value.value.unicode < 0x10000) {
+        fprintf(data.value.userdata, "\\u%04x", value.value.unicode);
+    } else {
+        fprintf(data.value.userdata, "\\U%08x", value.value.unicode);
+    }
 
     return GTKML_VISIT_RECURSE;
 }
@@ -1484,11 +1501,11 @@ gboolean gtk_ml_dumpf_debug(GtkMl_Context *ctx, FILE *stream, GtkMl_SObj *err, G
             if (isgraph(expr->value.s_char.value)) {
                 fprintf(stream, "\\%c", expr->value.s_char.value);
             } else if (expr->value.s_char.value < 0x100) {
-                fprintf(stream, "\\x%x", expr->value.s_char.value);
+                fprintf(stream, "\\x%02x", expr->value.s_char.value);
             } else if (expr->value.s_char.value < 0x10000) {
-                fprintf(stream, "\\u%x", expr->value.s_char.value);
+                fprintf(stream, "\\u%04x", expr->value.s_char.value);
             } else {
-                fprintf(stream, "\\U%x", expr->value.s_char.value);
+                fprintf(stream, "\\U%08x", expr->value.s_char.value);
             }
             break;
         }
@@ -1720,7 +1737,15 @@ gboolean gtk_ml_dumpf_value_internal(GtkMl_Context *ctx, FILE *stream, GtkMl_SOb
             fprintf(stream, "%s", value.value.boolean? "#t" : "#f");
             return 1;
         case GTKML_TAG_CHAR:
-            fprintf(stream, "%c", value.value.unicode);
+            if (isgraph(value.value.unicode)) {
+                fprintf(stream, "\\%c", value.value.unicode);
+            } else if (value.value.unicode < 0x100) {
+                fprintf(stream, "\\x%02x", value.value.unicode);
+            } else if (value.value.unicode < 0x10000) {
+                fprintf(stream, "\\u%04x", value.value.unicode);
+            } else {
+                fprintf(stream, "\\U%08x", value.value.unicode);
+            }
             return 1;
         case GTKML_TAG_INT64:
             fprintf(stream, "%"GTKML_FMT_64"d", value.value.s64);
@@ -1805,7 +1830,15 @@ GTKML_PRIVATE GtkMl_VisitResult dumpf_string(GtkMl_Array *array, size_t idx, Gtk
     (void) idx;
     (void) data;
 
-    fprintf(data.value.userdata, "%c", key.value.unicode);
+    if (isprint(key.value.unicode)) {
+        fprintf(data.value.userdata, "%c", key.value.unicode);
+    } else if (key.value.unicode < 0x100) {
+        fprintf(data.value.userdata, "\\x%02x", key.value.unicode);
+    } else if (key.value.unicode < 0x10000) {
+        fprintf(data.value.userdata, "\\u%04x", key.value.unicode);
+    } else {
+        fprintf(data.value.userdata, "\\U%08x", key.value.unicode);
+    }
 
     return GTKML_VISIT_RECURSE;
 }
@@ -1828,7 +1861,15 @@ gboolean gtk_ml_dumpf(GtkMl_Context *ctx, FILE *stream, GtkMl_SObj *err, GtkMl_S
         fprintf(stream, "%f", expr->value.s_float.value);
         return 1;
     case GTKML_S_CHAR:
-        fprintf(stream, "\\%c", expr->value.s_char.value);
+        if (isgraph(expr->value.s_char.value)) {
+            fprintf(stream, "\\%c", expr->value.s_char.value);
+        } else if (expr->value.s_char.value < 0x100) {
+            fprintf(stream, "\\x%02x", expr->value.s_char.value);
+        } else if (expr->value.s_char.value < 0x10000) {
+            fprintf(stream, "\\u%04x", expr->value.s_char.value);
+        } else {
+            fprintf(stream, "\\U%08x", expr->value.s_char.value);
+        }
         return 1;
     case GTKML_S_KEYWORD:
         fprintf(stream, ":%.*s", (int) expr->value.s_keyword.len, expr->value.s_keyword.ptr);
@@ -2122,7 +2163,15 @@ GTKML_PRIVATE GtkMl_VisitResult dumpsnr_string(GtkMl_Array *array, size_t idx, G
     (void) idx;
 
     struct DumpsnrData *data = _data.value.userdata;
-    snrprintf_at(data->buffer, *data->offset, data->size, "%c", key.value.unicode);
+    if (isprint(key.value.unicode)) {
+        snrprintf_at(data->buffer, *data->offset, data->size, "\\%c", key.value.unicode);
+    } else if (key.value.unicode < 0x100) {
+        snrprintf_at(data->buffer, *data->offset, data->size, "\\x%02x", key.value.unicode);
+    } else if (key.value.unicode < 0x10000) {
+        snrprintf_at(data->buffer, *data->offset, data->size, "\\u%04x", key.value.unicode);
+    } else {
+        snrprintf_at(data->buffer, *data->offset, data->size, "\\U%08x", key.value.unicode);
+    }
 
     return GTKML_VISIT_RECURSE;
 }
@@ -2145,7 +2194,15 @@ char *gtk_ml_dumpsnr_internal(GtkMl_Context *ctx, char *buffer, size_t *offset, 
         snrprintf_at(buffer, *offset, size, "%f", expr->value.s_float.value);
         return buffer;
     case GTKML_S_CHAR:
-        snrprintf_at(buffer, *offset, size, "\\%c", expr->value.s_char.value);
+        if (isgraph(expr->value.s_char.value)) {
+            snrprintf_at(buffer, *offset, size, "\\%c", expr->value.s_char.value);
+        } else if (expr->value.s_char.value < 0x100) {
+            snrprintf_at(buffer, *offset, size, "\\x%02x", expr->value.s_char.value);
+        } else if (expr->value.s_char.value < 0x10000) {
+            snrprintf_at(buffer, *offset, size, "\\u%04x", expr->value.s_char.value);
+        } else {
+            snrprintf_at(buffer, *offset, size, "\\U%08x", expr->value.s_char.value);
+        }
         return buffer;
     case GTKML_S_KEYWORD:
         snrprintf_at(buffer, *offset, size, ":%.*s", (int) expr->value.s_keyword.len, expr->value.s_keyword.ptr);
@@ -2310,6 +2367,56 @@ char *gtk_ml_dumpsnr_internal(GtkMl_Context *ctx, char *buffer, size_t *offset, 
 char *gtk_ml_dumpsnr(GtkMl_Context *ctx, char *buffer, size_t size, GtkMl_SObj *err, GtkMl_SObj expr) {
     size_t offset = 0;
     return gtk_ml_dumpsnr_internal(ctx, buffer, &offset, size, err, expr);
+}
+
+char *gtk_ml_dumpsnr_value_internal(GtkMl_Context *ctx, char *buffer, size_t *offset, size_t size, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
+    if (gtk_ml_is_sobject(expr)) {
+        return gtk_ml_dumpsnr_internal(ctx, buffer, offset, size, err, expr.value.sobj);
+    } else {
+        switch (expr.tag) {
+        case GTKML_TAG_NIL:
+            snrprint_at(buffer, *offset, size, "#nil");
+            return buffer;
+        case GTKML_TAG_BOOL:
+            if (expr.value.boolean) {
+                snrprint_at(buffer, *offset, size, "#t");
+            } else {
+                snrprint_at(buffer, *offset, size, "#f");
+            }
+            return buffer;
+        case GTKML_TAG_INT64:
+            snrprintf_at(buffer, *offset, size, "%"GTKML_FMT_64"d", expr.value.s64);
+            return buffer;
+        case GTKML_TAG_UINT64:
+            snrprintf_at(buffer, *offset, size, "%"GTKML_FMT_64"d", expr.value.u64);
+            return buffer;
+        case GTKML_TAG_FLOAT:
+            snrprintf_at(buffer, *offset, size, "%f", expr.value.flt);
+            return buffer;
+        case GTKML_TAG_CHAR:
+            if (isgraph(expr.value.unicode)) {
+                snrprintf_at(buffer, *offset, size, "\\%c", expr.value.unicode);
+            } else if (expr.value.unicode < 0x100) {
+                snrprintf_at(buffer, *offset, size, "\\x%02x", expr.value.unicode);
+            } else if (expr.value.unicode < 0x10000) {
+                snrprintf_at(buffer, *offset, size, "\\u%04x", expr.value.unicode);
+            } else {
+                snrprintf_at(buffer, *offset, size, "\\U%08x", expr.value.unicode);
+            }
+            return buffer;
+        case GTKML_TAG_USERDATA:
+            snrprintf_at(buffer, *offset, size, "%p", expr.value.userdata);
+            return buffer;
+        default:
+            *err = gtk_ml_error(ctx, "invalid-sexpr", GTKML_ERR_INVALID_SEXPR, 0, 0, 0, 0);
+            return NULL;
+        }
+    }
+}
+
+char *gtk_ml_dumpsnr_value(GtkMl_Context *ctx, char *buffer, size_t size, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
+    size_t offset = 0;
+    return gtk_ml_dumpsnr_value_internal(ctx, buffer, &offset, size, err, expr);
 }
 
 gboolean gtk_ml_dumpf_program_internal(GtkMl_Context *ctx, FILE *stream, GtkMl_SObj *err, gboolean line, gboolean debug) {
