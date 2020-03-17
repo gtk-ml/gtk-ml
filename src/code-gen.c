@@ -12,6 +12,7 @@ GTKML_PRIVATE gboolean compile_core_call(GtkMl_Context *ctx, GtkMl_Builder *b, G
 GTKML_PRIVATE gboolean compile_runtime_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, const char *linkage_name, GtkMl_SObj stmt) GTKML_MUST_USE;
 
 #ifdef GTKML_ENABLE_WEB
+#include "libs/em_gles3/code-gen.c"
 #include "cg-web.c"
 #include "cg-webgl.c"
 #endif /* GTKML_ENABLE_WEB */
@@ -1513,6 +1514,61 @@ gboolean gtk_ml_builder_unquote(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     }
 
     return gtk_ml_compile_expression(ctx, b, basic_block, err, &unquote, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_allocate(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (gtk_ml_list_len(args) != 1) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_core_call(ctx, b, basic_block, err, GTKML_CORE_ALLOCATE, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_to_cstr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (gtk_ml_list_len(args) != 1) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_core_call(ctx, b, basic_block, err, GTKML_CORE_TO_CSTR, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_to_buffer(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (gtk_ml_list_len(args) != 2) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_core_call(ctx, b, basic_block, err, GTKML_CORE_TO_BUFFER, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_to_array(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (gtk_ml_list_len(args) != 4) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_core_call(ctx, b, basic_block, err, GTKML_CORE_TO_ARRAY, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
+}
+
+gboolean gtk_ml_builder_to_string(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (gtk_ml_list_len(args) != 2) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    return compile_core_call(ctx, b, basic_block, err, GTKML_CORE_TO_STRING, *stmt, 0, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
 }
 
 gboolean gtk_ml_compile_cond_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {

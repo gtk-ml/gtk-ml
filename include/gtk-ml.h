@@ -10,6 +10,9 @@
 #else
 typedef int gboolean;
 #endif /* GTKML_ENABLE_GTK */
+#ifdef GTKML_ENABLE_WEB
+#include "GLES3/gl32.h"
+#endif /* GTKML_ENABLE_WEB */
 
 #ifdef __cplusplus
 #define GTKML_PUBLIC extern "C"
@@ -83,6 +86,11 @@ typedef int gboolean;
 #define GTKML_CORE_ERROR 0x3
 #define GTKML_CORE_DBG 0x4
 #define GTKML_CORE_STRING_TO_SYMBOL 0x5
+#define GTKML_CORE_ALLOCATE 0x6
+#define GTKML_CORE_TO_CSTR 0x7
+#define GTKML_CORE_TO_BUFFER 0x8
+#define GTKML_CORE_TO_STRING 0x9
+#define GTKML_CORE_TO_ARRAY 0xa
 #define GTKML_CORE_COMPILE_EXPR 0x100
 #define GTKML_CORE_EMIT_BYTECODE 0x101
 #define GTKML_CORE_BIND_SYMBOL 0x102
@@ -1021,6 +1029,8 @@ GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_float(float value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_char(uint32_t value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_userdata(void *data) GTKML_MUST_USE;
 
+GTKML_PUBLIC size_t gtk_ml_list_len(GtkMl_SObj list) GTKML_MUST_USE;
+
 /* miscelaneous */
 
 GTKML_PUBLIC GtkMl_SObj gtk_ml_error(GtkMl_Context *ctx, const char *err, const char *desc, gboolean has_loc, int64_t line, int64_t col, size_t n, ...) GTKML_MUST_USE;
@@ -1098,6 +1108,10 @@ GTKML_PUBLIC void gtk_ml_delete_sobject_reference(GtkMl_Context *ctx, GtkMl_Tagg
 GTKML_PUBLIC void gtk_ml_delete_sobject(GtkMl_Context *ctx, GtkMl_TaggedValue sobject);
 GTKML_PUBLIC void gtk_ml_delete_value(GtkMl_Context *ctx, GtkMl_TaggedValue value);
 GTKML_PUBLIC void gtk_ml_free(GtkMl_Context *ctx, void *value);
+
+#ifdef GTKML_ENABLE_WEB
+#include "libs/em_gles3/core-libs.h"
+#endif /* GTKML_ENABLE_WEB */
 
 #endif /* ifndef GTK_ML_H */
 

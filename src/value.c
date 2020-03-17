@@ -285,3 +285,16 @@ GtkMl_SObj gtk_ml_new_userdata(GtkMl_Context *ctx, GtkMl_Span *span, void *data,
     s->value.s_userdata.keep = gtk_ml_new_nil(ctx, span);
     return s;
 }
+
+size_t gtk_ml_list_len(GtkMl_SObj list) {
+    if (list->kind != GTKML_S_LIST) {
+        return 0;
+    }
+
+    size_t len = 0;
+    while (list->kind != GTKML_S_NIL) {
+        ++len;
+        list = gtk_ml_cdr(list);
+    }
+    return len;
+}

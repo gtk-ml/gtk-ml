@@ -1,0 +1,118 @@
+(define default-vs "#version 300 es
+
+in vec4 in_position;
+in vec4 in_color;
+
+out vec4 v_color;
+
+void main() {
+    v_color = in_color;
+    gl_Position = in_position;
+}
+")
+
+(define default-fs "#version 300 es
+
+precision mediump float;
+
+in vec4 v_color;
+
+out vec4 out_color;
+
+void main() {
+    out_color = v_color;
+}
+")
+
+(define (= a b) (cmp 0 a b))
+(define (/= a b) (cmp 1 a b))
+
+(define (deref ptr type size) (index (->array ptr type size 1) 0))
+
+(define-macro (if p t f)
+ `(cond
+   ,p    ,t
+   :else ,f))
+
+(define (create-shader type source)
+  (let [shader (gles3/glCreateShader type)
+        ivdata (allocate 4)]
+    (gles3/glShaderSource shader 1 (->buffer [(->cstr source)] 4) nullptr)
+    (gles3/glCompileShader shader)
+    (gles3/glGetShaderiv shader gles3/GL_COMPILE_STATUS ivdata)
+    (if (/= (deref ivdata :int 4) 0)
+      shader
+      (let [log (allocate 4096)
+            len (allocate 4)]
+        (gles3/glGetShaderInfoLog shader 4096 len log)
+        (gles3/glDeleteShader shader)
+        (web/log (->string log (deref len :int 4)))
+        #f))))
+
+(define (create-program vs fs)
+  (let [program (gles3/glCreateProgram)
+        ivdata  (allocate 4)]
+    (gles3/glAttachShader program vs)
+    (gles3/glAttachShader program fs)
+    (gles3/glLinkProgram program)
+    (gles3/glGetProgramiv program gles3/GL_LINK_STATUS ivdata)
+    (if (/= (deref ivdata :int 4) 0)
+      program
+      (let [log (allocate 4096)
+            len (allocate 4)]
+        (gles3/glGetProgramInfoLog shader 4096 len log)
+        (gles3/glDeleteProgram shader)
+        (web/log (->string log (deref len :int 4)))
+        #f))))
+
+(define (create-buffer)
+  (let [buffers (allocate 4)]
+    (gles3/glGenBuffers 1 buffers)
+    (deref buffers :int 4)))
+
+(define (create-vao)
+  (let [vaos (allocate 4)]
+    (gles3/glGenVertexArrays 1 vaos)
+    (deref vaos :int 4)))
+
+(let [vs (create-shader gles3/GL_VERTEX_SHADER default-vs)
+      fs (create-shader gles3/GL_FRAGMENT_SHADER default-fs)]
+  (cond
+    (= vs #f)
+      (web/log "can't create vertex shader, aborting")
+    (= fs #f)
+      (web/log "can't create fragment shader, aborting")
+    :else
+      (let [program   (create-program vs fs)]
+        (if (= program #f)
+          (web/log "can't create program, aborting")
+          (let [loc-pos   (gles3/glGetAttribLocation program "in_position")
+                loc-color (gles3/glGetAttribLocation program "in_color")
+                buf-pos   (create-buffer)
+                buf-color (create-buffer)
+                positions [0.0 0.0 0.0 0.5 0.7 0.0]
+                colors    [0.3 0.4 0.2 1.0
+                           0.7 0.8 0.1 1.0
+                           0.5 0.2 0.9 1.0]
+                vao       (create-vao)]
+            (gles3/glBindVertexArray vao)
+            ;; bind positions to buffer
+            (gles3/glBindBuffer gles3/GL_ARRAY_BUFFER buf-pos)
+            (gles3/glBufferData gles3/GL_ARRAY_BUFFER (* (len positions) 4) (->buffer positions 4) gles3/GL_STATIC_DRAW)
+            ;; bind position location to vao
+            (gles3/glEnableVertexAttribArray loc-pos)
+            (gles3/glVertexAttribPointer loc-pos 2 gles3/GL_FLOAT 0 0 nullptr)
+
+            ;; bind colors to buffer
+            (gles3/glBindBuffer gles3/GL_ARRAY_BUFFER buf-color)
+            (gles3/glBufferData gles3/GL_ARRAY_BUFFER (* (len colors) 4) (->buffer colors 4) gles3/GL_STATIC_DRAW)
+            ;; bind color location to vao
+            (gles3/glEnableVertexAttribArray loc-color)
+            (gles3/glVertexAttribPointer loc-color 4 gles3/GL_FLOAT 0 0 nullptr)
+
+            (gles3/glViewport 0 0 400 300)
+            (gles3/glClearColor 0 0 0 1)
+            (gles3/glClear gles3/GL_COLOR_BUFFER_BIT)
+            (gles3/glUseProgram program)
+            (gles3/glBindVertexArray vao)
+            (gles3/glDrawArrays gles3/GL_TRIANGLES 0 3))))))

@@ -13,9 +13,6 @@
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"
-#ifdef GTKML_ENABLE_WEB
-#include "gles2.h"
-#endif /* GTKML_ENABLE_WEB */
 
 GTKML_PRIVATE const char *S_OPCODES[] = {
     [GTKML_I_NOP] = GTKML_SI_NOP,
@@ -158,6 +155,7 @@ GtkMl_Context *gtk_ml_new_context_with_gc_builder(GtkMl_Gc *gc, GtkMl_Builder *b
     ctx->gc->static_stack = gtk_ml_new_list(ctx, NULL, bindings, ctx->gc->static_stack);
 
 
+    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "nullptr", 7), gtk_ml_value_userdata(NULL));
 #ifdef GTKML_ENABLE_GTK
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "flags-none", 10), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, G_APPLICATION_FLAGS_NONE)));
 #endif /* GTKML_ENABLE_GTK */
@@ -165,6 +163,9 @@ GtkMl_Context *gtk_ml_new_context_with_gc_builder(GtkMl_Gc *gc, GtkMl_Builder *b
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-eq", 7), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, GTKML_F_EQUAL)));
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-ne", 7), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, GTKML_F_NEQUAL)));
 #ifdef GTKML_ENABLE_WEB
+#include "libs/em_gles3/const-bindings.h"
+    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/VERSION", strlen("webgl/VERSION")), gtk_ml_value_int(GL_VERSION));
+    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/SHADING-LANGUAGE-VERSION", strlen("webgl/SHADING-LANGUAGE-VERSION")), gtk_ml_value_int(GL_SHADING_LANGUAGE_VERSION));
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/COMPILE-STATUS", strlen("webgl/COMPILE-STATUS")), gtk_ml_value_int(GL_COMPILE_STATUS));
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/LINK-STATUS", strlen("webgl/LINK-STATUS")), gtk_ml_value_int(GL_LINK_STATUS));
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/VERTEX-SHADER", strlen("webgl/VERTEX-SHADER")), gtk_ml_value_int(GL_VERTEX_SHADER));
