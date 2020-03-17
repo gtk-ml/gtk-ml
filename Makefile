@@ -28,8 +28,10 @@ CFLAGS:=-O2 -g -Wall -Wextra -Werror -pedantic -std=c11 -fPIC -pthread \
 	-DGTKML_LONG_WIDTH=64 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
 EMFLAGS:=-O2 -Wall -Wextra -Werror -std=gnu11 \
 	-s ASSERTIONS=1 -s NO_EXIT_RUNTIME=1 \
+	-s MAX_WEBGL_VERSION=2 -s MAX_WEBGL_VERSION=2 \
 	-s EXPORTED_FUNCTIONS='["_main", "_gtk_ml_web_init", "_gtk_ml_web_deinit", "_gtk_ml_web_version", "_gtk_ml_web_eval"]' \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' \
+	-DGTKML_ENABLE_WEB=1 \
 	-DGTKML_STACK_SIZE=16*1024 \
 	-DGTKML_LONG_WIDTH=32 -DGTKML_LLONG_WIDTH=64 -DGTKML_INTWIDTH_DEFINED=1
 LDFLAGS:=$(shell pkg-config --libs gtk+-3.0) -lm
@@ -69,6 +71,7 @@ all: $(TARGET) $(BINARIES) $(TESTS) compile_commands.json
 web: $(WEBDIR) $(GTKMLWEB)
 	cp src/gtkml-web.html public/index.html
 	cp src/gtkml-web.js public/
+	cp src/gtkml-webgl.js public/
 
 build: $(BINARIES)
 

@@ -11,6 +11,10 @@
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"
+#ifdef GTKML_ENABLE_WEB
+#include "vm-web.c"
+#include "vm-webgl.c"
+#endif /* GTKML_ENABLE_WEB */
 
 GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [GTKML_I_NOP] = gtk_ml_i_nop,
@@ -123,6 +127,39 @@ GTKML_PRIVATE GtkMl_TaggedValue (*CORE[])(GtkMl_Context *, GtkMl_SObj *, GtkMl_T
     [GTKML_CORE_DBG_STACK] = vm_core_dbg_stack,
     [GTKML_CORE_DBG_BACKTRACE] = vm_core_dbg_backtrace,
 #endif /* GTKML_ENABLE_POSIX */
+#ifdef GTKML_ENABLE_WEB
+    [GTKML_CORE_WEB_LOG] = vm_core_web_log,
+    [GTKML_CORE_WEB_NEW_FLOAT32_ARRAY] = vm_core_web_new_float32_array,
+    [GTKML_CORE_WEBGL_CREATE_SHADER] = vm_core_webgl_create_shader,
+    [GTKML_CORE_WEBGL_SHADER_SOURCE] = vm_core_webgl_shader_source,
+    [GTKML_CORE_WEBGL_COMPILE_SHADER] = vm_core_webgl_compile_shader,
+    [GTKML_CORE_WEBGL_GET_SHADER_PARAMETER] = vm_core_webgl_get_shader_parameter,
+    [GTKML_CORE_WEBGL_GET_SHADER_INFO_LOG] = vm_core_webgl_get_shader_info_log,
+    [GTKML_CORE_WEBGL_DELETE_SHADER] = vm_core_webgl_delete_shader,
+    [GTKML_CORE_WEBGL_CREATE_PROGRAM] = vm_core_webgl_create_program,
+    [GTKML_CORE_WEBGL_ATTACH_SHADER] = vm_core_webgl_attach_shader,
+    [GTKML_CORE_WEBGL_LINK_PROGRAM] = vm_core_webgl_link_program,
+    [GTKML_CORE_WEBGL_GET_PROGRAM_PARAMETER] = vm_core_webgl_get_program_parameter,
+    [GTKML_CORE_WEBGL_GET_PROGRAM_INFO_LOG] = vm_core_webgl_get_program_info_log,
+    [GTKML_CORE_WEBGL_DELETE_PROGRAM] = vm_core_webgl_delete_program,
+    [GTKML_CORE_WEBGL_GET_UNIFORM_LOCATION] = vm_core_webgl_get_uniform_location,
+    [GTKML_CORE_WEBGL_GET_ATTRIB_LOCATION] = vm_core_webgl_get_attrib_location,
+    [GTKML_CORE_WEBGL_CREATE_BUFFER] = vm_core_webgl_create_buffer,
+    [GTKML_CORE_WEBGL_BIND_BUFFER] = vm_core_webgl_bind_buffer,
+    [GTKML_CORE_WEBGL_BUFFER_DATA] = vm_core_webgl_buffer_data,
+    [GTKML_CORE_WEBGL_CREATE_VERTEX_ARRAY] = vm_core_webgl_create_vertex_array,
+    [GTKML_CORE_WEBGL_BIND_VERTEX_ARRAY] = vm_core_webgl_bind_vertex_array,
+    [GTKML_CORE_WEBGL_ENABLE_VERTEX_ATTRIB_ARRAY] = vm_core_webgl_enable_vertex_attrib_array,
+    [GTKML_CORE_WEBGL_VERTEX_ATTRIB_POINTER] = vm_core_webgl_vertex_attrib_pointer,
+    [GTKML_CORE_WEBGL_VIEWPORT] = vm_core_webgl_viewport,
+    [GTKML_CORE_WEBGL_CLEAR_COLOR] = vm_core_webgl_clear_color,
+    [GTKML_CORE_WEBGL_CLEAR] = vm_core_webgl_clear,
+    [GTKML_CORE_WEBGL_USE_PROGRAM] = vm_core_webgl_use_program,
+    [GTKML_CORE_WEBGL_UNIFORM_4F] = vm_core_webgl_uniform_4f,
+    [GTKML_CORE_WEBGL_DRAW_ARRAYS] = vm_core_webgl_draw_arrays,
+    [GTKML_CORE_WEBGL_CANVAS_WIDTH] = vm_core_webgl_canvas_width,
+    [GTKML_CORE_WEBGL_CANVAS_HEIGHT] = vm_core_webgl_canvas_height,
+#endif /* GTKML_ENABLE_WEB */
 };
 
 void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_SObj key, GtkMl_TaggedValue value) {

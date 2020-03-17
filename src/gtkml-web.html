@@ -15,6 +15,7 @@
     </script>
     <script async type="text/javascript" src="gtk-ml.js"></script>
     <script async type="text/javascript" src="gtkml-web.js"></script>
+    <script defer type="text/javascript" src="gtkml-webgl.js"></script>
     <style>
     .dark-console-mono {
         color: #f9e9d5;
@@ -28,7 +29,8 @@
         <a href="/index.html"><h1>gtk-ml</h1></a>
     </header>
 
-    <textarea class="dark-console-mono" name="gtkml-input" id="gtkml-input" rows="12" cols="42">(+ 42 54)</textarea> </br>
+    <textarea class="dark-console-mono" name="gtkml-input" id="gtkml-input" rows="16" cols="42">(+ 42 54)</textarea> 
+    <canvas id="gtkml-canvas"></canvas> </br>
     <textarea class="dark-console-mono" name="gtkml-input" id="gtkml-stdin" rows="2" cols="42"></textarea> </br>
     <button type="button" onclick="gtk_ml_js_run()">Run!</button> </br>
     <textarea readonly class="dark-console-mono" name="gtkml-output" id="gtkml-output" rows="6" cols="42"></textarea> </br>

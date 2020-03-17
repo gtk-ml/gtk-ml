@@ -3,6 +3,7 @@ gtk_ml_web_deinit = undefined
 gtk_ml_web_version = undefined
 gtk_ml_web_eval = undefined
 
+gtk_web_objects = []
 gtk_web_ctx = undefined
 gtk_web_builder = undefined
 gtk_web_prev = undefined

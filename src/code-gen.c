@@ -11,6 +11,11 @@
 GTKML_PRIVATE gboolean compile_core_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, uint64_t function, GtkMl_SObj args, gboolean compile_first, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) GTKML_MUST_USE;
 GTKML_PRIVATE gboolean compile_runtime_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, const char *linkage_name, GtkMl_SObj stmt) GTKML_MUST_USE;
 
+#ifdef GTKML_ENABLE_WEB
+#include "cg-web.c"
+#include "cg-webgl.c"
+#endif /* GTKML_ENABLE_WEB */
+
 gboolean gtk_ml_builder_load(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_SObj args = gtk_ml_cdr(*stmt);
     if (args->kind == GTKML_S_NIL) {

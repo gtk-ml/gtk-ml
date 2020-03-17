@@ -64,7 +64,7 @@ char *gtk_ml_web_eval(GtkMl_Context *ctx, const char *line, GtkMl_Builder *build
 
     size_t cap = 1024;
     char *result = malloc(cap);
-    result = gtk_ml_dumpsnr(ctx, result, cap, &err, gtk_ml_peek(ctx).value.sobj);
+    result = gtk_ml_dumpsnr_value(ctx, result, cap, &err, gtk_ml_peek(ctx));
     if (!result) {
         (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
         fprintf(stderr, "\n");

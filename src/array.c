@@ -41,8 +41,8 @@ GTKML_PRIVATE void del_node(GtkMl_Context *ctx, GtkMl_ArrayNode *node, void (*de
 GTKML_PRIVATE gboolean push(GtkMl_ArrayNode **out, GtkMl_ArrayNode *node, size_t *depth, GtkMl_TaggedValue value);
 GTKML_PRIVATE GtkMl_TaggedValue get(GtkMl_ArrayNode *node, size_t index);
 GTKML_PRIVATE GtkMl_TaggedValue delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNode *node, size_t index);
-GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data);
-GTKML_PRIVATE GtkMl_VisitResult foreach_rev(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data);
+GTKML_PRIVATE GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t *index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data);
+GTKML_PRIVATE GtkMl_VisitResult foreach_rev(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t *index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data);
 GTKML_PRIVATE gboolean equal(GtkMl_ArrayNode *lhs, GtkMl_ArrayNode *rhs);
 GTKML_PRIVATE GtkMl_VisitResult fn_contains(GtkMl_Array *array, size_t index, GtkMl_TaggedValue value, GtkMl_TaggedValue data);
 
@@ -135,7 +135,8 @@ struct ContainsData {
 
 gboolean gtk_ml_array_trie_contains(GtkMl_Array *array, size_t *index, GtkMl_TaggedValue value) {
     struct ContainsData contains = { value, 0, 0 };
-    foreach(array, array->root, 0, fn_contains, gtk_ml_value_userdata(&contains));
+    size_t idx = 0;
+    foreach(array, array->root, &idx, fn_contains, gtk_ml_value_userdata(&contains));
     if (contains.contains) {
         *index = contains.index;
     }
@@ -158,11 +159,13 @@ GtkMl_TaggedValue gtk_ml_array_trie_delete(GtkMl_Array *out, GtkMl_Array *array,
 }
 
 void gtk_ml_array_trie_foreach(GtkMl_Array *array, GtkMl_ArrayFn fn, GtkMl_TaggedValue data) {
-    foreach(array, array->root, 0, fn, data);
+    size_t idx = 0;
+    foreach(array, array->root, &idx, fn, data);
 }
 
 void gtk_ml_array_trie_foreach_rev(GtkMl_Array *array, GtkMl_ArrayFn fn, GtkMl_TaggedValue data) {
-    foreach_rev(array, array->root, 0, fn, data);
+    size_t idx = array->len;
+    foreach_rev(array, array->root, &idx, fn, data);
 }
 
 gboolean gtk_ml_array_trie_equal(GtkMl_Array *lhs, GtkMl_Array *rhs) {
@@ -321,17 +324,20 @@ GtkMl_TaggedValue delete(GtkMl_ArrayNode **out, gboolean *shiftme, GtkMl_ArrayNo
     }
 }
 
-GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data) {
+GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t *index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data) {
     if (!node) {
         return GTKML_VISIT_RECURSE;
     }
 
     switch (node->kind) {
-    case GTKML_A_LEAF:
-        return fn(array, index, node->value.a_leaf.value, data);
+    case GTKML_A_LEAF: {
+        GtkMl_VisitResult result = fn(array, *index, node->value.a_leaf.value, data);
+        ++*index;
+        return result;
+    }
     case GTKML_A_BRANCH: {
         for (size_t i = 0; i < node->value.a_branch.len; i++) {
-            switch (foreach(array, node->value.a_branch.nodes[i], (index << node->shift) | i, fn, data)) {
+            switch (foreach(array, node->value.a_branch.nodes[i], index, fn, data)) {
             case GTKML_VISIT_RECURSE:
                 continue;
             case GTKML_VISIT_CONTINUE:
@@ -345,17 +351,18 @@ GtkMl_VisitResult foreach(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t inde
     }
 }
 
-GtkMl_VisitResult foreach_rev(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data) {
+GtkMl_VisitResult foreach_rev(GtkMl_Array *array, GtkMl_ArrayNode *node, size_t *index, GtkMl_ArrayFn fn, GtkMl_TaggedValue data) {
     if (!node) {
         return GTKML_VISIT_RECURSE;
     }
 
     switch (node->kind) {
     case GTKML_A_LEAF:
-        return fn(array, index, node->value.a_leaf.value, data);
+        --*index;
+        return fn(array, *index, node->value.a_leaf.value, data);
     case GTKML_A_BRANCH: {
         for (size_t i = node->value.a_branch.len; i > 0; i--) {
-            switch (foreach_rev(array, node->value.a_branch.nodes[i - 1], (index << GTKML_A_BITS) | (i - 1), fn, data)) {
+            switch (foreach_rev(array, node->value.a_branch.nodes[i - 1], index, fn, data)) {
             case GTKML_VISIT_RECURSE:
                 continue;
             case GTKML_VISIT_CONTINUE:
