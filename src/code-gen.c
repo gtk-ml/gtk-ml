@@ -14,7 +14,6 @@ GTKML_PRIVATE gboolean compile_runtime_program(GtkMl_Context *ctx, GtkMl_Builder
 #ifdef GTKML_ENABLE_WEB
 #include "libs/em_gles3/code-gen.c"
 #include "cg-web.c"
-#include "cg-webgl.c"
 #endif /* GTKML_ENABLE_WEB */
 
 gboolean gtk_ml_builder_load(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {

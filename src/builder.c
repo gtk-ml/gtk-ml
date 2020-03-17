@@ -149,37 +149,6 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
 #endif /* GTKML_ENABLE_POSIX */
 #ifdef GTKML_ENABLE_WEB
     gtk_ml_add_builder(b, "web/log", gtk_ml_builder_web_log, 0, 0, 1);
-    gtk_ml_add_builder(b, "web/new-float32-array", gtk_ml_builder_web_new_float32_array, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/create-shader", gtk_ml_builder_webgl_create_shader, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/shader-source", gtk_ml_builder_webgl_shader_source, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/compile-shader", gtk_ml_builder_webgl_compile_shader, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/get-shader-parameter", gtk_ml_builder_webgl_get_shader_parameter, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/get-shader-info-log", gtk_ml_builder_webgl_get_shader_info_log, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/delete-shader", gtk_ml_builder_webgl_delete_shader, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/create-program", gtk_ml_builder_webgl_create_program, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/attach-shader", gtk_ml_builder_webgl_attach_shader, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/link-program", gtk_ml_builder_webgl_link_program, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/get-program-parameter", gtk_ml_builder_webgl_get_program_parameter, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/get-program-info-log", gtk_ml_builder_webgl_get_program_info_log, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/delete-program", gtk_ml_builder_webgl_delete_program, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/get-uniform-location", gtk_ml_builder_webgl_get_uniform_location, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/get-attrib-location", gtk_ml_builder_webgl_get_attrib_location, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/create-buffer", gtk_ml_builder_webgl_create_buffer, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/bind-buffer", gtk_ml_builder_webgl_bind_buffer, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/buffer-data", gtk_ml_builder_webgl_buffer_data, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/create-vertex-array", gtk_ml_builder_webgl_create_vertex_array, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/bind-vertex-array", gtk_ml_builder_webgl_bind_vertex_array, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/enable-vertex-attrib-array", gtk_ml_builder_webgl_enable_vertex_attrib_array, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/vertex-attrib-pointer", gtk_ml_builder_webgl_vertex_attrib_pointer, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/viewport", gtk_ml_builder_webgl_viewport, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/clear-color", gtk_ml_builder_webgl_clear_color, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/clear", gtk_ml_builder_webgl_clear, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/use-program", gtk_ml_builder_webgl_use_program, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/bind-vertex-array", gtk_ml_builder_webgl_bind_vertex_array, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/uniform-4f", gtk_ml_builder_webgl_uniform_4f, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/draw-arrays", gtk_ml_builder_webgl_draw_arrays, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/canvas-width", gtk_ml_builder_webgl_canvas_width, 0, 0, 1);
-    gtk_ml_add_builder(b, "webgl/canvas-height", gtk_ml_builder_webgl_canvas_height, 0, 0, 1);
 #include "libs/em_gles3/bind-code-gen.h"
 #endif /* GTKML_ENABLE_WEB */
 

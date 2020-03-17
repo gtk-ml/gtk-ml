@@ -164,17 +164,6 @@ GtkMl_Context *gtk_ml_new_context_with_gc_builder(GtkMl_Gc *gc, GtkMl_Builder *b
     gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "cond-ne", 7), gtk_ml_value_sobject(gtk_ml_new_int(ctx, NULL, GTKML_F_NEQUAL)));
 #ifdef GTKML_ENABLE_WEB
 #include "libs/em_gles3/const-bindings.h"
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/VERSION", strlen("webgl/VERSION")), gtk_ml_value_int(GL_VERSION));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/SHADING-LANGUAGE-VERSION", strlen("webgl/SHADING-LANGUAGE-VERSION")), gtk_ml_value_int(GL_SHADING_LANGUAGE_VERSION));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/COMPILE-STATUS", strlen("webgl/COMPILE-STATUS")), gtk_ml_value_int(GL_COMPILE_STATUS));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/LINK-STATUS", strlen("webgl/LINK-STATUS")), gtk_ml_value_int(GL_LINK_STATUS));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/VERTEX-SHADER", strlen("webgl/VERTEX-SHADER")), gtk_ml_value_int(GL_VERTEX_SHADER));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/FRAGMENT-SHADER", strlen("webgl/FRAGMENT-SHADER")), gtk_ml_value_int(GL_FRAGMENT_SHADER));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/ARRAY-BUFFER", strlen("webgl/ARRAY-BUFFER")), gtk_ml_value_int(GL_ARRAY_BUFFER));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/STATIC-DRAW", strlen("webgl/STATIC-DRAW")), gtk_ml_value_int(GL_STATIC_DRAW));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/FLOAT", strlen("webgl/FLOAT")), gtk_ml_value_int(GL_FLOAT));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/COLOR-BUFFER-BIT", strlen("webgl/COLOR-BUFFER-BIT")), gtk_ml_value_int(GL_COLOR_BUFFER_BIT));
-    gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "webgl/TRIANGLES", strlen("webgl/TRIANGLES")), gtk_ml_value_int(GL_TRIANGLES));
 #endif /* GTKML_ENABLE_WEB */
 
     ctx->parser.readers = malloc(sizeof(GtkMl_Reader) * 64);

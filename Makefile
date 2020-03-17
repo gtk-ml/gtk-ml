@@ -72,7 +72,6 @@ all: $(TARGET) $(BINARIES) $(TESTS) compile_commands.json
 web: $(WEBGL) $(WEBDIR) $(GTKMLWEB)
 	cp src/gtkml-web.html public/index.html
 	cp src/gtkml-web.js public/
-	cp src/gtkml-webgl.js public/
 
 build: $(BINARIES)
 
