@@ -95,10 +95,7 @@ gboolean gtk_ml_builder_setmetamap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     if (!gtk_ml_compile_expression(ctx, b, basic_block, err, &metamap, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
         return 0;
     }
-    if (!gtk_ml_build_setmm_imm(ctx, b, *basic_block, err)) {
-        return 0;
-    }
-    return gtk_ml_build_push_imm(ctx, b, *basic_block, err, gtk_ml_append_data(b, gtk_ml_value_nil()));
+    return gtk_ml_build_setmm_imm(ctx, b, *basic_block, err);
 }
 
 gboolean gtk_ml_builder_getmetamap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -914,6 +911,105 @@ gboolean gtk_ml_builder_cdr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     return gtk_ml_build_cdr(ctx, b, *basic_block, err);
 }
 
+gboolean gtk_ml_builder_cons(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (gtk_ml_list_len(args) != 2) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    GtkMl_SObj *car = &gtk_ml_car(args);
+    GtkMl_SObj *cdr = &gtk_ml_cdar(args);
+
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, car, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, cdr, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    return gtk_ml_build_cons(ctx, b, *basic_block, err);
+}
+
+gboolean gtk_ml_builder_map(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if ((gtk_ml_list_len(args) & 1) == 0) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    int64_t n = 0;
+    while (gtk_ml_car(args)->kind != GTKML_S_NIL) {
+        GtkMl_SObj *key = &gtk_ml_car(args);
+        GtkMl_SObj *value = &gtk_ml_cdar(args);
+
+        if (!gtk_ml_compile_expression(ctx, b, basic_block, err, key, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+            return 0;
+        }
+        if (!gtk_ml_compile_expression(ctx, b, basic_block, err, value, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+            return 0;
+        }
+
+        ++n;
+    }
+
+    if (!gtk_ml_build_push_imm(ctx, b, *basic_block, err, gtk_ml_append_data(b, gtk_ml_value_int(n)))) {
+        return 0;
+    }
+    return gtk_ml_build_map(ctx, b, *basic_block, err);
+}
+
+gboolean gtk_ml_builder_set(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if ((gtk_ml_list_len(args) & 1) == 0) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    int64_t n = 0;
+    while (gtk_ml_car(args)->kind != GTKML_S_NIL) {
+        GtkMl_SObj *key = &gtk_ml_car(args);
+
+        if (!gtk_ml_compile_expression(ctx, b, basic_block, err, key, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+            return 0;
+        }
+
+        ++n;
+    }
+
+    if (!gtk_ml_build_push_imm(ctx, b, *basic_block, err, gtk_ml_append_data(b, gtk_ml_value_int(n)))) {
+        return 0;
+    }
+    return gtk_ml_build_set(ctx, b, *basic_block, err);
+}
+
+gboolean gtk_ml_builder_array(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if ((gtk_ml_list_len(args) & 1) == 0) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    int64_t n = 0;
+    while (gtk_ml_car(args)->kind != GTKML_S_NIL) {
+        GtkMl_SObj *value = &gtk_ml_car(args);
+
+        if (!gtk_ml_compile_expression(ctx, b, basic_block, err, value, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+            return 0;
+        }
+
+        ++n;
+    }
+
+    if (!gtk_ml_build_push_imm(ctx, b, *basic_block, err, gtk_ml_append_data(b, gtk_ml_value_int(n)))) {
+        return 0;
+    }
+    return gtk_ml_build_array(ctx, b, *basic_block, err);
+}
+
 gboolean gtk_ml_builder_typeof(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
     GtkMl_SObj args = gtk_ml_cdr(*stmt);
 
@@ -979,7 +1075,7 @@ gboolean gtk_ml_builder_index(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
     if (!gtk_ml_compile_expression(ctx, b, basic_block, err, array, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
         return 0;
     }
-    return gtk_ml_build_array_index(ctx, b, *basic_block, err);
+    return gtk_ml_build_index(ctx, b, *basic_block, err);
 }
 
 gboolean gtk_ml_builder_push(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -1080,6 +1176,50 @@ gboolean gtk_ml_builder_map_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         return 0;
     }
     return gtk_ml_build_map_insert(ctx, b, *basic_block, err);
+}
+
+gboolean gtk_ml_builder_map_rawget(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL && gtk_ml_cdr(args)->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    GtkMl_SObj *map = &gtk_ml_car(args);
+    GtkMl_SObj *key = &gtk_ml_cdar(args);
+
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, key, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, map, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    return gtk_ml_build_map_rawget(ctx, b, *basic_block, err);
+}
+
+gboolean gtk_ml_builder_map_rawinsert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
+    GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+    if (args->kind == GTKML_S_NIL && gtk_ml_cdr(args)->kind == GTKML_S_NIL) {
+        *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
+        return 0;
+    }
+
+    GtkMl_SObj *map = &gtk_ml_car(args);
+    GtkMl_SObj *key = &gtk_ml_cdar(args);
+    GtkMl_SObj *val = &gtk_ml_cddar(args);
+
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, val, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, key, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    if (!gtk_ml_compile_expression(ctx, b, basic_block, err, map, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
+        return 0;
+    }
+    return gtk_ml_build_map_rawinsert(ctx, b, *basic_block, err);
 }
 
 gboolean gtk_ml_builder_map_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock **basic_block, GtkMl_SObj *err, GtkMl_SObj *stmt, gboolean allow_intr, gboolean allow_macro, gboolean allow_runtime, gboolean allow_macro_expansion) {
@@ -1849,7 +1989,6 @@ gboolean gtk_ml_compile_quasi_expression(GtkMl_Context *ctx, GtkMl_Builder *b, G
                     return 1;
                 } else {
                     return gtk_ml_compile_expression(ctx, b, basic_block, err, expr, allow_intr, allow_macro, allow_runtime, allow_macro_expansion);
-
                 }
 
             }

@@ -149,6 +149,10 @@ typedef enum GtkMl_Opcode {
     GTKML_I_CMP_IMM,
     GTKML_I_CAR,
     GTKML_I_CDR,
+    GTKML_I_CONS,
+    GTKML_I_MAP,
+    GTKML_I_SET,
+    GTKML_I_ARRAY,
     GTKML_I_BIND,
     GTKML_I_ENTER_BIND_ARGS,
     GTKML_I_DEFINE,
@@ -176,12 +180,14 @@ typedef enum GtkMl_Opcode {
     GTKML_I_GETVAR,
     GTKML_I_ASSIGNVAR,
     GTKML_I_LEN,
-    GTKML_I_ARRAY_INDEX,
+    GTKML_I_INDEX,
     GTKML_I_ARRAY_PUSH,
     GTKML_I_ARRAY_POP,
     GTKML_I_ARRAY_CONCAT,
     GTKML_I_MAP_GET,
     GTKML_I_MAP_INSERT,
+    GTKML_I_MAP_RAWGET,
+    GTKML_I_MAP_RAWINSERT,
     GTKML_I_MAP_DELETE,
     GTKML_I_MAP_CONCAT,
     GTKML_I_SET_CONTAINS,
@@ -214,6 +220,10 @@ typedef enum GtkMl_Opcode {
 #define GTKML_SI_CMP_IMM "cmp-imm"
 #define GTKML_SI_CAR "car"
 #define GTKML_SI_CDR "cdr"
+#define GTKML_SI_CONS "cons"
+#define GTKML_SI_MAP "map"
+#define GTKML_SI_SET "set"
+#define GTKML_SI_ARRAY "array"
 #define GTKML_SI_BIND "bind"
 #define GTKML_SI_ENTER_BIND_ARGS "enter-bind-args"
 #define GTKML_SI_DEFINE "define"
@@ -242,12 +252,14 @@ typedef enum GtkMl_Opcode {
 #define GTKML_SI_GETVAR "getvar"
 #define GTKML_SI_ASSIGNVAR "assignvar"
 #define GTKML_SI_LEN "len"
-#define GTKML_SI_ARRAY_INDEX "array-index"
+#define GTKML_SI_INDEX "index"
 #define GTKML_SI_ARRAY_PUSH "array-push"
 #define GTKML_SI_ARRAY_CONCAT "array-concat"
 #define GTKML_SI_ARRAY_POP "array-pop"
 #define GTKML_SI_MAP_GET "map-get"
-#define GTKML_SI_MAP_INSERT "map-insert"
+#define GTKML_SI_MAP_INSERT "map-rawinsert"
+#define GTKML_SI_MAP_RAWGET "map-rawget"
+#define GTKML_SI_MAP_RAWINSERT "map-insert"
 #define GTKML_SI_MAP_DELETE "map-delete"
 #define GTKML_SI_MAP_CONCAT "map-concat"
 #define GTKML_SI_SET_CONTAINS "set-contains"
@@ -749,7 +761,10 @@ GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
 // loads an executable program into the context
 GTKML_PUBLIC void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Program* program);
 // runs a program previously loaded with `gtk_ml_load_program`
+// TODO: this should accept GtkMl_TaggedValues as args
 GTKML_PUBLIC gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program, GtkMl_SObj args) GTKML_MUST_USE;
+// runs a program previously loaded with `gtk_ml_load_program`, without pushing aruments
+GTKML_PUBLIC gboolean gtk_ml_run_program_raw(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program) GTKML_MUST_USE;
 // gets an export address from a program previously loaded with `gtk_ml_load_program`
 GTKML_PUBLIC GtkMl_SObj gtk_ml_get_export(GtkMl_Context *ctx, GtkMl_SObj *err, const char *linkage_name) GTKML_MUST_USE;
 // compile a lambda expression to bytecode with expanding macros
@@ -806,6 +821,14 @@ GTKML_PUBLIC gboolean gtk_ml_build_car(GtkMl_Context *ctx, GtkMl_Builder *b, Gtk
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_cdr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_cons(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_map(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_set(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_array(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_bind(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_bind_args(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
@@ -848,7 +871,7 @@ GTKML_PUBLIC gboolean gtk_ml_build_assignvar(GtkMl_Context *ctx, GtkMl_Builder *
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_len(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
-GTKML_PUBLIC gboolean gtk_ml_build_array_index(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+GTKML_PUBLIC gboolean gtk_ml_build_index(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_array_push(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
@@ -859,6 +882,10 @@ GTKML_PUBLIC gboolean gtk_ml_build_array_concat(GtkMl_Context *ctx, GtkMl_Builde
 GTKML_PUBLIC gboolean gtk_ml_build_map_get(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_map_rawget(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
+// builds a push in the chosen basic_block
+GTKML_PUBLIC gboolean gtk_ml_build_map_rawinsert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_map_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err) GTKML_MUST_USE;
 // builds a push in the chosen basic_block

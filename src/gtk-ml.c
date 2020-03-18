@@ -33,6 +33,7 @@ GTKML_PRIVATE const char *S_OPCODES[] = {
     [GTKML_I_CMP_IMM] = GTKML_SI_CMP_IMM,
     [GTKML_I_CAR] = GTKML_SI_CAR,
     [GTKML_I_CDR] = GTKML_SI_CDR,
+    [GTKML_I_CONS] = GTKML_SI_CONS,
     [GTKML_I_BIND] = GTKML_SI_BIND,
     [GTKML_I_ENTER_BIND_ARGS] = GTKML_SI_ENTER_BIND_ARGS,
     [GTKML_I_DEFINE] = GTKML_SI_DEFINE,
@@ -59,7 +60,7 @@ GTKML_PRIVATE const char *S_OPCODES[] = {
     [GTKML_I_GETVAR] = GTKML_SI_GETVAR,
     [GTKML_I_ASSIGNVAR] = GTKML_SI_ASSIGNVAR,
     [GTKML_I_LEN] = GTKML_SI_LEN,
-    [GTKML_I_ARRAY_INDEX] = GTKML_SI_ARRAY_INDEX,
+    [GTKML_I_INDEX] = GTKML_SI_INDEX,
     [GTKML_I_ARRAY_PUSH] = GTKML_SI_ARRAY_PUSH,
     [GTKML_I_ARRAY_CONCAT] = GTKML_SI_ARRAY_CONCAT,
     [GTKML_I_ARRAY_POP] = GTKML_SI_ARRAY_POP,
@@ -356,56 +357,81 @@ void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Program* program) {
     ctx->vm->program = program;
 }
 
-gboolean gtk_ml_run_program_internal(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program, GtkMl_SObj args, gboolean brk) {
-    if (program->kind != GTKML_S_PROGRAM) {
+gboolean gtk_ml_run_program_internal(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program, GtkMl_SObj args, gboolean brk, gboolean push_args) {
+    switch (program->kind) {
+    case GTKML_S_MAP: {
+        GtkMl_TaggedValue metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(ctx, NULL, 0, "__call", strlen("__call")));
+        GtkMl_TaggedValue metafn = gtk_ml_value_none();
+        if (program->value.s_map.metamap) {
+            metafn = gtk_ml_hash_trie_get(&program->value.s_map.metamap->value.s_map.map, metakey);
+        }
+        if (gtk_ml_has_value(metafn)) {
+            if (gtk_ml_is_sobject(metafn)) {
+                return gtk_ml_run_program_raw(ctx, err, metafn.value.sobj);
+            }
+        }
+        GtkMl_SObj error = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
+            gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")));
+        *err = error;
+        return 0;
+    }
+    case GTKML_S_PROGRAM: {
+        GtkMl_SObj params = program->value.s_program.args;
+
+        int64_t n_args = 0;
+        int64_t n_params = 0;
+
+        if (push_args) {
+            if (args) {
+                while (args->kind != GTKML_S_NIL) {
+                    GtkMl_SObj arg = gtk_ml_car(args);
+                    gtk_ml_push(ctx, gtk_ml_value_sobject(arg));
+                    args = gtk_ml_cdr(args);
+                    ++n_args;
+                }
+            }
+
+            GtkMl_SObj last_param = NULL;
+            while (params->kind != GTKML_S_NIL) {
+                last_param = gtk_ml_car(params);
+                params = gtk_ml_cdr(params);
+                ++n_params;
+            }
+
+            if (n_params < n_args) {
+                if (!last_param || last_param->kind != GTKML_S_VARARG) {
+                    *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
+                    return 0;
+                }
+            }
+
+            gtk_ml_push(ctx, gtk_ml_value_int(n_args));
+        }
+
+        uint32_t pc = ctx->vm->pc;
+        uint32_t flags = ctx->vm->flags & ~GTKML_F_GENERIC;
+        ctx->vm->pc = program->value.s_program.addr;
+        gboolean result = gtk_ml_vm_run(ctx->vm, err, brk);
+        ctx->vm->pc = pc;
+        ctx->vm->flags = (ctx->vm->flags & GTKML_F_GENERIC) | flags;
+
+        return result;
+    }
+    default: {
         *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 2,
             gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(ctx, NULL, 0, "list", strlen("list")),
             gtk_ml_new_keyword(ctx, NULL, 0, "got-value", strlen("got-value")), program);
         return 0;
     }
-
-    GtkMl_SObj params = program->value.s_program.args;
-
-    int64_t n_args = 0;
-    int64_t n_params = 0;
-
-    if (args) {
-        while (args->kind != GTKML_S_NIL) {
-            GtkMl_SObj arg = gtk_ml_car(args);
-            gtk_ml_push(ctx, gtk_ml_value_sobject(arg));
-            args = gtk_ml_cdr(args);
-            ++n_args;
-        }
     }
-
-    GtkMl_SObj last_param = NULL;
-    while (params->kind != GTKML_S_NIL) {
-        last_param = gtk_ml_car(params);
-        params = gtk_ml_cdr(params);
-        ++n_params;
-    }
-
-    if (n_params < n_args) {
-        if (!last_param || last_param->kind != GTKML_S_VARARG) {
-            *err = gtk_ml_error(ctx, "arity-error", GTKML_ERR_ARITY_ERROR, 0, 0, 0, 0);
-            return 0;
-        }
-    }
-
-    gtk_ml_push(ctx, gtk_ml_value_int(n_args));
-
-    uint32_t pc = ctx->vm->pc;
-    uint32_t flags = ctx->vm->flags & ~GTKML_F_GENERIC;
-    ctx->vm->pc = program->value.s_program.addr;
-    gboolean result = gtk_ml_vm_run(ctx->vm, err, brk);
-    ctx->vm->pc = pc;
-    ctx->vm->flags = (ctx->vm->flags & GTKML_F_GENERIC) | flags;
-
-    return result;
 }
 
 gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program, GtkMl_SObj args) {
-    return gtk_ml_run_program_internal(ctx, err, program, args, 1);
+    return gtk_ml_run_program_internal(ctx, err, program, args, 1, 1);
+}
+
+gboolean gtk_ml_run_program_raw(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program) {
+    return gtk_ml_run_program_internal(ctx, err, program, NULL, 1, 0);
 }
 
 GtkMl_SObj gtk_ml_get_export(GtkMl_Context *ctx, GtkMl_SObj *err, const char *linkage_name) {

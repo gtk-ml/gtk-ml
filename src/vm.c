@@ -35,6 +35,10 @@ GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [GTKML_I_CMP_IMM] = gtk_ml_i_cmp_imm,
     [GTKML_I_CAR] = gtk_ml_i_car,
     [GTKML_I_CDR] = gtk_ml_i_cdr,
+    [GTKML_I_CONS] = gtk_ml_i_cons,
+    [GTKML_I_MAP] = gtk_ml_i_map,
+    [GTKML_I_SET] = gtk_ml_i_set,
+    [GTKML_I_ARRAY] = gtk_ml_i_array,
     [GTKML_I_DEFINE] = gtk_ml_i_define,
     [GTKML_I_LIST] = gtk_ml_i_list,
     [GTKML_I_BIND] = gtk_ml_i_bind,
@@ -61,12 +65,14 @@ GTKML_PRIVATE gboolean (*OPCODES[])(GtkMl_Vm *, GtkMl_SObj *, GtkMl_Data) = {
     [GTKML_I_GETVAR] = gtk_ml_i_getvar,
     [GTKML_I_ASSIGNVAR] = gtk_ml_i_assignvar,
     [GTKML_I_LEN] = gtk_ml_i_len,
-    [GTKML_I_ARRAY_INDEX] = gtk_ml_i_array_index,
+    [GTKML_I_INDEX] = gtk_ml_i_index,
     [GTKML_I_ARRAY_PUSH] = gtk_ml_i_array_push,
     [GTKML_I_ARRAY_POP] = gtk_ml_i_array_pop,
     [GTKML_I_ARRAY_CONCAT] = gtk_ml_i_array_concat,
     [GTKML_I_MAP_GET] = gtk_ml_i_map_get,
     [GTKML_I_MAP_INSERT] = gtk_ml_i_map_insert,
+    [GTKML_I_MAP_RAWGET] = gtk_ml_i_map_rawget,
+    [GTKML_I_MAP_RAWINSERT] = gtk_ml_i_map_rawinsert,
     [GTKML_I_MAP_DELETE] = gtk_ml_i_map_delete,
     [GTKML_I_SET_CONTAINS] = gtk_ml_i_set_contains,
     [GTKML_I_SET_INSERT] = gtk_ml_i_set_insert,
@@ -205,9 +211,9 @@ GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
     GtkMl_Context *ctx = ctx_expr->value.s_lightdata.userdata;
 
     GtkMl_SObj err;
-    uint64_t pc = ctx->vm->pc;
-    uint64_t flags = ctx->vm->flags & GTKML_F_TOPCALL;
-    if (gtk_ml_run_program_internal(ctx, &err, program_expr, gtk_ml_new_list(ctx, NULL, app_expr, gtk_ml_new_nil(ctx, NULL)), 0)) {
+    uint32_t pc = ctx->vm->pc;
+    uint32_t flags = ctx->vm->flags & GTKML_F_TOPCALL;
+    if (gtk_ml_run_program_internal(ctx, &err, program_expr, gtk_ml_new_list(ctx, NULL, app_expr, gtk_ml_new_nil(ctx, NULL)), 0, 1)) {
         GtkMl_SObj result = gtk_ml_pop(ctx).value.sobj;
         app_expr->value.s_userdata.keep = gtk_ml_new_list(ctx, NULL, result, app_expr->value.s_userdata.keep);
     } else {
@@ -307,19 +313,39 @@ GtkMl_TaggedValue vm_core_dbg(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedV
     (void) expr;
 
     GtkMl_TaggedValue value = gtk_ml_pop(ctx);
-    if (!gtk_ml_dumpf_value(ctx, stderr, err, value)) {
-        return gtk_ml_value_none();
-    }
-    if (gtk_ml_is_sobject(value)) {
-        fprintf(stderr, " => ");
-        if (!gtk_ml_dumpf(ctx, stderr, err, value.value.sobj)) {
-            return gtk_ml_value_none();
-        }
-    }
-    fprintf(stderr, "\n");
-
     GtkMl_SObj dbg = gtk_ml_pop(ctx).value.sobj;
     (void) dbg;
+
+    gboolean mm_success = 0;
+    if (gtk_ml_is_sobject(value) && value.value.sobj->kind == GTKML_S_MAP) {
+        GtkMl_TaggedValue metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(ctx, NULL, 0, "__dbg", strlen("__dbg")));
+        GtkMl_TaggedValue metafn = gtk_ml_value_none();
+        if (value.value.sobj->value.s_map.metamap) {
+            metafn = gtk_ml_hash_trie_get(&value.value.sobj->value.s_map.metamap->value.s_map.map, metakey);
+        }
+        if (gtk_ml_has_value(metafn)) {
+            if (gtk_ml_is_sobject(metafn)) {
+                GtkMl_SObj metaargs = gtk_ml_new_list(ctx, NULL, gtk_ml_to_sobj(ctx, err, value).value.sobj, gtk_ml_new_nil(ctx, NULL));
+                if (!gtk_ml_run_program(ctx, err, metafn.value.sobj, metaargs)) {
+                    return gtk_ml_value_none();
+                }
+                gtk_ml_pop(ctx);
+                mm_success = 1;
+            } else {
+                GtkMl_SObj error = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
+                    gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")));
+                *err = error;
+                return gtk_ml_value_none();
+            }
+        }
+    }
+
+    if (!mm_success) {
+        if (!gtk_ml_dumpf_value(ctx, stderr, err, value)) {
+            return gtk_ml_value_none();
+        }
+        fprintf(stderr, "\n");
+    }
 
     return value;
 }
@@ -718,6 +744,14 @@ GtkMl_TaggedValue vm_core_emit_bytecode(GtkMl_Context *ctx, GtkMl_SObj *err, Gtk
         return gtk_ml_build_car(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_CDR) == len && strncmp(ptr, GTKML_SI_CDR, len) == 0) {
         return gtk_ml_build_cdr(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_CONS) == len && strncmp(ptr, GTKML_SI_CONS, len) == 0) {
+        return gtk_ml_build_cons(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_MAP) == len && strncmp(ptr, GTKML_SI_MAP, len) == 0) {
+        return gtk_ml_build_map(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_SET) == len && strncmp(ptr, GTKML_SI_SET, len) == 0) {
+        return gtk_ml_build_set(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_ARRAY) == len && strncmp(ptr, GTKML_SI_ARRAY, len) == 0) {
+        return gtk_ml_build_array(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_LIST) == len && strncmp(ptr, GTKML_SI_LIST, len) == 0) {
         return gtk_ml_build_list(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_ENTER) == len && strncmp(ptr, GTKML_SI_ENTER, len) == 0) {
@@ -782,8 +816,8 @@ GtkMl_TaggedValue vm_core_emit_bytecode(GtkMl_Context *ctx, GtkMl_SObj *err, Gtk
         return gtk_ml_build_assignvar(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_LEN) == len && strncmp(ptr, GTKML_SI_LEN, len) == 0) {
         return gtk_ml_build_len(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
-    } else if (strlen(GTKML_SI_ARRAY_INDEX) == len && strncmp(ptr, GTKML_SI_ARRAY_INDEX, len) == 0) {
-        return gtk_ml_build_array_index(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_INDEX) == len && strncmp(ptr, GTKML_SI_INDEX, len) == 0) {
+        return gtk_ml_build_index(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_ARRAY_PUSH) == len && strncmp(ptr, GTKML_SI_ARRAY_PUSH, len) == 0) {
         return gtk_ml_build_array_push(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_ARRAY_POP) == len && strncmp(ptr, GTKML_SI_ARRAY_POP, len) == 0) {
@@ -794,6 +828,10 @@ GtkMl_TaggedValue vm_core_emit_bytecode(GtkMl_Context *ctx, GtkMl_SObj *err, Gtk
         return gtk_ml_build_map_get(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_MAP_INSERT) == len && strncmp(ptr, GTKML_SI_MAP_INSERT, len) == 0) {
         return gtk_ml_build_map_insert(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_MAP_RAWGET) == len && strncmp(ptr, GTKML_SI_MAP_RAWGET, len) == 0) {
+        return gtk_ml_build_map_rawget(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
+    } else if (strlen(GTKML_SI_MAP_RAWINSERT) == len && strncmp(ptr, GTKML_SI_MAP_RAWINSERT, len) == 0) {
+        return gtk_ml_build_map_rawinsert(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_MAP_DELETE) == len && strncmp(ptr, GTKML_SI_MAP_DELETE, len) == 0) {
         return gtk_ml_build_map_delete(arg_ctx, arg_b, arg_basic_block, err)? gtk_ml_value_true() : gtk_ml_value_none();
     } else if (strlen(GTKML_SI_SET_CONTAINS) == len && strncmp(ptr, GTKML_SI_SET_CONTAINS, len) == 0) {
