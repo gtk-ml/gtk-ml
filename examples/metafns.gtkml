@@ -1,0 +1,325 @@
+(define (cdar list) (car (cdr list)))
+(define (cddr list) (cdr (cdr list)))
+
+(define (empty? container) (= (len container) 0))
+(define (nil? value) (= (typeof value) :nil))
+(define (= a b) (cmp 0 a b))
+(define (/= a b) (cmp 1 a b))
+(define (> a b) (cmp 3 a b))
+
+(define (reverse-index array ridx) (index array (- (len array) ridx)))
+
+(define (digit->char digit)
+  (cond
+    (= digit 0) \0
+    (= digit 1) \1
+    (= digit 2) \2
+    (= digit 3) \3
+    (= digit 4) \4
+    (= digit 5) \5
+    (= digit 6) \6
+    (= digit 7) \7
+    (= digit 8) \8
+    (= digit 9) \9
+    :else       (error {:err 'digit-error :desc "number is not a digit" :value digit})))
+
+(define (unsigned->string* acc rest digit)
+  (let [acc*   (push acc (->prim (digit->char digit)))
+        rest*  (/ rest 10) ; 0
+        digit* (% rest 10)] ; 1
+    (cond
+      (= rest 0) acc*
+      :else      (unsigned->string* acc* rest* digit*))))
+
+(define (rev-string* acc array)
+  (cond
+    (empty? array) acc
+    :else          (rev-string* (push acc (reverse-index array 1)) (pop array))))
+
+(define (rev-string array)
+  (rev-string* "" array))
+
+(define (unsigned->string num)
+  (rev-string (unsigned->string* "" (/ num 10) (% num 10))))
+
+(define (format-v-impl acc offset fmt args)
+  (cond
+    (= offset (len fmt))
+      (cond
+        (nil? args) acc
+        :else       (error {:err 'arity-error :desc "too many format arguments" :args args}))
+    (> offset (len fmt))
+      (error {:err 'index-out-of-bounds :desc "fmt offset is greater than (len fmt)" :len (len fmt) :offset offset})
+    (= (index fmt offset) \~)
+      (cond
+        (= (+ offset 1) (len fmt))
+          (error {:err 'fmt-error :desc "invalid format string" :char (index fmt (+ offset 1))})
+        (= (index fmt (+ offset 1)) \a)
+          (cond
+            (nil? args) (error '{:err arity-error :desc "too few format arguments"})
+            :else       (format-v-impl (concat acc (car args)) (+ offset 2) fmt (cdr args)))
+        (= (index fmt (+ offset 1)) \u)
+          (cond
+            (nil? args) (error '{:err arity-error :desc "too few format arguments"})
+            :else       (format-v-impl (concat acc (unsigned->string (car args))) (+ offset 2) fmt (cdr args)))
+        :else
+          (error {:err 'fmt-error :desc "invalid format string" :char (index fmt (+ offset 1))}))
+    :else
+      (format-v-impl (push acc (index fmt offset)) (+ offset 1) fmt args)))
+
+(define (format-v fmt args)
+  (format-v-impl "" 0 fmt args))
+
+(define (format fmt ...args) (format-v fmt args))
+
+(define-macro (and a ...rest)
+  (cond
+    (nil? rest) a
+    :else       `(cond ,a (and ,...rest) :else #f)))
+
+(define-macro (or a ...rest)
+  (cond
+    (nil? rest) a
+    :else       `(cond ,a #t :else (and ,...rest))))
+
+(define (vector-add a b)
+  (vec3 (+ .x a .x b)
+        (+ .y a .y b)
+        (+ .z a .z b)))
+
+(define (vector-unm a b)
+  (vec3 (- .x a)
+        (- .y a)
+        (- .z a)))
+
+(define (vector-index vec idx)
+  (cond
+    (= idx 0) (map-rawget vec x)
+    (= idx 1) (map-rawget vec y)
+    (= idx 2) (map-rawget vec z)
+    :else
+      (error {:err 'index-out-of-bounds
+              :desc "index is out of bounds of vector"
+              :len 3
+              :idx idx})))
+
+(define (vector-insert vec key value)
+  (cond
+    (= key 0) (map-rawinsert vec 'x value)
+    (= key 1) (map-rawinsert vec 'y value)
+    (= key 2) (map-rawinsert vec 'z value)
+    (= key 'x) (map-rawinsert vec 'x value)
+    (= key 'y) (map-rawinsert vec 'y value)
+    (= key 'z) (map-rawinsert vec 'z value)
+    :else
+      (error {:err 'property-error
+              :desc "structure doesn't have property"
+              :keys '[x y z]
+              :key key})))
+
+(define (vector-get vec idx)
+  (cond
+    (= idx :x) (map-rawget vec x)
+    (= idx :y) (map-rawget vec y)
+    (= idx :z) (map-rawget vec z)
+    :else      (map-rawget vec idx)))
+
+(define (vector-len vec) 3)
+
+(define (vector-eq a b)
+  (and (= (index a 0) (index b 0))
+       (= (index a 1) (index b 1))
+       (= (index a 2) (index b 2))))
+
+(define (vector-dbg vec)
+  (dbg [.x vec .y vec .z vec]))
+
+(define (vector->str vec)
+  (format "(vec3 ~u ~u ~u)" .x vec .y vec .z vec))
+
+(define (->str value)
+  (cond
+    (= (typeof value) :int)
+      (format "~u" value)
+    (= (typeof value) :string)
+      value
+    (= (typeof value) :map)
+      ((map-rawget (getmetamap value) :__string) value)
+    :else
+      (error {:err 'string-error :desc "cannot stringify value" :value value})))
+
+(define vector-mm
+  {:__add    vector-add
+   :__unm    vector-unm
+   :__index  vector-index
+   :__insert vector-insert
+   :__len    vector-len
+   :__eq     vector-eq
+   :__dbg    vector-dbg
+   :__string vector->str})
+
+(define (vec3 x y z)
+  (setmetamap {'x x 'y y 'z z} vector-mm))
+
+(define (rev* acc list)
+  (cond
+    (nil? list) acc
+    :else       (rev* (cons (car list) acc) (cdr list))))
+
+(define (rev list)
+  (rev* #nil list))
+
+(define (array-keys* acc array)
+  (cond
+    (empty? array) acc
+    :else
+      (array-keys* (push acc (reverse-index array 2)) (pop (pop array)))))
+
+(define (array-keys array)
+  (array-keys* [] array))
+
+(define (array-quoted-keys* acc array)
+  (cond
+    (empty? array) acc
+    :else
+      (array-quoted-keys* (push acc `(quote ,(reverse-index array 2))) (pop (pop array)))))
+
+(define (array-quoted-keys array)
+  (array-quoted-keys* [] array))
+
+(define (array->quoted-map* acc array)
+  (cond
+    (empty? array) acc
+    :else
+      (array->quoted-map* (map-insert acc `(quote ,(reverse-index array 2)) `(quote ,(reverse-index array 1))) (pop (pop array)))))
+
+(define (array->quoted-map array)
+  (array->quoted-map* {} array))
+
+(define (key-value-pairs* acc array)
+  (cond
+    (empty? array) acc
+    :else
+      (key-value-pairs* (map-insert acc `(quote ,(reverse-index array 1)) (reverse-index array 1)) (pop array))))
+
+(define (key-value-pairs array)
+  (key-value-pairs* {} array))
+
+(define (array->quoted-set* acc array)
+  (cond
+    (empty? array) acc
+    :else
+      (array->quoted-set* (set-insert acc `(quote ,(reverse-index array 1))) (pop array))))
+
+(define (array->quoted-set array)
+  (array->quoted-set* #{} array))
+
+(define (array->list* acc array)
+  (cond
+    (empty? array) (rev acc)
+    :else
+      (array->list* (cons (reverse-index array 1) acc) (pop array))))
+
+(define (array->list array)
+  (array->list* #nil array))
+
+(define (type-check key type)
+  `((/= (typeof ,key) ,type)
+      (error {:err 'type-error :desc "value type does not match field type" :got (typeof ,key) :expected ,type})))
+
+(define (type-checks* acc fields)
+  (cond
+    (empty? fields)
+      acc
+    :else
+      (let [tc (type-check (reverse-index fields 2) (reverse-index fields 1))]
+        (type-checks* `(,(car tc) ,(cdar tc) ,...acc) (pop (pop fields))))))
+
+(define (type-checks fields else)
+  (cons 'cond (type-checks* `(:else ,else) fields)))
+
+(define (new-map* acc key-value)
+  (cond
+    (nil? key-value) acc
+    :else (new-map* (map-insert acc (car key-value) (cdar key-value)) (cddr key-value))))
+
+(define (new-map ...key-value)
+  (new-map* {} key-value))
+
+(define (define-struct* name fields key-list keys quoted-keys key-set type-map key-vals metamap)
+  (let [metamap* (map-insert metamap :__insert
+                  `(lambda (map key value)
+                     (cond
+                       (set-contains ,key-set key)
+                         (cond
+                           (/= (typeof value) (map-rawget ,type-map key))
+                             (error {:err 'type-error :desc "value type does not match field type" :got (typeof value) :expected (map-rawget ,type-map key)})
+                           :else
+                             (map-rawinsert map key value))
+                       :else
+                         (error {:err 'property-error
+                                 :desc "structure doesn't have property"
+                                 :keys ,quoted-keys
+                                 :key key}))))
+        body     `(setmetamap ,key-vals ,metamap*)
+        body*     (type-checks fields body)]
+    `(define (,name ,...key-list) ,body*)))
+
+(define-macro (define-struct name fields ...meta-fns)
+  (let [keys     (array-keys fields)
+        qkeys    (array-quoted-keys fields)
+        key-list (array->list keys)
+        key-set  (array->quoted-set keys)
+        type-map (array->quoted-map fields)
+        key-vals (key-value-pairs keys)]
+    (define-struct* name fields key-list keys qkeys key-set type-map key-vals (new-map ...meta-fns))))
+
+(define-struct my-struct
+  [int :int float :float]
+  :__len (lambda (_) 2))
+;; expands to
+; (define (my-struct int float)
+;   (cond
+;     (/= (typeof int) :int)
+;       (error {:err 'type-error :desc "value type does not match field type" :got (typeof int) :expected :int})
+;     (/= (typeof float) :float)
+;       (error {:err 'type-error :desc "value type does not match field type" :got (typeof float) :expected :float})
+;     :else
+;       (setmetamap
+;         {'int int
+;          'float float} 
+;         {:__len (lambda (_) 2)
+;          :__insert (lambda (map key value)
+;                      (cond
+;                        (set-contains #{'int 'float} key)
+;                          (cond
+;                            (/= (typeof value) (map-rawget {'int :int 'float :float} key))
+;                              (error {:err 'type-error :desc "value type does not match field type" :got (typeof value) :expected (map-rawget {'int :int 'float :float} key)})
+;                            :else
+;                              (map-rawinsert map key value))
+;                        :else
+;                          (error {:err 'property-error
+;                                  :desc "structure doesn't have property"
+;                                  :keys '[int float]
+;                                  :key key})))})))
+
+(let* [v1 (dbg (+ (vec3 1 2 3) (vec3 4 5 6)))
+       v2 (map-insert v1 'y 0)
+       v3 (map-insert v2 0 0)]
+  (dbg [(->str v1) (->str v2) (->str v3)]))
+
+(let* [rec1 (my-struct 1 2.0)
+       len  (len rec1)]
+  (dbg [rec1 len]))
+
+;; uncomment if you want to see it fail
+; (let* [rec1 (my-struct 1.0 2)]
+;   (dbg rec1))
+
+;; uncomment if you want to see it fail
+; (let* [rec1 (my-struct 1 2.0)]
+;   (dbg (map-insert rec1 'int "string")))
+
+;; uncomment if you want to see it fail
+; (let* [rec1 (my-struct 1 2.0)]
+;   (dbg (map-insert rec1 'string "string")))
