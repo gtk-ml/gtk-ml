@@ -2351,11 +2351,15 @@ gboolean gtk_ml_i_call(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
             vm->pc = program.value.sobj->value.s_program.addr;
         } break;
         case GTKML_S_FFI: {
-            void (*ffi)(GtkMl_TaggedValue *, GtkMl_Context *, GtkMl_SObj *) = program.value.sobj->value.s_ffi.ffi;
+            GtkMl_Ffi ffi = program.value.sobj->value.s_ffi.ffi;
 
             GtkMl_TaggedValue result = gtk_ml_value_none();
             ffi(&result, vm->ctx, err);
             if (!gtk_ml_has_value(result)) {
+                if (!*err) {
+                    GtkMl_SObj error = gtk_ml_error(vm->ctx, "unknown-error", GTKML_ERR_UNKNOWN_ERROR, 0, 0, 0, 0);
+                    *err = error;
+                }
                 return 0;
             }
             gtk_ml_push(vm->ctx, result);
@@ -2371,11 +2375,15 @@ gboolean gtk_ml_i_call(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
         }
     } else {
         if (program.tag == GTKML_TAG_FFI) {
-            void (*ffi)(GtkMl_TaggedValue *, GtkMl_Context *, GtkMl_SObj *) = program.value.ffi;
+            GtkMl_Ffi ffi = program.value.ffi;
 
             GtkMl_TaggedValue result = gtk_ml_value_none();
             ffi(&result, vm->ctx, err);
             if (!gtk_ml_has_value(result)) {
+                if (!*err) {
+                    GtkMl_SObj error = gtk_ml_error(vm->ctx, "unknown-error", GTKML_ERR_UNKNOWN_ERROR, 0, 0, 0, 0);
+                    *err = error;
+                }
                 return 0;
             }
             gtk_ml_push(vm->ctx, result);

@@ -1,2 +1,2 @@
-(let [mod (load "lib.so")]
+(let [mod (load "lib")]
   (.foo mod 1))

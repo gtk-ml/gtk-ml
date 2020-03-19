@@ -306,6 +306,12 @@ int main(int argc, const char **argv) {
 
         GtkMl_TaggedValue program = gtk_ml_load(ctx, &src, &err, file);
         free(file);
+        if (!gtk_ml_has_value(program)) {
+            (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
+            fprintf(stderr, "\n");
+            gtk_ml_del_context(ctx);
+            return 1;
+        }
 
         if (!gtk_ml_execute(ctx, &err, program, GTKML_NO_ARGS, 0)) {
             if (src) {

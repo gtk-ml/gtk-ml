@@ -54,6 +54,9 @@ typedef int gboolean;
 #error "gtk-ml: i don't know a type that's 64-bit long"
 #endif /* GTKML_LONG_WIDTH == 64 */
 
+#define gtk_ml_stringify2(x) #x
+#define gtk_ml_stringify(x) gtk_ml_stringify2(x)
+
 #define GTKML_PRIVATE static
 
 #define GTKML_VERSION "libgtkml ver. 0.0.0"
@@ -282,7 +285,9 @@ typedef enum GtkMl_Opcode {
 #define GTKML_R_PC 5
 #define GTKML_REGISTER_COUNT 6
 
+#define GTKML_ERR_UNKNOWN_ERROR "something returned an invalid value without setting the error"
 #define GTKML_ERR_IO_ERROR "unknown io error, check errno"
+#define GTKML_ERR_EXT_ERROR "unknown extension"
 #define GTKML_ERR_CHARACTER_ERROR "unexpected character"
 #define GTKML_ERR_TOKEN_ERROR "unexpected token"
 #define GTKML_ERR_ESCAPE_ERROR "invalid escape sequence"

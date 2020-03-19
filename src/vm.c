@@ -534,7 +534,7 @@ GtkMl_TaggedValue vm_core_to_array(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Ta
             gtk_ml_array_trie_push(&new->value.s_array.array, &array->value.s_array.array, gtk_ml_value_userdata(value));
         } break;
         case GTKML_TAG_FFI: {
-            void (*value)(GtkMl_TaggedValue *, GtkMl_Context *, GtkMl_SObj *);
+            GtkMl_Ffi value;
             *(void **) (&value) = *(void **) (ptr + i * size);
             gtk_ml_array_trie_push(&new->value.s_array.array, &array->value.s_array.array, gtk_ml_value_ffi(value));
         } break;

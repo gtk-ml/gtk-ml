@@ -572,8 +572,13 @@ gboolean gtk_ml_execute_internal(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Tagg
             }
 
             GtkMl_TaggedValue result = gtk_ml_value_none();
+            *err = NULL;
             program(&result, ctx, err);
             if (!gtk_ml_has_value(result)) {
+                if (!*err) {
+                    GtkMl_SObj error = gtk_ml_error(ctx, "unknown-error", GTKML_ERR_UNKNOWN_ERROR, 0, 0, 0, 0);
+                    *err = error;
+                }
                 return 0;
             }
             gtk_ml_push(ctx, result);
@@ -597,6 +602,10 @@ gboolean gtk_ml_execute_internal(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Tagg
         GtkMl_TaggedValue result = gtk_ml_value_none();
         program(&result, ctx, err);
         if (!gtk_ml_has_value(result)) {
+            if (!*err) {
+                GtkMl_SObj error = gtk_ml_error(ctx, "unknown-error", GTKML_ERR_UNKNOWN_ERROR, 0, 0, 0, 0);
+                *err = error;
+            }
             return 0;
         }
         gtk_ml_push(ctx, result);
@@ -612,13 +621,79 @@ gboolean gtk_ml_execute(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue v
     return gtk_ml_execute_internal(ctx, err, value, args, n_args, GTKML_STAGE_RUNTIME);
 }
 
-GtkMl_TaggedValue gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, const char *file) {
-    if (strlen(file) >= strlen(".bgtkml") && strcmp(file + strlen(file) - strlen(".bgtkml"), ".bgtkml") == 0) {
+GTKML_PRIVATE char *find_module(const char **ext, const char *module) {
+    char *filename = malloc(strlen(module) + strlen(".bgtkml") + 1); // .bgtkml is the longest extension
+
+    if (strlen(module) >= strlen(".bgtkml") && strcmp(module + strlen(module) - strlen(".bgtkml"), ".bgtkml") == 0) {
+        *ext = ".bgtkml";
+        strcpy(filename, module);
+        return filename;
+    } else if (strlen(module) >= strlen(".gtkml") && strcmp(module + strlen(module) - strlen(".gtkml"), ".gtkml") == 0) {
+        *ext = ".gtkml";
+        strcpy(filename, module);
+        return filename;
+#ifdef GTKML_ENABLE_POSIX
+    } else if (strlen(module) >= strlen(".so") && strcmp(module + strlen(module) - strlen(".so"), ".so") == 0) {
+        *ext = ".so";
+        strcpy(filename, module);
+        return filename;
+#endif /* GTKML_ENABLE_POSIX */
+    }
+
+    FILE *stream = NULL;
+
+    strcpy(filename, module);
+
+#ifdef GTKML_ENABLE_POSIX
+    *ext = ".so";
+    strcpy(filename + strlen(module), *ext);
+
+    void *lib = dlopen(filename, RTLD_LAZY);
+    if (lib) {
+        dlclose(lib);
+        return filename;
+    }
+#endif /* GTKML_ENABLE_POSIX */
+
+    *ext = ".bgtkml";
+    strcpy(filename + strlen(module), *ext);
+
+    stream = fopen(filename, "r");
+    if (stream) {
+        fclose(stream);
+        return filename;
+    }
+
+    *ext = ".gtkml";
+    strcpy(filename + strlen(module), *ext);
+
+    stream = fopen(filename, "r");
+    if (stream) {
+        fclose(stream);
+        return filename;
+    }
+
+    return NULL;
+}
+
+GtkMl_TaggedValue gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, const char *module) {
+    const char *ext = NULL;
+    const char *path = find_module(&ext, module);
+
+    if (!path) {
+        *err = gtk_ml_error(ctx, "io-error", "module not found", 0, 0, 0, 1,
+            gtk_ml_new_keyword(ctx, NULL, 0, "module", strlen("module")),
+            gtk_ml_new_string(ctx, NULL, module, strlen(module)));
+        return gtk_ml_value_none();
+    }
+
+    if (strcmp(ext, ".bgtkml") == 0) {
         GtkMl_Deserializer deserf;
         gtk_ml_new_deserializer(&deserf);
-        FILE *stream = fopen(file, "r");
+        FILE *stream = fopen(path, "r");
+        free((void *) path);
         if (!stream) {
-            *err = gtk_ml_error(ctx, "io-error", GTKML_ERR_IO_ERROR, 0, 0, 0, 0);
+            *err = gtk_ml_error(ctx, "io-error", strerror(errno), 0, 0, 0, 0);
             return gtk_ml_value_none();
         }
         GtkMl_Program *program = gtk_ml_deserf_program(&deserf, ctx, stream, err);
@@ -630,9 +705,20 @@ GtkMl_TaggedValue gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, c
 
         // TODO(walterpi): link this program into the currently running runtime
         return gtk_ml_value_none();
+    } else if (strcmp(ext, ".gtkml") == 0) {
+        FILE *stream = fopen(path, "r");
+        free((void *) path);
+        if (!stream) {
+            *err = gtk_ml_error(ctx, "io-error", strerror(errno), 0, 0, 0, 0);
+            return gtk_ml_value_none();
+        }
+        GtkMl_TaggedValue result = gtk_ml_loadf(ctx, src, err, stream);
+        fclose(stream);
+        return result;
 #ifdef GTKML_ENABLE_POSIX
-    } else if (strlen(file) >= strlen(".so") && strcmp(file + strlen(file) - strlen(".so"), ".so") == 0) {
-        void *lib = dlopen(file, RTLD_LAZY | RTLD_LOCAL | RTLD_NODELETE);
+    } else if (strcmp(ext, ".so") == 0) {
+        void *lib = dlopen(path, RTLD_LAZY | RTLD_LOCAL | RTLD_NODELETE);
+        free((void *) path);
         char *error;
         if (!lib) {
             error = dlerror();
@@ -662,14 +748,8 @@ GtkMl_TaggedValue gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, c
         return gtk_ml_value_ffi(init);
 #endif /* GTKML_ENABLE_POSIX */
     } else {
-        FILE *stream = fopen(file, "r");
-        if (!stream) {
-            *err = gtk_ml_error(ctx, "io-error", GTKML_ERR_IO_ERROR, 0, 0, 0, 0);
-            return gtk_ml_value_none();
-        }
-        GtkMl_TaggedValue result = gtk_ml_loadf(ctx, src, err, stream);
-        fclose(stream);
-        return result;
+        *err = gtk_ml_error(ctx, "ext-error", GTKML_ERR_EXT_ERROR, 0, 0, 0, 0);
+        return gtk_ml_value_none();
     }
 }
 
@@ -864,7 +944,7 @@ gboolean default_hash_update(GtkMl_Hash *hash, GtkMl_TaggedValue ptr) {
         jenkins_update(hash, &value->value.s_userdata.userdata, sizeof(void *));
         break;
     case GTKML_S_FFI:
-        jenkins_update(hash, &value->value.s_ffi.ffi, sizeof(void (*)()));
+        jenkins_update(hash, &value->value.s_ffi.ffi, sizeof(GtkMl_Ffi));
         break;
     }
     return 1;
