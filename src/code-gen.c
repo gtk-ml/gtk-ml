@@ -279,13 +279,11 @@ gboolean gtk_ml_builder_intr_apply(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     if (!intr_program) {
         return 0;
     }
-    if (!gtk_ml_run_program(tmp_ctx, err, intr_program, gtk_ml_new_nil(tmp_ctx, NULL))) {
+    if (!gtk_ml_execute(tmp_ctx, err, gtk_ml_value_sobject(intr_program), GTKML_NO_ARGS, 0)) {
         return 0;
     }
 
     GtkMl_SObj *function = &gtk_ml_cdar(*stmt);
-
-    GtkMl_SObj args = gtk_ml_cddr(*stmt);
 
     if ((*function)->kind == GTKML_S_SYMBOL) {
         size_t len = (*function)->value.s_symbol.len;
@@ -297,13 +295,23 @@ gboolean gtk_ml_builder_intr_apply(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         GtkMl_SObj program = gtk_ml_get_export(tmp_ctx, &_err, linkage_name);
         free(linkage_name);
         if (program && program->value.s_program.kind == GTKML_PROG_INTRINSIC) {
+            GtkMl_SObj _args = gtk_ml_cddr(*stmt);
+
+            size_t cap = 8;
+            size_t n_args = 0;
+            GtkMl_TaggedValue *args = malloc(sizeof(GtkMl_TaggedValue) * cap);
+
+            while (_args->kind != GTKML_S_NIL) {
+                args[n_args++] = gtk_ml_value_sobject(gtk_ml_car(_args));
+            }
+
             GtkMl_BasicBlock *bb = *basic_block;
             GtkMl_SObj bb_ld = gtk_ml_new_lightdata(b->intr_ctx, NULL, bb);
             GtkMl_SObj bb_var = gtk_ml_new_var(b->intr_ctx, NULL, bb_ld);
             gtk_ml_bind(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CTX", strlen("CTX")), gtk_ml_value_userdata(ctx));
             gtk_ml_bind(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CODE-BUILDER", strlen("CODE-BUILDER")), gtk_ml_value_userdata(b));
             gtk_ml_bind(tmp_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "BASIC-BLOCK", strlen("BASIC-BLOCK")), gtk_ml_value_sobject(bb_var));
-            if (!gtk_ml_run_program(tmp_ctx, err, program, args)) {
+            if (!gtk_ml_execute(tmp_ctx, err, gtk_ml_value_sobject(program), args, n_args)) {
                 return 0;
             }
             *basic_block = bb_var->value.s_var.expr->value.s_lightdata.userdata;
@@ -1725,6 +1733,7 @@ gboolean gtk_ml_compile_cond_expression(GtkMl_Context *ctx, GtkMl_Builder *b, Gt
     case GTKML_S_ADDRESS:
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
+    case GTKML_S_FFI:
     case GTKML_S_LAMBDA: 
     case GTKML_S_MACRO:
     case GTKML_S_MAP:
@@ -1902,6 +1911,7 @@ gboolean gtk_ml_compile_quasi_expression(GtkMl_Context *ctx, GtkMl_Builder *b, G
     case GTKML_S_ADDRESS:
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
+    case GTKML_S_FFI:
     case GTKML_S_SYMBOL:
     case GTKML_S_LAMBDA:
     case GTKML_S_MACRO:
@@ -2036,6 +2046,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     case GTKML_S_ADDRESS:
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
+    case GTKML_S_FFI:
         return gtk_ml_build_push_imm(ctx, b, *basic_block, err, gtk_ml_append_static_data(b, *stmt));
     case GTKML_S_SYMBOL: {
         GtkMl_TaggedValue local = gtk_ml_builder_get(b, *stmt);
@@ -2110,7 +2121,21 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         return 0;
     case GTKML_S_LIST: {
         GtkMl_SObj *function = &gtk_ml_car(*stmt);
-        GtkMl_SObj args = gtk_ml_cdr(*stmt);
+
+        GtkMl_SObj _args = gtk_ml_cdr(*stmt);
+
+        size_t cap = 8;
+        size_t n_args = 0;
+        GtkMl_TaggedValue *args = malloc(sizeof(GtkMl_TaggedValue) * cap);
+
+        while (_args->kind != GTKML_S_NIL) {
+            if (n_args == cap) {
+                cap *= 2;
+                args = realloc(args, sizeof(GtkMl_TaggedValue) * cap);
+            }
+            args[n_args++] = gtk_ml_value_sobject(gtk_ml_car(_args));
+            _args = gtk_ml_cdr(_args);
+        }
 
         if ((*function)->kind == GTKML_S_SYMBOL) {
             size_t len = (*function)->value.s_symbol.len;
@@ -2148,13 +2173,14 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
             GtkMl_SObj program = gtk_ml_get_export(b->intr_ctx, &_err, linkage_name);
             free(linkage_name);
             if (program && program->value.s_program.kind == GTKML_PROG_INTRINSIC) {
+
                 GtkMl_BasicBlock *bb = *basic_block;
                 GtkMl_SObj bb_ld = gtk_ml_new_lightdata(b->intr_ctx, NULL, bb);
                 GtkMl_SObj bb_var = gtk_ml_new_var(b->intr_ctx, NULL, bb_ld);
                 gtk_ml_bind(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CTX", strlen("CTX")), gtk_ml_value_userdata(ctx));
                 gtk_ml_bind(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "CODE-BUILDER", strlen("CODE-BUILDER")), gtk_ml_value_userdata(b));
                 gtk_ml_bind(b->intr_ctx, gtk_ml_new_symbol(ctx, NULL, 0, "BASIC-BLOCK", strlen("BASIC-BLOCK")), gtk_ml_value_sobject(bb_var));
-                if (!gtk_ml_run_program(b->intr_ctx, err, program, args)) {
+                if (!gtk_ml_execute(b->intr_ctx, err, gtk_ml_value_sobject(program), args, n_args)) {
                     return 0;
                 }
                 *basic_block = bb_var->value.s_var.expr->value.s_lightdata.userdata;
@@ -2172,7 +2198,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
             GtkMl_SObj program = gtk_ml_get_export(b->macro_ctx, &_err, linkage_name);
             free(linkage_name);
             if (program && program->value.s_program.kind == GTKML_PROG_MACRO) {
-                if (!gtk_ml_run_program(b->macro_ctx, err, program, args)) {
+                if (!gtk_ml_execute(b->macro_ctx, err, gtk_ml_value_sobject(program), args, n_args)) {
                     return 0;
                 }
 
@@ -2189,13 +2215,14 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
         }
 
         gboolean unwrapped = 0;
-        int64_t n_args = 0;
-        while (args->kind != GTKML_S_NIL) {
+        n_args = 0;
+        _args = gtk_ml_cdr(*stmt);
+        while (_args->kind != GTKML_S_NIL) {
             if (unwrapped) {
                 *err = gtk_ml_error(ctx, "unwrap-error", GTKML_ERR_UNWRAP_ERROR, (*stmt)->span.ptr != NULL, (*stmt)->span.line, (*stmt)->span.col, 0);
                 return 0;
             }
-            GtkMl_SObj *arg = &gtk_ml_car(args);
+            GtkMl_SObj *arg = &gtk_ml_car(_args);
             if ((*arg)->kind == GTKML_S_VARARG) { // unwrap
                 if (!gtk_ml_compile_expression(ctx, b, basic_block, err, &(*arg)->value.s_vararg.expr, allow_intr, allow_macro, allow_runtime, allow_macro_expansion)) {
                     return 0;
@@ -2210,7 +2237,7 @@ gboolean gtk_ml_compile_expression(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
                 }
                 ++n_args;
             }
-            args = gtk_ml_cdr(args);
+            _args = gtk_ml_cdr(_args);
         }
 
         if (!gtk_ml_build_push_imm(ctx, b, *basic_block, err, gtk_ml_append_data(b, gtk_ml_value_int(n_args)))) {
@@ -2677,6 +2704,11 @@ gboolean gtk_ml_compile_intrinsics(GtkMl_Builder *b, GtkMl_BasicBlock **start, G
     while (next->kind != GTKML_S_NIL) {
         GtkMl_SObj stmt = gtk_ml_car(next);
 
+        if (stmt->kind != GTKML_S_LIST) {
+            next = gtk_ml_cdr(next);
+            continue;
+        }
+
         GtkMl_SObj function = gtk_ml_car(stmt);
 
         GtkMl_SObj args = gtk_ml_cdr(stmt);
@@ -2801,6 +2833,11 @@ gboolean gtk_ml_compile_macros(GtkMl_Builder *b, GtkMl_BasicBlock **start, GtkMl
     while (next->kind != GTKML_S_NIL) {
         GtkMl_SObj stmt = gtk_ml_car(next);
 
+        if (stmt->kind != GTKML_S_LIST) {
+            next = gtk_ml_cdr(next);
+            continue;
+        }
+
         GtkMl_SObj function = gtk_ml_car(stmt);
 
         GtkMl_SObj args = gtk_ml_cdr(stmt);
@@ -2919,90 +2956,13 @@ gboolean gtk_ml_compile(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_SObj *err, G
 gboolean gtk_ml_compile_program(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_SObj *err, GtkMl_SObj lambda) {
     collect_intrinsics(ctx, b, lambda);
 
-    GtkMl_SObj counter = gtk_ml_builder_get_and_inc(ctx, b);
-    char *linkage_name = malloc(strlen("_start.") + 16);
-    sprintf(linkage_name, "_start.%"GTKML_FMT_64"u", counter->value.s_int.value);
-    GtkMl_BasicBlock *intr_start = gtk_ml_append_basic_block(b, linkage_name);
-
-    if (intr_start->len_text == intr_start->cap_text) {
-        intr_start->cap_text *= 2;
-        intr_start->text = realloc(intr_start->text, sizeof(GtkMl_Instruction) * intr_start->cap_text);
-    }
-
-    counter = gtk_ml_builder_get_and_inc(ctx, b);
-    char *name = malloc(strlen(linkage_name) + 1);
-    strcpy(name, linkage_name);
-    GtkMl_SObj program = gtk_ml_new_program(b->intr_ctx, &lambda->span, name, 0, lambda->value.s_lambda.args, lambda->value.s_lambda.body, lambda->value.s_lambda.capture, GTKML_PROG_INTRINSIC);
-    free(name);
-    intr_start->text[intr_start->len_text].cond = GTKML_F_NONE;
-    intr_start->text[intr_start->len_text].category = GTKML_I_EXPORT;
-    intr_start->text[intr_start->len_text].opcode = 0;
-    intr_start->text[intr_start->len_text].data = gtk_ml_append_static_data(b, program);
-    ++intr_start->len_text;
-
-    if (!gtk_ml_compile_intrinsics(b, &intr_start, err, lambda)) {
-        return 0;
-    }
-
-    GtkMl_Program *intrinsics = gtk_ml_build_intrinsics(ctx, err, b, b->intrinsics, b->len_intrinsics);
-    if (!intrinsics) {
-        return 0;
-    }
-    if (b->idx_prev_intr == (size_t) -1) {
-        b->idx_prev_intr = b->len_intrinsics;
-        ++b->len_intrinsics;
-    }
-    b->intrinsics[b->idx_prev_intr] = intrinsics;
-    gtk_ml_load_program(b->intr_ctx, intrinsics);
-    GtkMl_SObj intr_program = gtk_ml_get_export(b->intr_ctx, err, intrinsics->start);
-    if (!intr_program) {
-        return 0;
-    }
-    if (!gtk_ml_run_program(b->intr_ctx, err, intr_program, gtk_ml_new_nil(b->intr_ctx, NULL))) {
+    if (!gtk_ml_execute_internal(ctx, err, gtk_ml_value_sobject(lambda), GTKML_NO_ARGS, 0, GTKML_STAGE_INTR)) {
         return 0;
     }
 
     collect_macros(ctx, b, lambda);
 
-    counter = gtk_ml_builder_get_and_inc(ctx, b);
-    linkage_name = malloc(strlen("_start.") + 16);
-    sprintf(linkage_name, "_start.%"GTKML_FMT_64"u", counter->value.s_int.value);
-    GtkMl_BasicBlock *macro_start = gtk_ml_append_basic_block(b, linkage_name);
-
-    if (macro_start->len_text == macro_start->cap_text) {
-        macro_start->cap_text *= 2;
-        macro_start->text = realloc(macro_start->text, sizeof(GtkMl_Instruction) * macro_start->cap_text);
-    }
-
-    counter = gtk_ml_builder_get_and_inc(ctx, b);
-    name = malloc(strlen(linkage_name) + 1);
-    strcpy(name, linkage_name);
-    program = gtk_ml_new_program(b->macro_ctx, &lambda->span, name, 0, lambda->value.s_lambda.args, lambda->value.s_lambda.body, lambda->value.s_lambda.capture, GTKML_PROG_MACRO);
-    macro_start->text[macro_start->len_text].cond = GTKML_F_NONE;
-    macro_start->text[macro_start->len_text].category = GTKML_I_EXPORT;
-    macro_start->text[macro_start->len_text].opcode = 0;
-    macro_start->text[macro_start->len_text].data = gtk_ml_append_static_data(b, program);
-    ++macro_start->len_text;
-
-    if (!gtk_ml_compile_macros(b, &macro_start, err, lambda)) {
-        return 0;
-    }
-
-    GtkMl_Program *macros = gtk_ml_build_macros(ctx, err, b, b->macros, b->len_macros);
-    if (!macros) {
-        return 0;
-    }
-    if (b->idx_prev_macro == (size_t) -1) {
-        b->idx_prev_macro = b->len_macros;
-        ++b->len_macros;
-    }
-    b->macros[b->idx_prev_macro] = macros;
-    gtk_ml_load_program(b->macro_ctx, macros);
-    GtkMl_SObj macro_program = gtk_ml_get_export(b->macro_ctx, err, macros->start);
-    if (!macro_program) {
-        return 0;
-    }
-    if (!gtk_ml_run_program(b->macro_ctx, err, macro_program, gtk_ml_new_nil(b->macro_ctx, NULL))) {
+    if (!gtk_ml_execute_internal(ctx, err, gtk_ml_value_sobject(lambda), GTKML_NO_ARGS, 0, GTKML_STAGE_MACRO)) {
         return 0;
     }
 

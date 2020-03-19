@@ -156,6 +156,7 @@ gboolean gtk_ml_serf_sobject(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *s
         break;
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
+    case GTKML_S_FFI:
         *err = gtk_ml_error(ctx, "ser-error", GTKML_ERR_SER_ERROR, value->span.ptr != NULL, value->span.line, value->span.col, 0);
         return 0;
     case GTKML_S_LAMBDA:
@@ -571,6 +572,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
     }
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
+    case GTKML_S_FFI:
         *err = gtk_ml_error(ctx, "deser-error", GTKML_ERR_DESER_ERROR, 0, 0, 0, 0);
         return 0;
     default:

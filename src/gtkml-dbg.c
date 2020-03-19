@@ -368,10 +368,6 @@ int main(int argc, const char **argv, char *const *envp) {
 
         gtk_ml_set_debug(ctx, pid, (GtkMl_Context *) regs.rax);
 
-        GtkMl_Builder *builder = ctx->default_builder;
-        GtkMl_Program *previous_program = NULL;
-        size_t n_previous = 0;
-
         linenoiseInstallWindowChangeHandler();
 
         //linenoiseSetCompletionCallback(completionHook);
@@ -418,61 +414,31 @@ int main(int argc, const char **argv, char *const *envp) {
             line = _line;
 
             if (paren <= 0) {
-                GtkMl_SObj lambda;
-                if (!(lambda = gtk_ml_loads(ctx, &err, src))) {
-                    free(src);
-                    src = NULL;
-                    free(line);
+                GtkMl_TaggedValue program = gtk_ml_loads(ctx, &err, src);
+
+                if (!gtk_ml_execute(ctx, &err, program, GTKML_NO_ARGS, 0)) {
+                    if (src) {
+                        free(src);
+                    }
                     (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
-                    continue;
+                    gtk_ml_del_context(ctx);
+                    return 1;
                 }
 
-                if (!gtk_ml_compile_program(ctx, builder, &err, lambda)) {
-                    free(src);
-                    src = NULL;
-                    free(line);
-                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
-                    fprintf(stderr, "\n");
-                    continue;
+                GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['D'].long_opt, strlen(PARAMS['D'].long_opt));
+                GtkMl_SObj dump_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(dump_kw)).value.sobj;
+                if (dump_opt->kind == GTKML_S_TRUE) {
+                    if (!gtk_ml_dumpf_program(ctx, stdout, &err)) {
+                        if (src) {
+                            free(src);
+                        }
+                        (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
+                        fprintf(stderr, "\n");
+                        gtk_ml_del_context(ctx);
+                        return 1;
+                    }
                 }
-
-                GtkMl_Program *program = gtk_ml_build(ctx, &err, builder, &previous_program, n_previous);
-                if (!program) {
-                    free(src);
-                    src = NULL;
-                    free(line);
-                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
-                    fprintf(stderr, "\n");
-                    continue;
-                }
-
-                previous_program = program;
-                n_previous = 1;
-
-                gtk_ml_load_program(ctx, program);
-
-                GtkMl_SObj start = gtk_ml_get_export(ctx, &err, program->start);
-                if (!start) {
-                    free(src);
-                    src = NULL;
-                    free(line);
-                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
-                    fprintf(stderr, "\n");
-                    continue;
-                }
-
-                if (!gtk_ml_run_program(ctx, &err, start, NULL)) {
-                    free(src);
-                    src = NULL;
-                    free(line);
-                    (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
-                    fprintf(stderr, "\n");
-                    continue;
-                }
-
-                free(src);
-                src = NULL;
             }
             free(line);
         }

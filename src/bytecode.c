@@ -32,6 +32,7 @@ GTKML_PRIVATE const char *TYPENAME[] = {
     [GTKML_S_MACRO] = "macro",
     [GTKML_S_LIGHTDATA] = "lightdata",
     [GTKML_S_USERDATA] = "userdata",
+    [GTKML_S_FFI] = "ffi",
 };
 
 GTKML_PRIVATE const char *PRIMNAME[] = {
@@ -41,6 +42,7 @@ GTKML_PRIVATE const char *PRIMNAME[] = {
     [GTKML_TAG_FLOAT] = "float",
     [GTKML_TAG_CHAR] = "char",
     [GTKML_TAG_USERDATA] = "lightdata",
+    [GTKML_TAG_FFI] = "ffi",
 };
 
 GTKML_PRIVATE GtkMl_TaggedValue gtk_ml_get_data(GtkMl_Program *program, GtkMl_Data data) {
@@ -168,10 +170,11 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
             try_mm = 1; \
         } \
         gboolean mm_success = 0; \
-        GtkMl_SObj metaargs; \
+        GtkMl_TaggedValue metaargs[2]; \
         GtkMl_TaggedValue metakey; \
         if (try_mm) { \
-            metaargs = gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL))); \
+            metaargs[0] = tv_lhs; \
+            metaargs[1] = tv_rhs; \
             metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, metasym, strlen(metasym))); \
             if (gtk_ml_is_sobject(tv_lhs)) { \
                 if (tv_lhs.value.sobj->kind == GTKML_S_MAP) { \
@@ -181,14 +184,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -210,14 +208,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -317,10 +310,11 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
             try_mm = 1; \
         } \
         gboolean mm_success = 0; \
-        GtkMl_SObj metaargs; \
+        GtkMl_TaggedValue metaargs[2]; \
         GtkMl_TaggedValue metakey; \
         if (try_mm) { \
-            metaargs = gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL))); \
+            metaargs[0] = tv_lhs; \
+            metaargs[1] = tv_rhs; \
             metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, metasym, strlen(metasym))); \
             if (gtk_ml_is_sobject(tv_lhs)) { \
                 if (tv_lhs.value.sobj->kind == GTKML_S_MAP) { \
@@ -330,14 +324,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -359,14 +348,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -466,10 +450,11 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
             try_mm = 1; \
         } \
         gboolean mm_success = 0; \
-        GtkMl_SObj metaargs; \
+        GtkMl_TaggedValue metaargs[2]; \
         GtkMl_TaggedValue metakey; \
         if (try_mm) { \
-            metaargs = gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL))); \
+            metaargs[0] = tv_lhs; \
+            metaargs[1] = tv_rhs; \
             metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, metasym, strlen(metasym))); \
             if (gtk_ml_is_sobject(tv_lhs)) { \
                 if (tv_lhs.value.sobj->kind == GTKML_S_MAP) { \
@@ -479,14 +464,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -508,14 +488,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -615,10 +590,11 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
             try_mm = 1; \
         } \
         gboolean mm_success = 0; \
-        GtkMl_SObj metaargs; \
+        GtkMl_TaggedValue metaargs[2]; \
         GtkMl_TaggedValue metakey; \
         if (try_mm) { \
-            metaargs = gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL))); \
+            metaargs[0] = tv_lhs; \
+            metaargs[1] = tv_rhs; \
             metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, metasym, strlen(metasym))); \
             if (gtk_ml_is_sobject(tv_lhs)) { \
                 if (tv_lhs.value.sobj->kind == GTKML_S_MAP) { \
@@ -628,14 +604,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -657,14 +628,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -744,10 +710,11 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
             try_mm = 1; \
         } \
         gboolean mm_success = 0; \
-        GtkMl_SObj metaargs; \
+        GtkMl_TaggedValue metaargs[2]; \
         GtkMl_TaggedValue metakey; \
         if (try_mm) { \
-            metaargs = gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL))); \
+            metaargs[0] = tv_lhs; \
+            metaargs[1] = tv_rhs; \
             metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, metasym, strlen(metasym))); \
             if (gtk_ml_is_sobject(tv_lhs)) { \
                 if (tv_lhs.value.sobj->kind == GTKML_S_MAP) { \
@@ -757,14 +724,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -786,14 +748,9 @@ GTKML_PRIVATE void set_flags(GtkMl_Vm *vm, GtkMl_TaggedValue result) {
                     } \
                     if (gtk_ml_has_value(metafn)) { \
                         if (gtk_ml_is_sobject(metafn)) { \
-                            uint32_t pc = vm->pc; \
-                            uint32_t flags = vm->flags & GTKML_F_TOPCALL; \
-                            if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) { \
+                            if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) { \
                                 return 0; \
                             } \
-                            vm->flags &= ~GTKML_F_TOPCALL; \
-                            vm->flags |= flags; \
-                            vm->pc = pc; \
                             mm_success = 1; \
                             try_mm = 0; \
                         } else { \
@@ -888,17 +845,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -918,17 +868,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -954,17 +897,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -984,17 +920,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1020,17 +949,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1050,17 +972,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1097,17 +1012,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1127,17 +1035,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1174,17 +1075,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1204,17 +1098,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1251,17 +1138,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1281,17 +1161,10 @@ gboolean gtk_ml_i_cmp_imm(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
                 }
                 if (gtk_ml_has_value(metafn)) {
                     if (gtk_ml_is_sobject(metafn)) {
-                        GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_lhs).value.sobj, gtk_ml_new_list(vm->ctx, NULL,
-                            gtk_ml_to_sobj(vm->ctx, err, tv_rhs).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                        uint32_t pc = vm->pc;
-                        uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                        if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                        GtkMl_TaggedValue metaargs[] = { tv_lhs, tv_rhs };
+                        if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                             return 0;
                         }
-                        vm->flags &= ~GTKML_F_TOPCALL;
-                        vm->flags |= flags;
-                        vm->pc = pc;
                         mm_success = 1;
                     } else {
                         GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -1559,6 +1432,8 @@ GtkMl_TaggedValue gtk_ml_to_sobj(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Tagg
             return gtk_ml_value_sobject(gtk_ml_new_float(ctx, NULL, value.value.flt));
         case GTKML_TAG_USERDATA:
             return gtk_ml_value_sobject(gtk_ml_new_lightdata(ctx, NULL, value.value.userdata));
+        case GTKML_TAG_FFI:
+            return gtk_ml_value_sobject(gtk_ml_new_ffi(ctx, NULL, value.value.ffi));
         default:
             *err = gtk_ml_error(ctx, "primitive-error", GTKML_ERR_TAG_ERROR, 0, 0, 0, 0);
             return gtk_ml_value_none();
@@ -1981,15 +1856,10 @@ gboolean gtk_ml_i_len(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
         }
         if (gtk_ml_has_value(metafn)) {
             if (gtk_ml_is_sobject(metafn)) {
-                GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL, container, gtk_ml_new_nil(vm->ctx, NULL));
-                uint32_t pc = vm->pc;
-                uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                GtkMl_TaggedValue metaargs[] = { gtk_ml_value_sobject(container) };
+                if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 1)) {
                     return 0;
                 }
-                vm->flags &= ~GTKML_F_TOPCALL;
-                vm->flags |= flags;
-                vm->pc = pc;
             } else {
                 GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
                     gtk_ml_new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(vm->ctx, NULL, 0, "function", strlen("function")));
@@ -2049,15 +1919,10 @@ gboolean gtk_ml_i_index(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
         }
         if (gtk_ml_has_value(metafn)) {
             if (gtk_ml_is_sobject(metafn)) {
-                GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL, container, gtk_ml_new_nil(vm->ctx, NULL));
-                uint32_t pc = vm->pc;
-                uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                GtkMl_TaggedValue metaargs[] = { gtk_ml_value_sobject(container), gtk_ml_value_sobject(index) };
+                if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                     return 0;
                 }
-                vm->flags &= ~GTKML_F_TOPCALL;
-                vm->flags |= flags;
-                vm->pc = pc;
             } else {
                 GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
                     gtk_ml_new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(vm->ctx, NULL, 0, "function", strlen("function")));
@@ -2190,15 +2055,10 @@ gboolean gtk_ml_i_map_get(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
         }
         if (gtk_ml_has_value(metafn)) {
             if (gtk_ml_is_sobject(metafn)) {
-                GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL, container, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, key).value.sobj, gtk_ml_new_nil(vm->ctx, NULL)));
-                uint32_t pc = vm->pc;
-                uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                GtkMl_TaggedValue metaargs[] = { gtk_ml_value_sobject(container), key };
+                if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 2)) {
                     return 0;
                 }
-                vm->flags &= ~GTKML_F_TOPCALL;
-                vm->flags |= flags;
-                vm->pc = pc;
                 mm_success = 1;
             } else {
                 GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -2250,15 +2110,10 @@ gboolean gtk_ml_i_map_insert(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
         }
         if (gtk_ml_has_value(metafn)) {
             if (gtk_ml_is_sobject(metafn)) {
-                GtkMl_SObj metaargs = gtk_ml_new_list(vm->ctx, NULL, container, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, key).value.sobj, gtk_ml_new_list(vm->ctx, NULL, gtk_ml_to_sobj(vm->ctx, err, value).value.sobj, gtk_ml_new_nil(vm->ctx, NULL))));
-                uint32_t pc = vm->pc;
-                uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                if (!gtk_ml_run_program(vm->ctx, err, metafn.value.sobj, metaargs)) {
+                GtkMl_TaggedValue metaargs[] = { gtk_ml_value_sobject(container), key, value };
+                if (!gtk_ml_execute(vm->ctx, err, metafn, metaargs, 3)) {
                     return 0;
                 }
-                vm->flags &= ~GTKML_F_TOPCALL;
-                vm->flags |= flags;
-                vm->pc = pc;
                 mm_success = 1;
             } else {
                 GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
@@ -2458,60 +2313,88 @@ gboolean gtk_ml_i_call(GtkMl_Vm *vm, GtkMl_SObj *err, GtkMl_Data data) {
     (void) err;
     (void) data;
 
-    GtkMl_SObj program = gtk_ml_pop(vm->ctx).value.sobj;
+    GtkMl_TaggedValue program = gtk_ml_pop(vm->ctx);
 
-    switch (program->kind) {
-    case GTKML_S_MAP: {
-        GtkMl_TaggedValue metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, "__call", strlen("__call")));
-        GtkMl_TaggedValue metafn = gtk_ml_value_none();
-        if (program->value.s_map.metamap) {
-            metafn = gtk_ml_hash_trie_get(&program->value.s_map.metamap->value.s_map.map, metakey);
-        }
-        if (gtk_ml_has_value(metafn)) {
-            if (gtk_ml_is_sobject(metafn)) {
-                uint32_t pc = vm->pc;
-                uint32_t flags = vm->flags & GTKML_F_TOPCALL;
-                if (!gtk_ml_run_program_raw(vm->ctx, err, metafn.value.sobj)) {
+    if (gtk_ml_is_sobject(program)) {
+        switch (program.value.sobj->kind) {
+        case GTKML_S_MAP: {
+            GtkMl_TaggedValue metakey = gtk_ml_value_sobject(gtk_ml_new_keyword(vm->ctx, NULL, 0, "__call", strlen("__call")));
+            GtkMl_TaggedValue metafn = gtk_ml_value_none();
+            if (program.value.sobj->value.s_map.metamap) {
+                metafn = gtk_ml_hash_trie_get(&program.value.sobj->value.s_map.metamap->value.s_map.map, metakey);
+            }
+            if (gtk_ml_has_value(metafn)) {
+                if (!gtk_ml_execute(vm->ctx, err, metafn, NULL, 0)) {
                     return 0;
                 }
-                vm->flags &= ~GTKML_F_TOPCALL;
-                vm->flags |= flags;
-                vm->pc = pc;
             } else {
                 GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
                     gtk_ml_new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(vm->ctx, NULL, 0, "function", strlen("function")));
                 *err = error;
                 return 0;
             }
+            PC_INCREMENT;
+        } break;
+        case GTKML_S_PROGRAM: {
+            if (vm->call_stack_ptr == vm->call_stack_cap) {
+                *err = gtk_ml_error(vm->ctx, "stack-overflow", GTKML_ERR_STACK_ERROR, 0, 0, 0, 0);
+                return 0;
+            }
+
+            uint64_t flags = vm->flags & GTKML_F_TOPCALL;
+            vm->call_stack[vm->call_stack_ptr++] = flags;
+            vm->flags &= ~GTKML_F_TOPCALL;
+
+            PC_INCREMENT;
+            uint64_t pc = vm->pc;
+            vm->call_stack[vm->call_stack_ptr++] = pc;
+            vm->pc = program.value.sobj->value.s_program.addr;
+        } break;
+        case GTKML_S_FFI: {
+            GtkMl_Ffi ffi = program.value.sobj->value.s_ffi.ffi;
+
+            GtkMl_TaggedValue result = gtk_ml_value_none();
+            ffi(&result, vm->ctx, err);
+            if (!gtk_ml_has_value(result)) {
+                if (!*err) {
+                    GtkMl_SObj error = gtk_ml_error(vm->ctx, "unknown-error", GTKML_ERR_UNKNOWN_ERROR, 0, 0, 0, 0);
+                    *err = error;
+                }
+                return 0;
+            }
+            gtk_ml_push(vm->ctx, result);
+
+            PC_INCREMENT;
+        }
+        default: {
+            GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
+                gtk_ml_new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(vm->ctx, NULL, 0, "function", strlen("function")));
+            *err = error;
+            return 0;
+        }
+        }
+    } else {
+        if (program.tag == GTKML_TAG_FFI) {
+            GtkMl_Ffi ffi = program.value.ffi;
+
+            GtkMl_TaggedValue result = gtk_ml_value_none();
+            ffi(&result, vm->ctx, err);
+            if (!gtk_ml_has_value(result)) {
+                if (!*err) {
+                    GtkMl_SObj error = gtk_ml_error(vm->ctx, "unknown-error", GTKML_ERR_UNKNOWN_ERROR, 0, 0, 0, 0);
+                    *err = error;
+                }
+                return 0;
+            }
+            gtk_ml_push(vm->ctx, result);
+
+            PC_INCREMENT;
         } else {
             GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
                 gtk_ml_new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(vm->ctx, NULL, 0, "function", strlen("function")));
             *err = error;
             return 0;
         }
-        PC_INCREMENT;
-    } break;
-    case GTKML_S_PROGRAM: {
-        if (vm->call_stack_ptr == vm->call_stack_cap) {
-            *err = gtk_ml_error(vm->ctx, "stack-overflow", GTKML_ERR_STACK_ERROR, 0, 0, 0, 0);
-            return 0;
-        }
-
-        uint64_t flags = vm->flags & GTKML_F_TOPCALL;
-        vm->call_stack[vm->call_stack_ptr++] = flags;
-        vm->flags &= ~GTKML_F_TOPCALL;
-
-        PC_INCREMENT;
-        uint64_t pc = vm->pc;
-        vm->call_stack[vm->call_stack_ptr++] = pc;
-        vm->pc = program->value.s_program.addr;
-    } break;
-    default: {
-        GtkMl_SObj error = gtk_ml_error(vm->ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
-            gtk_ml_new_keyword(vm->ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(vm->ctx, NULL, 0, "function", strlen("function")));
-        *err = error;
-        return 0;
-    }
     }
 
     return 1;

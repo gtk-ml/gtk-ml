@@ -11,9 +11,6 @@ CXX=clang++
 INCLUDE_NAME=gtk-ml
 LIB_NAME=libgtk-ml.so
 TARGET=$(BINDIR)/$(LIB_NAME)
-TEST_HELLO=$(BINDIR)/hello 
-TEST_MATCH=$(BINDIR)/match 
-TESTS=
 BINARIES=
 SRC=$(SRCDIR)/gtk-ml.c $(SRCDIR)/value.c $(SRCDIR)/builder.c \
 	$(SRCDIR)/lex.c $(SRCDIR)/parse.c $(SRCDIR)/code-gen.c \
@@ -48,12 +45,12 @@ CFLAGS+=-DGTKML_ENABLE_GTK=1 $(shell pkg-config --cflags gtk+-3.0)
 
 GTKMLI=$(BINDIR)/gtkmli
 BINARIES+=$(GTKMLI)
-TESTS+=$(TEST_HELLO) $(TEST_MATCH)
 endif
 
 # posix allows us to use the debugger
 ifdef ENABLE_POSIX
 CFLAGS+=-DGTKML_ENABLE_POSIX=1
+LDFLAGS+=-ldl
 
 GTKMLDBG=$(BINDIR)/gtkml-dbg
 BINARIES+=$(GTKMLDBG)
@@ -63,19 +60,17 @@ ifdef ENABLE_EMRUN
 EMFLAGS+=--emrun
 endif
 
-.PHONY: default all build test install clean
+.PHONY: default all build install clean
 
 default: all
 
-all: $(TARGET) $(BINARIES) $(TESTS) compile_commands.json
+all: $(TARGET) $(BINARIES) compile_commands.json
 
 web: $(WEBGL) $(WEBDIR) $(GTKMLWEB)
 	cp src/gtkml-web.html public/index.html
 	cp src/gtkml-web.js public/
 
 build: $(BINARIES)
-
-test: $(TESTS)
 
 install: $(TARGET)
 	rm -rf ~/.local/include/$(INCLUDE_NAME)
@@ -112,14 +107,6 @@ $(GTKMLWEB): $(WEBDIR) $(SRC) $(SRCDIR)/gtkml-web.c
 
 $(WEBGL): bindgen.py include/GLES3/gl32.h
 	./bindgen.py --skip-file gles3Skip -S glGetShaderInfoLog,glGetProgramInfoLog -k all -p gles3 --out libs/em_gles3 include/GLES3/gl32.h
-
-$(TEST_HELLO): test/hello.c $(TARGET) $(LIB)
-	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@.o $<
-	$(CXX) $(LDFLAGS) -L./bin -lgtk-ml -o $@ $@.o $(LIB)
-	rm $@.o
-
-$(TEST_MATCH): test/match.c $(TARGET)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -L./bin -lgtk-ml -o $@ $<
 
 $(OBJDIR): $(BINDIR)
 	mkdir -p $(OBJDIR)

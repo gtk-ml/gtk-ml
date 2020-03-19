@@ -1,0 +1,2 @@
+(let [mod (load "lib")]
+  (.foo mod 1))

@@ -83,6 +83,14 @@ GtkMl_TaggedValue gtk_ml_value_userdata(void *data) {
     return v;
 }
 
+GtkMl_TaggedValue gtk_ml_value_ffi(GtkMl_Ffi ffi) {
+    GtkMl_TaggedValue v;
+    v.value.u64 = 0;
+    v.value.ffi = ffi;
+    v.tag = GTKML_TAG_FFI;
+    return v;
+}
+
 GtkMl_SObj gtk_ml_new_sobject(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SKind kind) {
     ++ctx->gc->n_values;
 
@@ -283,6 +291,12 @@ GtkMl_SObj gtk_ml_new_userdata(GtkMl_Context *ctx, GtkMl_Span *span, void *data,
     s->value.s_userdata.userdata = data;
     s->value.s_userdata.del = del;
     s->value.s_userdata.keep = gtk_ml_new_nil(ctx, span);
+    return s;
+}
+
+GtkMl_SObj gtk_ml_new_ffi(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_Ffi ffi) {
+    GtkMl_SObj s = gtk_ml_new_sobject(ctx, span, GTKML_S_FFI);
+    s->value.s_ffi.ffi = ffi;
     return s;
 }
 

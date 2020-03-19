@@ -54,9 +54,14 @@ typedef int gboolean;
 #error "gtk-ml: i don't know a type that's 64-bit long"
 #endif /* GTKML_LONG_WIDTH == 64 */
 
+#define gtk_ml_stringify2(x) #x
+#define gtk_ml_stringify(x) gtk_ml_stringify2(x)
+
 #define GTKML_PRIVATE static
 
 #define GTKML_VERSION "libgtkml ver. 0.0.0"
+
+#define GTKML_NO_ARGS ((void *) -1)
 
 #define GTKML_FLAG_NONE 0x0
 #define GTKML_FLAG_REACHABLE 0x1
@@ -280,7 +285,9 @@ typedef enum GtkMl_Opcode {
 #define GTKML_R_PC 5
 #define GTKML_REGISTER_COUNT 6
 
+#define GTKML_ERR_UNKNOWN_ERROR "something returned an invalid value without setting the error"
 #define GTKML_ERR_IO_ERROR "unknown io error, check errno"
+#define GTKML_ERR_EXT_ERROR "unknown extension"
 #define GTKML_ERR_CHARACTER_ERROR "unexpected character"
 #define GTKML_ERR_TOKEN_ERROR "unexpected token"
 #define GTKML_ERR_ESCAPE_ERROR "invalid escape sequence"
@@ -341,6 +348,7 @@ typedef uint64_t uint48_t;
 typedef uint48_t GtkMl_Data;
 typedef uint48_t GtkMl_Static;
 typedef uint32_t GtkMl_Hash;
+typedef void (*GtkMl_Ffi)(GtkMl_TaggedValue *, GtkMl_Context *, GtkMl_SObj *);
 
 typedef enum GtkMl_Stage {
     GTKML_STAGE_INTR,
@@ -447,6 +455,7 @@ typedef enum GtkMl_SKind {
     GTKML_S_MACRO,
     GTKML_S_LIGHTDATA,
     GTKML_S_USERDATA,
+    GTKML_S_FFI,
 } GtkMl_SKind;
 
 // a 64-bit signed integer
@@ -566,6 +575,10 @@ typedef struct GtkMl_SUserdata {
     GtkMl_SObj keep;
 } GtkMl_SUserdata;
 
+typedef struct GtkMl_SFfi {
+    GtkMl_Ffi ffi;
+} GtkMl_SFfi;
+
 typedef union GtkMl_SUnion {
     GtkMl_SInt s_int;
     GtkMl_SFloat s_float;
@@ -587,6 +600,7 @@ typedef union GtkMl_SUnion {
     GtkMl_SMacro s_macro;
     GtkMl_SLightdata s_lightdata;
     GtkMl_SUserdata s_userdata;
+    GtkMl_SFfi s_ffi;
 } GtkMl_SUnion;
 
 // a grammar level s expression
@@ -609,6 +623,7 @@ typedef struct GtkMl_S {
 #define GTKML_TAG_UINT64 (GTKML_TAG_INT | 0x80)
 #define GTKML_TAG_FLOAT (GTKML_TAG_PRIMITIVE | 0x100)
 #define GTKML_TAG_USERDATA (GTKML_TAG_PRIMITIVE | 0x200)
+#define GTKML_TAG_FFI (GTKML_TAG_PRIMITIVE | 0x400)
 
 #define gtk_ml_has_value(val) (val.tag & GTKML_TAG_HAS)
 #define gtk_ml_is_primitive(val) (val.tag & GTKML_TAG_PRIM)
@@ -619,6 +634,7 @@ typedef struct GtkMl_S {
 union GtkMl_Value {
     GtkMl_SObj sobj; // a gc object
     void *userdata; // light userdata, never heavy
+    GtkMl_Ffi ffi; // an ffi function
     int boolean; // a boolean value
     uint32_t unicode; // a unicode character
     int64_t s64; // a signed 64-bit integer
@@ -760,11 +776,6 @@ GTKML_PUBLIC void gtk_ml_set_debug(GtkMl_Context *ctx, pid_t dbg_process, GtkMl_
 GTKML_PUBLIC void gtk_ml_del_context(GtkMl_Context *ctx);
 // loads an executable program into the context
 GTKML_PUBLIC void gtk_ml_load_program(GtkMl_Context *ctx, GtkMl_Program* program);
-// runs a program previously loaded with `gtk_ml_load_program`
-// TODO: this should accept GtkMl_TaggedValues as args
-GTKML_PUBLIC gboolean gtk_ml_run_program(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program, GtkMl_SObj args) GTKML_MUST_USE;
-// runs a program previously loaded with `gtk_ml_load_program`, without pushing aruments
-GTKML_PUBLIC gboolean gtk_ml_run_program_raw(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program) GTKML_MUST_USE;
 // gets an export address from a program previously loaded with `gtk_ml_load_program`
 GTKML_PUBLIC GtkMl_SObj gtk_ml_get_export(GtkMl_Context *ctx, GtkMl_SObj *err, const char *linkage_name) GTKML_MUST_USE;
 // compile a lambda expression to bytecode with expanding macros
@@ -925,12 +936,14 @@ GTKML_PUBLIC gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, 
 // builds a cmp instruction in the chosen basic_block
 GTKML_PUBLIC gboolean gtk_ml_build_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Data data) GTKML_MUST_USE;
 
+// executes an expression with arguments
+GTKML_PUBLIC gboolean gtk_ml_execute(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue value, GtkMl_TaggedValue *args, size_t n_args) GTKML_MUST_USE;
 // loads an expression from a path
-GTKML_PUBLIC GtkMl_SObj gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, const char *file) GTKML_MUST_USE;
+GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_load(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, const char *file) GTKML_MUST_USE;
 // loads an expression from a file
-GTKML_PUBLIC GtkMl_SObj gtk_ml_loadf(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, FILE *stream) GTKML_MUST_USE;
+GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_loadf(GtkMl_Context *ctx, char **src, GtkMl_SObj *err, FILE *stream) GTKML_MUST_USE;
 // loads an expression from a string
-GTKML_PUBLIC GtkMl_SObj gtk_ml_loads(GtkMl_Context *ctx, GtkMl_SObj *err, const char *src) GTKML_MUST_USE;
+GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_loads(GtkMl_Context *ctx, GtkMl_SObj *err, const char *src) GTKML_MUST_USE;
 
 GTKML_PUBLIC gboolean gtk_ml_is_ident_begin(unsigned char c) GTKML_MUST_USE;
 GTKML_PUBLIC gboolean gtk_ml_is_ident_cont(unsigned char c) GTKML_MUST_USE;
@@ -941,6 +954,10 @@ GTKML_PUBLIC void gtk_ml_push(GtkMl_Context *ctx, GtkMl_TaggedValue value);
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_pop(GtkMl_Context *ctx);
 // peeks an expression at the top of the stack
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_peek(GtkMl_Context *ctx) GTKML_MUST_USE;
+
+GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_to_sobj(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue value);
+GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_to_prim(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue sobj);
+
 // binds a value to a key in the most recent bindings context
 GTKML_PUBLIC void gtk_ml_bind(GtkMl_Context *ctx, GtkMl_SObj key, GtkMl_TaggedValue value);
 // gets a value bound to a key
@@ -1014,6 +1031,7 @@ GTKML_PUBLIC GtkMl_SObj gtk_ml_new_address(GtkMl_Context *ctx, GtkMl_Span *span,
 GTKML_PUBLIC GtkMl_SObj gtk_ml_new_macro(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_SObj args, GtkMl_SObj body, GtkMl_SObj capture) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_SObj gtk_ml_new_lightdata(GtkMl_Context *ctx, GtkMl_Span *span, void *data) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_SObj gtk_ml_new_userdata(GtkMl_Context *ctx, GtkMl_Span *span, void *data, void (*del)(GtkMl_Context *ctx, void *)) GTKML_MUST_USE;
+GTKML_PUBLIC GtkMl_SObj gtk_ml_new_ffi(GtkMl_Context *ctx, GtkMl_Span *span, GtkMl_Ffi ffi) GTKML_MUST_USE;
 
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_none() GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_sobject(GtkMl_SObj obj) GTKML_MUST_USE;
@@ -1025,6 +1043,7 @@ GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_uint(uint64_t value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_float(float value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_char(uint32_t value) GTKML_MUST_USE;
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_userdata(void *data) GTKML_MUST_USE;
+GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_value_ffi(GtkMl_Ffi ffi) GTKML_MUST_USE;
 
 GTKML_PUBLIC size_t gtk_ml_list_len(GtkMl_SObj list) GTKML_MUST_USE;
 
