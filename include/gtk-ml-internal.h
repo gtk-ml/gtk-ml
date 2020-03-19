@@ -145,9 +145,6 @@ GTKML_PUBLIC GtkMl_Program *gtk_ml_build_intrinsics(GtkMl_Context *ctx, GtkMl_SO
 // builds the program's macros
 GTKML_PUBLIC GtkMl_Program *gtk_ml_build_macros(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Builder *b, GtkMl_Program **additional_programs, size_t n_programs) GTKML_MUST_USE;
 
-GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_to_sobj(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue value);
-GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_to_prim(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue sobj);
-
 // lexical analysis
 GTKML_PUBLIC gboolean gtk_ml_lex(GtkMl_Context *ctx, GtkMl_Token **tokenv, size_t *tokenc, GtkMl_SObj *err, const char *src) GTKML_MUST_USE;
 // parsing
@@ -253,9 +250,7 @@ GTKML_PUBLIC void gtk_ml_del(GtkMl_Context *ctx, GtkMl_SObj s);
 GTKML_PUBLIC void gtk_ml_object_unref(GtkMl_Context *ctx, void *obj);
 #endif /* GTKML_ENABLE_GTK */
 
-// runs a program previously loaded with `gtk_ml_load_program`
-GTKML_PUBLIC gboolean gtk_ml_run_program_internal(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_SObj program, GtkMl_SObj args, gboolean brk, gboolean push_args) GTKML_MUST_USE;
-
+GTKML_PUBLIC gboolean gtk_ml_execute_internal(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue value, GtkMl_TaggedValue *args, size_t n_args, GtkMl_Stage stage);
 GTKML_PUBLIC gboolean gtk_ml_vm_run(GtkMl_Vm *vm, GtkMl_SObj *err, gboolean brk) GTKML_MUST_USE;
 GTKML_PUBLIC void gtk_ml_vm_push(GtkMl_Vm *vm, GtkMl_TaggedValue value);
 GTKML_PUBLIC GtkMl_TaggedValue gtk_ml_vm_pop(GtkMl_Vm *vm);

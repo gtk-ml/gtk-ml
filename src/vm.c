@@ -163,36 +163,17 @@ GtkMl_TaggedValue vm_core_load(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Tagged
     (void) expr;
 
     GtkMl_SObj module_expr = gtk_ml_pop(ctx).value.sobj;
-    GtkMl_SObj load = gtk_ml_pop(ctx).value.sobj;
-    (void) load;
+    (void) gtk_ml_pop(ctx);
 
     // TODO(walterpi): don't leak this
     char *filename = gtk_ml_to_c_str(module_expr);
     char *src;
-    GtkMl_SObj lambda;
-    if (!(lambda = gtk_ml_load(ctx, &src, err, filename))) {
+    GtkMl_TaggedValue program = gtk_ml_load(ctx, &src, err, filename);
+    if (!gtk_ml_has_value(program)) {
         return gtk_ml_value_none();
     }
 
-    if (!gtk_ml_compile_program(ctx, ctx->default_builder, err, lambda)) {
-        return gtk_ml_value_none();
-    }
-
-    GtkMl_Program *program = gtk_ml_build(ctx, err, ctx->default_builder, &ctx->program, (ctx->program == NULL)? 0 : 1);
-    if (!program) {
-        return gtk_ml_value_none();
-    }
-
-    ctx->program = program;
-
-    gtk_ml_load_program(ctx, program);
-
-    GtkMl_SObj start = gtk_ml_get_export(ctx, err, program->start);
-    if (!start) {
-        return gtk_ml_value_none();
-    }
-
-    if (!gtk_ml_run_program(ctx, err, start, NULL)) {
+    if (!gtk_ml_execute(ctx, err, program, GTKML_NO_ARGS, 0)) {
         return gtk_ml_value_none();
     }
 
@@ -211,17 +192,13 @@ GTKML_PRIVATE void activate_program(GtkApplication* app, gpointer userdata) {
     GtkMl_Context *ctx = ctx_expr->value.s_lightdata.userdata;
 
     GtkMl_SObj err;
-    uint32_t pc = ctx->vm->pc;
-    uint32_t flags = ctx->vm->flags & GTKML_F_TOPCALL;
-    if (gtk_ml_run_program_internal(ctx, &err, program_expr, gtk_ml_new_list(ctx, NULL, app_expr, gtk_ml_new_nil(ctx, NULL)), 0, 1)) {
+    GtkMl_TaggedValue arg = gtk_ml_value_sobject(app_expr);
+    if (gtk_ml_execute(ctx, &err, gtk_ml_value_sobject(program_expr), &arg, 1)) {
         GtkMl_SObj result = gtk_ml_pop(ctx).value.sobj;
         app_expr->value.s_userdata.keep = gtk_ml_new_list(ctx, NULL, result, app_expr->value.s_userdata.keep);
     } else {
         (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
     }
-    ctx->vm->flags &= ~GTKML_F_TOPCALL;
-    ctx->vm->flags |= flags;
-    ctx->vm->pc = pc;
 }
 
 GtkMl_TaggedValue vm_core_application(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedValue expr) {
@@ -324,19 +301,12 @@ GtkMl_TaggedValue vm_core_dbg(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_TaggedV
             metafn = gtk_ml_hash_trie_get(&value.value.sobj->value.s_map.metamap->value.s_map.map, metakey);
         }
         if (gtk_ml_has_value(metafn)) {
-            if (gtk_ml_is_sobject(metafn)) {
-                GtkMl_SObj metaargs = gtk_ml_new_list(ctx, NULL, gtk_ml_to_sobj(ctx, err, value).value.sobj, gtk_ml_new_nil(ctx, NULL));
-                if (!gtk_ml_run_program(ctx, err, metafn.value.sobj, metaargs)) {
-                    return gtk_ml_value_none();
-                }
-                gtk_ml_pop(ctx);
-                mm_success = 1;
-            } else {
-                GtkMl_SObj error = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 1,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")));
-                *err = error;
+            GtkMl_TaggedValue metaarg = value;
+            if (!gtk_ml_execute(ctx, err, metafn, &metaarg, 1)) {
                 return gtk_ml_value_none();
             }
+            gtk_ml_pop(ctx);
+            mm_success = 1;
         }
     }
 
@@ -443,6 +413,9 @@ GtkMl_TaggedValue vm_core_to_buffer(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_T
             case GTKML_S_USERDATA:
                 memcpy(buffer + i * size, &elem.value.sobj->value.s_userdata.userdata, size);
                 break;
+            case GTKML_S_FFI:
+                memcpy(buffer + i * size, &elem.value.sobj->value.s_ffi.ffi, size);
+                break;
             default:
                 *err = gtk_ml_error(ctx, "primitive-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
                 return gtk_ml_value_none();
@@ -501,6 +474,8 @@ GtkMl_TaggedValue vm_core_to_array(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Ta
         kind = GTKML_TAG_INT;
     } else if (strncmp(type->value.s_keyword.ptr, "userdata", type->value.s_keyword.len) == 0) {
         kind = GTKML_TAG_USERDATA;
+    } else if (strncmp(type->value.s_keyword.ptr, "ffi", type->value.s_keyword.len) == 0) {
+        kind = GTKML_TAG_FFI;
     } else {
         *err = gtk_ml_error(ctx, "primitive-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 0);
         return gtk_ml_value_none();
@@ -557,6 +532,11 @@ GtkMl_TaggedValue vm_core_to_array(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Ta
         case GTKML_TAG_USERDATA: {
             void *value = *(void **) (ptr + i * size);
             gtk_ml_array_trie_push(&new->value.s_array.array, &array->value.s_array.array, gtk_ml_value_userdata(value));
+        } break;
+        case GTKML_TAG_FFI: {
+            void (*value)(GtkMl_TaggedValue *, GtkMl_Context *, GtkMl_SObj *);
+            *(void **) (&value) = *(void **) (ptr + i * size);
+            gtk_ml_array_trie_push(&new->value.s_array.array, &array->value.s_array.array, gtk_ml_value_ffi(value));
         } break;
         }
         array = new;

@@ -1,0 +1,6 @@
+(define-macro (if p t f)
+ `(cond ,p ,t :else ,f))
+
+(if #t
+  42
+  #nil)
