@@ -15,7 +15,8 @@ BINARIES=
 SRC=$(SRCDIR)/gtk-ml.c $(SRCDIR)/value.c $(SRCDIR)/builder.c \
 	$(SRCDIR)/lex.c $(SRCDIR)/parse.c $(SRCDIR)/code-gen.c \
 	$(SRCDIR)/serf.c $(SRCDIR)/vm.c $(SRCDIR)/bytecode.c \
-	$(SRCDIR)/hashtrie.c $(SRCDIR)/hashset.c $(SRCDIR)/array.c
+	$(SRCDIR)/hashtrie.c $(SRCDIR)/hashset.c $(SRCDIR)/array.c \
+	$(SRCDIR)/index.c 
 OBJ=$(patsubst $(SRCDIR)/%,$(OBJDIR)/%.o,$(SRC))
 LIB=/usr/local/lib/liblinenoise.a
 GTKMLWEB=$(WEBDIR)/gtk-ml.js

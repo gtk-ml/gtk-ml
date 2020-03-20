@@ -157,7 +157,7 @@ gboolean gtk_ml_serf_sobject(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *s
     case GTKML_S_LIGHTDATA:
     case GTKML_S_USERDATA:
     case GTKML_S_FFI:
-        *err = gtk_ml_error(ctx, "ser-error", GTKML_ERR_SER_ERROR, value->span.ptr != NULL, value->span.line, value->span.col, 0);
+        *err = gtk_ml_error(ctx, "ser-error", GTKML_ERR_SER_ERROR, 0, 0, 0, 0);
         return 0;
     case GTKML_S_LAMBDA:
         if (!gtk_ml_serf_sobject(serf, ctx, stream, err, value->value.s_lambda.args)) {
@@ -308,7 +308,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
     uint32_t kind;
     fread(&kind, sizeof(uint32_t), 1, stream);
 
-    GtkMl_SObj result = gtk_ml_new_sobject(ctx, NULL, kind);
+    GtkMl_SObj result = gtk_ml_new_sobject(ctx, 0, kind);
 
     switch (result->kind) {
     case GTKML_S_NIL:
@@ -357,7 +357,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
             if (!value) {
                 return NULL;
             }
-            *tail = gtk_ml_new_list(ctx, NULL, value, gtk_ml_new_nil(ctx, NULL));
+            *tail = gtk_ml_new_list(ctx, 0, value, gtk_ml_new_nil(ctx, 0));
             tail = &gtk_ml_cdr(*tail);
             fread(&next, 1, 1, stream);
         }
@@ -386,7 +386,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
             if (!value) {
                 return NULL;
             }
-            GtkMl_SObj new = gtk_ml_new_map(ctx, NULL, NULL);
+            GtkMl_SObj new = gtk_ml_new_map(ctx, 0, NULL);
             gtk_ml_hash_trie_insert(&new->value.s_map.map, &result->value.s_map.map, gtk_ml_value_sobject(key), gtk_ml_value_sobject(value));
             result = new;
             fread(&next, 1, 1, stream);
@@ -415,7 +415,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
             if (!key) {
                 return NULL;
             }
-            GtkMl_SObj new = gtk_ml_new_set(ctx, NULL);
+            GtkMl_SObj new = gtk_ml_new_set(ctx, 0);
             gtk_ml_hash_set_insert(&new->value.s_set.set, &result->value.s_set.set, gtk_ml_value_sobject(key));
             result = new;
             fread(&next, 1, 1, stream);
@@ -433,7 +433,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
             for (size_t i = 0; i < len; i++) {
                 uint32_t unicode;
                 fread(&unicode, sizeof(uint32_t), 1, stream);
-                GtkMl_SObj new = gtk_ml_new_array(ctx, NULL);
+                GtkMl_SObj new = gtk_ml_new_array(ctx, 0);
                 gtk_ml_array_trie_push(&new->value.s_array.array, &result->value.s_array.array, gtk_ml_value_char(unicode));
                 result = new;
             }
@@ -449,7 +449,7 @@ GtkMl_SObj gtk_ml_deserf_sobject(GtkMl_Deserializer *deserf, GtkMl_Context *ctx,
                 if (!value) {
                     return NULL;
                 }
-                GtkMl_SObj new = gtk_ml_new_array(ctx, NULL);
+                GtkMl_SObj new = gtk_ml_new_array(ctx, 0);
                 gtk_ml_array_trie_push(&new->value.s_array.array, &result->value.s_array.array, gtk_ml_value_sobject(value));
                 result = new;
                 fread(&next, 1, 1, stream);
@@ -609,6 +609,10 @@ gboolean gtk_ml_serf_program(GtkMl_Serializer *serf, GtkMl_Context *ctx, FILE *s
     fwrite(&n_text, sizeof(uint64_t), 1, stream);
     fwrite(program->text, sizeof(GtkMl_Instruction), program->n_text, stream);
 
+    uint64_t n_debug = program->n_loc;
+    fwrite(&n_debug, sizeof(uint64_t), 1, stream);
+    fwrite(program->debug_loc, sizeof(GtkMl_RleLoc), program->n_loc, stream);
+
     uint64_t n_data = program->n_data;
     fwrite(&n_data, sizeof(uint64_t), 1, stream);
     fwrite(program->data, sizeof(GtkMl_TaggedValue), program->n_data, stream);
@@ -656,6 +660,12 @@ GtkMl_Program *gtk_ml_deserf_program(GtkMl_Deserializer *deserf, GtkMl_Context *
     program->n_text = n_text;
     program->text = malloc(sizeof(GtkMl_Instruction) * program->n_text);
     fread(program->text, sizeof(GtkMl_Instruction), program->n_text, stream);
+
+    uint64_t n_debug;
+    fread(&n_debug, sizeof(uint64_t), 1, stream);
+    program->n_loc = n_debug;
+    program->debug_loc = malloc(sizeof(GtkMl_RleLoc) * program->n_loc);
+    fread(program->debug_loc, sizeof(GtkMl_RleLoc), program->n_loc, stream);
 
     uint64_t n_data;
     fread(&n_data, sizeof(uint64_t), 1, stream);
