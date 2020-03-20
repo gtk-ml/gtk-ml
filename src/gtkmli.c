@@ -94,7 +94,8 @@ void print_version(const char *arg0) {
 int main(int argc, const char **argv) {
     GtkMl_SObj err = NULL;
 
-    GtkMl_Context *ctx = gtk_ml_new_context();
+    GtkMl_Index *index = gtk_ml_new_index();
+    GtkMl_Context *ctx = gtk_ml_new_context(index);
 
     const char *rest = NULL;
 
@@ -112,21 +113,21 @@ int main(int argc, const char **argv) {
                 gtk_ml_new_hash_trie(&new, &GTKML_DEFAULT_HASHER);
                 GtkMl_SObj default_value;
                 if (PARAMS[i].multiple_allowed || PARAMS[i].takes_rest) {
-                    default_value = gtk_ml_new_array(ctx, NULL);
+                    default_value = gtk_ml_new_array(ctx, 0);
                 } else {
-                    default_value = gtk_ml_new_nil(ctx, NULL);
+                    default_value = gtk_ml_new_nil(ctx, 0);
                 }
                 if (PARAMS[i].takes_rest) {
                     rest = PARAMS[i].long_opt;
                 }
-                gtk_ml_hash_trie_insert(&new, &opts, gtk_ml_value_sobject(gtk_ml_new_keyword(ctx, NULL, 0, long_opt, strlen(long_opt))), gtk_ml_value_sobject(default_value));
+                gtk_ml_hash_trie_insert(&new, &opts, gtk_ml_value_sobject(gtk_ml_new_keyword(ctx, 0, 0, long_opt, strlen(long_opt))), gtk_ml_value_sobject(default_value));
                 gtk_ml_del_hash_trie(ctx, &opts, gtk_ml_delete_value);
                 opts = new;
             } else {
                 const char *long_opt = PARAMS[i].long_opt;
                 GtkMl_HashTrie new;
                 gtk_ml_new_hash_trie(&new, &GTKML_DEFAULT_HASHER);
-                gtk_ml_hash_trie_insert(&new, &flags, gtk_ml_value_sobject(gtk_ml_new_keyword(ctx, NULL, 0, long_opt, strlen(long_opt))), gtk_ml_value_sobject(gtk_ml_new_false(ctx, NULL)));
+                gtk_ml_hash_trie_insert(&new, &flags, gtk_ml_value_sobject(gtk_ml_new_keyword(ctx, 0, 0, long_opt, strlen(long_opt))), gtk_ml_value_sobject(gtk_ml_new_false(ctx, 0)));
                 gtk_ml_del_hash_trie(ctx, &flags, gtk_ml_delete_value);
                 flags = new;
             }
@@ -138,7 +139,7 @@ int main(int argc, const char **argv) {
         if (argv[i][0] == ':') {
             if (argv[i][2] == 0) {
                 if (!PARAMS[(unsigned char) argv[i][1]].exists) {
-                    err = gtk_ml_error(ctx, "param-error", "unrecognized short option", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i])));
+                    err = gtk_ml_error(ctx, "param-error", "unrecognized short option", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "param", strlen("param")), gtk_ml_new_string(ctx, 0, argv[i], strlen(argv[i])));
                     (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                     fprintf(stderr, "\n");
                     gtk_ml_del_context(ctx);
@@ -149,18 +150,18 @@ int main(int argc, const char **argv) {
                 long_opt = &argv[i][1];
             }
         } else {
-            err = gtk_ml_error(ctx, "param-error", "parameters must be preceded by `:`", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i])));
+            err = gtk_ml_error(ctx, "param-error", "parameters must be preceded by `:`", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "param", strlen("param")), gtk_ml_new_string(ctx, 0, argv[i], strlen(argv[i])));
             (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
             fprintf(stderr, "\n");
             gtk_ml_del_context(ctx);
             return 1;
         }
 
-        GtkMl_SObj keyword = gtk_ml_new_keyword(ctx, NULL, 0, long_opt, strlen(long_opt));
+        GtkMl_SObj keyword = gtk_ml_new_keyword(ctx, 0, 0, long_opt, strlen(long_opt));
         if (rest && strcmp(rest, long_opt) == 0) {
             ++i;
             for (; i < argc; i++) {
-                GtkMl_SObj value = gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i]));
+                GtkMl_SObj value = gtk_ml_new_string(ctx, 0, argv[i], strlen(argv[i]));
 
                 GtkMl_TaggedValue current = gtk_ml_hash_trie_get(&opts, gtk_ml_value_sobject(keyword));
                 if (current.value.sobj->kind == GTKML_S_ARRAY) {
@@ -177,20 +178,20 @@ int main(int argc, const char **argv) {
             }
         } else if (gtk_ml_hash_trie_contains(&flags, gtk_ml_value_sobject(keyword))) {
             GtkMl_HashTrie new;
-            gtk_ml_hash_trie_insert(&new, &flags, gtk_ml_value_sobject(keyword), gtk_ml_value_sobject(gtk_ml_new_true(ctx, NULL)));
+            gtk_ml_hash_trie_insert(&new, &flags, gtk_ml_value_sobject(keyword), gtk_ml_value_sobject(gtk_ml_new_true(ctx, 0)));
             gtk_ml_del_hash_trie(ctx, &flags, gtk_ml_delete_value);
             flags = new;
         } else if (gtk_ml_hash_trie_contains(&opts, gtk_ml_value_sobject(keyword))) {
             ++i;
             if (i == argc) {
-                err = gtk_ml_error(ctx, "value-error", "missing value to parameter", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), keyword);
+                err = gtk_ml_error(ctx, "value-error", "missing value to parameter", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "param", strlen("param")), keyword);
                 (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                 fprintf(stderr, "\n");
                 gtk_ml_del_context(ctx);
                 return 1;
             }
 
-            GtkMl_SObj value = gtk_ml_new_string(ctx, NULL, argv[i], strlen(argv[i]));
+            GtkMl_SObj value = gtk_ml_new_string(ctx, 0, argv[i], strlen(argv[i]));
 
             GtkMl_TaggedValue current = gtk_ml_hash_trie_get(&opts, gtk_ml_value_sobject(keyword));
             if (current.value.sobj->kind == GTKML_S_ARRAY) {
@@ -205,7 +206,7 @@ int main(int argc, const char **argv) {
                 opts = new;
             }
         } else {
-            err = gtk_ml_error(ctx, "param-error", "unrecognized parameter", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), keyword);
+            err = gtk_ml_error(ctx, "param-error", "unrecognized parameter", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "param", strlen("param")), keyword);
             (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
             fprintf(stderr, "\n");
             gtk_ml_del_context(ctx);
@@ -213,28 +214,28 @@ int main(int argc, const char **argv) {
         }
     }
 
-    GtkMl_SObj s_flags = gtk_ml_new_map(ctx, NULL, NULL);
+    GtkMl_SObj s_flags = gtk_ml_new_map(ctx, 0, NULL);
     s_flags->value.s_map.map = flags;
     gtk_ml_push(ctx, gtk_ml_value_sobject(s_flags));
-    GtkMl_SObj s_opts = gtk_ml_new_map(ctx, NULL, NULL);
+    GtkMl_SObj s_opts = gtk_ml_new_map(ctx, 0, NULL);
     s_opts->value.s_map.map = opts;
     gtk_ml_push(ctx, gtk_ml_value_sobject(s_opts));
 
-    GtkMl_SObj help_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['h'].long_opt, strlen(PARAMS['h'].long_opt));
+    GtkMl_SObj help_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['h'].long_opt, strlen(PARAMS['h'].long_opt));
     GtkMl_TaggedValue help_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(help_kw));
     if (help_opt.value.sobj->kind == GTKML_S_TRUE) {
         print_help(argv[0]);
         return 0;
     }
 
-    GtkMl_SObj version_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['V'].long_opt, strlen(PARAMS['V'].long_opt));
+    GtkMl_SObj version_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['V'].long_opt, strlen(PARAMS['V'].long_opt));
     GtkMl_TaggedValue version_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(version_kw));
     if (version_opt.value.sobj->kind == GTKML_S_TRUE) {
         print_version(argv[0]);
         return 0;
     }
 
-    GtkMl_SObj verbose_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['v'].long_opt, strlen(PARAMS['v'].long_opt));
+    GtkMl_SObj verbose_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['v'].long_opt, strlen(PARAMS['v'].long_opt));
     GtkMl_TaggedValue verbose_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(verbose_kw));
     if (verbose_opt.value.sobj->kind == GTKML_S_TRUE) {
         fprintf(stderr, "running with flags: ");
@@ -245,7 +246,7 @@ int main(int argc, const char **argv) {
     }
 
     gboolean requires_file = 1;
-    GtkMl_SObj eval_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['e'].long_opt, strlen(PARAMS['e'].long_opt));
+    GtkMl_SObj eval_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['e'].long_opt, strlen(PARAMS['e'].long_opt));
     GtkMl_SObj eval_opt = gtk_ml_hash_trie_get(&opts, gtk_ml_value_sobject(eval_kw)).value.sobj;
     if (gtk_ml_array_trie_len(&eval_opt->value.s_array.array) > 0) {
         requires_file = 0;
@@ -254,9 +255,9 @@ int main(int argc, const char **argv) {
             GtkMl_SObj eval = gtk_ml_array_trie_get(&eval_opt->value.s_array.array, i).value.sobj;
             char *src = gtk_ml_to_c_str(eval);
 
-            GtkMl_TaggedValue program = gtk_ml_loads(ctx, &err, src);
+            GtkMl_TaggedValue program = gtk_ml_loads(index, ctx, &err, src);
 
-            if (!gtk_ml_execute(ctx, &err, program, GTKML_NO_ARGS, 0)) {
+            if (!gtk_ml_execute(index, ctx, &err, program, GTKML_NO_ARGS, 0)) {
                 if (src) {
                     free(src);
                 }
@@ -266,7 +267,7 @@ int main(int argc, const char **argv) {
                 return 1;
             }
 
-            GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['D'].long_opt, strlen(PARAMS['D'].long_opt));
+            GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['D'].long_opt, strlen(PARAMS['D'].long_opt));
             GtkMl_SObj dump_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(dump_kw)).value.sobj;
             if (dump_opt->kind == GTKML_S_TRUE) {
                 if (!gtk_ml_dumpf_program(ctx, stdout, &err)) {
@@ -283,14 +284,14 @@ int main(int argc, const char **argv) {
     }
 
     char *src = NULL;
-    GtkMl_SObj file_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['f'].long_opt, strlen(PARAMS['f'].long_opt));
+    GtkMl_SObj file_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['f'].long_opt, strlen(PARAMS['f'].long_opt));
     GtkMl_SObj file_opt = gtk_ml_hash_trie_get(&opts, gtk_ml_value_sobject(file_kw)).value.sobj;
 
-    GtkMl_SObj file_and_run_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['F'].long_opt, strlen(PARAMS['F'].long_opt));
+    GtkMl_SObj file_and_run_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['F'].long_opt, strlen(PARAMS['F'].long_opt));
     GtkMl_SObj file_and_run_opt = gtk_ml_hash_trie_get(&opts, gtk_ml_value_sobject(file_and_run_kw)).value.sobj;
     if (file_opt->kind == GTKML_S_NIL && file_and_run_opt->kind == GTKML_S_NIL) {
         if (requires_file) {
-            err = gtk_ml_error(ctx, "missing-parameter-error", "a required parameter is missing", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "param", strlen("param")), file_kw);
+            err = gtk_ml_error(ctx, "missing-parameter-error", "a required parameter is missing", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "param", strlen("param")), file_kw);
             (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
             fprintf(stderr, "\n");
             gtk_ml_del_context(ctx);
@@ -304,7 +305,7 @@ int main(int argc, const char **argv) {
             file = gtk_ml_to_c_str(file_opt);
         }
 
-        GtkMl_TaggedValue program = gtk_ml_load(ctx, &src, &err, file);
+        GtkMl_TaggedValue program = gtk_ml_load(index, ctx, &src, &err, file);
         free(file);
         if (!gtk_ml_has_value(program)) {
             (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
@@ -313,7 +314,7 @@ int main(int argc, const char **argv) {
             return 1;
         }
 
-        if (!gtk_ml_execute(ctx, &err, program, GTKML_NO_ARGS, 0)) {
+        if (!gtk_ml_execute(index, ctx, &err, program, GTKML_NO_ARGS, 0)) {
             if (src) {
                 free(src);
             }
@@ -323,7 +324,7 @@ int main(int argc, const char **argv) {
             return 1;
         }
 
-        GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['D'].long_opt, strlen(PARAMS['D'].long_opt));
+        GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['D'].long_opt, strlen(PARAMS['D'].long_opt));
         GtkMl_SObj dump_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(dump_kw)).value.sobj;
         if (dump_opt->kind == GTKML_S_TRUE) {
             if (!gtk_ml_dumpf_program(ctx, stdout, &err)) {
@@ -350,7 +351,7 @@ int main(int argc, const char **argv) {
         return 1;
     }
 
-    GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['d'].long_opt, strlen(PARAMS['d'].long_opt));
+    GtkMl_SObj dump_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['d'].long_opt, strlen(PARAMS['d'].long_opt));
     GtkMl_SObj dump_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(dump_kw)).value.sobj;
     if (dump_opt->kind == GTKML_S_TRUE) {
         if (!gtk_ml_dumpf_value(ctx, stdout, &err, result)) {
@@ -366,7 +367,7 @@ int main(int argc, const char **argv) {
     }
 
     int status = 0;
-    GtkMl_SObj run_kw = gtk_ml_new_keyword(ctx, NULL, 0, PARAMS['r'].long_opt, strlen(PARAMS['r'].long_opt));
+    GtkMl_SObj run_kw = gtk_ml_new_keyword(ctx, 0, 0, PARAMS['r'].long_opt, strlen(PARAMS['r'].long_opt));
     GtkMl_SObj run_opt = gtk_ml_hash_trie_get(&flags, gtk_ml_value_sobject(run_kw)).value.sobj;
     if (run_opt->kind == GTKML_S_TRUE || file_and_run_opt->kind == GTKML_S_ARRAY) {
         if (gtk_ml_is_sobject(result)) {
@@ -378,7 +379,7 @@ int main(int argc, const char **argv) {
                 status = g_application_run(G_APPLICATION(result.value.sobj->value.s_userdata.userdata), 0, NULL);
                 break;
             default:
-                err = gtk_ml_error(ctx, "application-error", "not an application", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), result.value.sobj);
+                err = gtk_ml_error(ctx, "application-error", "not an application", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")), result.value.sobj);
                 (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
                 fprintf(stderr, "\n");
                 status = 1;
@@ -387,7 +388,7 @@ int main(int argc, const char **argv) {
         } else if (result.tag == GTKML_TAG_NIL) {
             status = g_application_run(G_APPLICATION(result.value.userdata), 0, NULL);
         } else {
-            err = gtk_ml_error(ctx, "application-error", "not an application", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), gtk_ml_to_sobj(ctx, NULL, result).value.sobj);
+            err = gtk_ml_error(ctx, "application-error", "not an application", 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")), gtk_ml_to_sobj(ctx, 0, result).value.sobj);
             (void) gtk_ml_dumpf(ctx, stderr, NULL, err);
             fprintf(stderr, "\n");
             status = 1;

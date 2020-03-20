@@ -57,14 +57,14 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     b->len_macros = 0;
     b->cap_macros = 8;
 
-    b->counter = gtk_ml_new_var(ctx, NULL, gtk_ml_new_int(ctx, NULL, 0));
+    b->counter = gtk_ml_new_var(ctx, 0, gtk_ml_new_int(ctx, 0, 0));
     b->flags = GTKML_F_NONE;
 
     gtk_ml_push(ctx, gtk_ml_value_sobject(b->counter));
 
-    b->intr_ctx = gtk_ml_new_context_with_gc_builder(gtk_ml_gc_copy(ctx->gc), ctx->default_builder);
+    b->intr_ctx = gtk_ml_new_context_with_gc_builder(ctx->global_index, gtk_ml_gc_copy(ctx->gc), ctx->default_builder);
     b->intr_ctx->dbg_done = 1; // fake done sending dbg data
-    b->macro_ctx = gtk_ml_new_context_with_gc_builder(gtk_ml_gc_copy(ctx->gc), ctx->default_builder);
+    b->macro_ctx = gtk_ml_new_context_with_gc_builder(ctx->global_index, gtk_ml_gc_copy(ctx->gc), ctx->default_builder);
     b->macro_ctx->dbg_done = 1; // fake done sending dbg data
 
     b->builders = malloc(sizeof(GtkMl_BuilderMacro) * 64);
@@ -163,9 +163,9 @@ GtkMl_Builder *gtk_ml_new_builder(GtkMl_Context *ctx) {
     b->base = malloc(sizeof(int64_t) * b->cap_base);
     b->base[0] = 0;
 
-    GtkMl_SObj scope = gtk_ml_new_map(ctx, NULL, NULL);
-    b->bindings = gtk_ml_new_array(ctx, NULL);
-    GtkMl_SObj tmp = gtk_ml_new_array(ctx, NULL);
+    GtkMl_SObj scope = gtk_ml_new_map(ctx, 0, NULL);
+    b->bindings = gtk_ml_new_array(ctx, 0);
+    GtkMl_SObj tmp = gtk_ml_new_array(ctx, 0);
     gtk_ml_del_array_trie(ctx, &tmp->value.s_array.array, gtk_ml_delete_value);
     gtk_ml_array_trie_push(&tmp->value.s_array.array, &b->bindings->value.s_array.array, gtk_ml_value_sobject(scope));
     b->bindings = tmp;
@@ -187,7 +187,7 @@ unsigned int gtk_ml_builder_clear_cond(GtkMl_Builder *b) {
 
 GtkMl_SObj gtk_ml_builder_get_and_inc(GtkMl_Context *ctx, GtkMl_Builder *b) {
     GtkMl_SObj value = b->counter->value.s_var.expr;
-    b->counter->value.s_var.expr = gtk_ml_new_int(ctx, NULL, value->value.s_int.value + 1);
+    b->counter->value.s_var.expr = gtk_ml_new_int(ctx, 0, value->value.s_int.value + 1);
     return value;
 }
 
@@ -199,15 +199,15 @@ int64_t gtk_ml_builder_alloca(GtkMl_Context *ctx, GtkMl_Builder *b) {
 }
 
 void gtk_ml_builder_bind(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_SObj key, int64_t offset) {
-    GtkMl_SObj tmp1 = gtk_ml_new_array(ctx, NULL);
+    GtkMl_SObj tmp1 = gtk_ml_new_array(ctx, 0);
     gtk_ml_del_array_trie(ctx, &tmp1->value.s_array.array, gtk_ml_delete_value);
     GtkMl_SObj scope = gtk_ml_array_trie_pop(&tmp1->value.s_array.array, &b->bindings->value.s_array.array).value.sobj;
 
-    GtkMl_SObj tmp2 = gtk_ml_new_map(ctx, NULL, NULL);
+    GtkMl_SObj tmp2 = gtk_ml_new_map(ctx, 0, NULL);
     gtk_ml_del_hash_trie(ctx, &tmp2->value.s_map.map, gtk_ml_delete_value);
     gtk_ml_hash_trie_insert(&tmp2->value.s_map.map, &scope->value.s_map.map, gtk_ml_value_sobject(key), gtk_ml_value_int(offset));
 
-    GtkMl_SObj tmp3 = gtk_ml_new_array(ctx, NULL);
+    GtkMl_SObj tmp3 = gtk_ml_new_array(ctx, 0);
     gtk_ml_del_array_trie(ctx, &tmp3->value.s_array.array, gtk_ml_delete_value);
     gtk_ml_array_trie_push(&tmp3->value.s_array.array, &tmp1->value.s_array.array, gtk_ml_value_sobject(tmp2));
 
@@ -233,7 +233,7 @@ GTKML_PRIVATE GtkMl_VisitResult visit_inherit(GtkMl_HashTrie *ht, GtkMl_TaggedVa
     int64_t len = gtk_ml_hash_trie_len(ht);
     (void) len;
     int64_t offset = -(data->b->base[data->b->len_base - 1] - value.value.s64);
-    GtkMl_SObj tmp = gtk_ml_new_map(data->ctx, NULL, NULL);
+    GtkMl_SObj tmp = gtk_ml_new_map(data->ctx, 0, NULL);
     gtk_ml_hash_trie_insert(&tmp->value.s_map.map, &data->out->value.s_map.map, key, gtk_ml_value_int(offset));
     gtk_ml_del_hash_trie(data->ctx, &data->out->value.s_map.map, gtk_ml_delete_value);
     data->out = tmp;
@@ -245,14 +245,14 @@ void gtk_ml_builder_enter(GtkMl_Context *ctx, GtkMl_Builder *b, gboolean inherit
     GtkMl_SObj newscope;
     if (inherit) {
         GtkMl_SObj scope = gtk_ml_array_trie_get(&b->bindings->value.s_array.array, gtk_ml_array_trie_len(&b->bindings->value.s_array.array) - 1).value.sobj;
-        GtkMl_SObj tmp1 = gtk_ml_new_map(ctx, NULL, NULL);
+        GtkMl_SObj tmp1 = gtk_ml_new_map(ctx, 0, NULL);
         struct InheritData data = { ctx, b, tmp1 };
         gtk_ml_hash_trie_foreach(&scope->value.s_map.map, visit_inherit, gtk_ml_value_userdata(&data));
         newscope = data.out;
     } else {
-        newscope = gtk_ml_new_map(ctx, NULL, NULL);
+        newscope = gtk_ml_new_map(ctx, 0, NULL);
     }
-    GtkMl_SObj tmp2 = gtk_ml_new_array(ctx, NULL);
+    GtkMl_SObj tmp2 = gtk_ml_new_array(ctx, 0);
     gtk_ml_array_trie_push(&tmp2->value.s_array.array, &b->bindings->value.s_array.array, gtk_ml_value_sobject(newscope));
     b->bindings = tmp2;
 
@@ -264,11 +264,26 @@ void gtk_ml_builder_enter(GtkMl_Context *ctx, GtkMl_Builder *b, gboolean inherit
 }
 
 void gtk_ml_builder_leave(GtkMl_Context *ctx, GtkMl_Builder *b) {
-    GtkMl_SObj tmp = gtk_ml_new_array(ctx, NULL);
+    GtkMl_SObj tmp = gtk_ml_new_array(ctx, 0);
     gtk_ml_del_array_trie(ctx, &tmp->value.s_array.array, gtk_ml_delete_value);
     gtk_ml_array_trie_pop(&tmp->value.s_array.array, &b->bindings->value.s_array.array);
     b->bindings = tmp;
     --b->len_base;
+}
+
+void gtk_ml_set_debug_location(GtkMl_BasicBlock *basic_block, GtkMl_Location loc) {
+    if (basic_block->len_loc == basic_block->cap_loc) {
+        basic_block->cap_loc *= 2;
+        basic_block->debug_loc = realloc(basic_block->debug_loc, sizeof(GtkMl_RleLoc) * basic_block->cap_loc);
+    }
+
+    if (basic_block->len_loc > 0 && basic_block->debug_loc[basic_block->len_loc - 1].length == 0) {
+        --basic_block->len_loc;
+    }
+
+    basic_block->debug_loc[basic_block->len_loc].loc = loc;
+    basic_block->debug_loc[basic_block->len_loc].length = 0;
+    ++basic_block->len_loc;
 }
 
 gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock *basic_block, GtkMl_SObj *err, GtkMl_Data data) {
@@ -285,6 +300,10 @@ gboolean gtk_ml_build_push_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basic
     basic_block->text[basic_block->len_text].opcode = GTKML_I_PUSH_IMM;
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -304,6 +323,10 @@ gboolean gtk_ml_build_setf_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basic
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -321,6 +344,10 @@ gboolean gtk_ml_build_popf(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBloc
     basic_block->text[basic_block->len_text].opcode = GTKML_I_POPF;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -340,6 +367,10 @@ gboolean gtk_ml_build_push_addr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -357,6 +388,10 @@ gboolean gtk_ml_build_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_POP;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -376,6 +411,10 @@ gboolean gtk_ml_build_define(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -393,6 +432,10 @@ gboolean gtk_ml_build_car(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_CAR;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -412,6 +455,10 @@ gboolean gtk_ml_build_cdr(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -429,6 +476,10 @@ gboolean gtk_ml_build_cons(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBloc
     basic_block->text[basic_block->len_text].opcode = GTKML_I_CONS;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -448,6 +499,10 @@ gboolean gtk_ml_build_map(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -465,6 +520,10 @@ gboolean gtk_ml_build_set(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_SET;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -484,6 +543,10 @@ gboolean gtk_ml_build_array(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -501,6 +564,10 @@ gboolean gtk_ml_build_list(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBloc
     basic_block->text[basic_block->len_text].opcode = GTKML_I_LIST;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -520,6 +587,10 @@ gboolean gtk_ml_build_bind(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBloc
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -537,6 +608,10 @@ gboolean gtk_ml_build_bind_args(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].opcode = GTKML_I_ENTER_BIND_ARGS;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -556,6 +631,10 @@ gboolean gtk_ml_build_local_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -573,6 +652,10 @@ gboolean gtk_ml_build_enter(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     basic_block->text[basic_block->len_text].opcode = GTKML_I_ENTER;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -592,6 +675,10 @@ gboolean gtk_ml_build_leave(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -609,6 +696,10 @@ gboolean gtk_ml_build_unwrap(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     basic_block->text[basic_block->len_text].opcode = GTKML_I_UNWRAP;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -628,6 +719,10 @@ gboolean gtk_ml_build_typeof(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -645,6 +740,10 @@ gboolean gtk_ml_build_to_sobject(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].opcode = GTKML_I_TO_SOBJ;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -664,6 +763,10 @@ gboolean gtk_ml_build_to_prim(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -681,6 +784,10 @@ gboolean gtk_ml_build_get_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
     basic_block->text[basic_block->len_text].opcode = GTKML_I_GET_IMM;
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -700,6 +807,10 @@ gboolean gtk_ml_build_list_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basic
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -717,6 +828,10 @@ gboolean gtk_ml_build_map_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
     basic_block->text[basic_block->len_text].opcode = GTKML_I_MAP_IMM;
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -736,6 +851,10 @@ gboolean gtk_ml_build_set_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -753,6 +872,10 @@ gboolean gtk_ml_build_array_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].opcode = GTKML_I_ARRAY_IMM;
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -772,6 +895,10 @@ gboolean gtk_ml_build_setmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -789,6 +916,10 @@ gboolean gtk_ml_build_getmm_imm(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].opcode = GTKML_I_GETMM_IMM;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -808,6 +939,10 @@ gboolean gtk_ml_build_var(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -825,6 +960,10 @@ gboolean gtk_ml_build_getvar(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     basic_block->text[basic_block->len_text].opcode = GTKML_I_GETVAR;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -844,6 +983,10 @@ gboolean gtk_ml_build_assignvar(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -861,6 +1004,10 @@ gboolean gtk_ml_build_len(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_LEN;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -880,6 +1027,10 @@ gboolean gtk_ml_build_index(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -897,6 +1048,10 @@ gboolean gtk_ml_build_array_push(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].opcode = GTKML_I_ARRAY_PUSH;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -916,6 +1071,10 @@ gboolean gtk_ml_build_array_pop(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -933,6 +1092,10 @@ gboolean gtk_ml_build_array_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     basic_block->text[basic_block->len_text].opcode = GTKML_I_ARRAY_CONCAT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -952,6 +1115,10 @@ gboolean gtk_ml_build_map_get(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicB
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -969,6 +1136,10 @@ gboolean gtk_ml_build_map_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].opcode = GTKML_I_MAP_INSERT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -988,6 +1159,10 @@ gboolean gtk_ml_build_map_rawget(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1005,6 +1180,10 @@ gboolean gtk_ml_build_map_rawinsert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_
     basic_block->text[basic_block->len_text].opcode = GTKML_I_MAP_RAWINSERT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1024,6 +1203,10 @@ gboolean gtk_ml_build_map_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1041,6 +1224,10 @@ gboolean gtk_ml_build_map_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].opcode = GTKML_I_MAP_CONCAT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1060,6 +1247,10 @@ gboolean gtk_ml_build_set_contains(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_B
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1077,6 +1268,10 @@ gboolean gtk_ml_build_set_insert(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].opcode = GTKML_I_SET_INSERT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1096,6 +1291,10 @@ gboolean gtk_ml_build_set_delete(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1113,6 +1312,10 @@ gboolean gtk_ml_build_set_concat(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Bas
     basic_block->text[basic_block->len_text].opcode = GTKML_I_SET_CONCAT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1132,6 +1335,10 @@ gboolean gtk_ml_build_call_core(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_Basi
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1149,6 +1356,10 @@ gboolean gtk_ml_build_call(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBloc
     basic_block->text[basic_block->len_text].opcode = GTKML_I_CALL;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1168,6 +1379,10 @@ gboolean gtk_ml_build_branch_absolute(GtkMl_Context *ctx, GtkMl_Builder *b, GtkM
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1185,6 +1400,10 @@ gboolean gtk_ml_build_ret(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_LEAVE_RET;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1204,6 +1423,10 @@ gboolean gtk_ml_build_add(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1221,6 +1444,10 @@ gboolean gtk_ml_build_sub(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_SUBTRACT;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1240,6 +1467,10 @@ gboolean gtk_ml_build_mul(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1257,6 +1488,10 @@ gboolean gtk_ml_build_div(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_SIGNED_DIVIDE;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1276,6 +1511,10 @@ gboolean gtk_ml_build_mod(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1293,6 +1532,10 @@ gboolean gtk_ml_build_cmp(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlock
     basic_block->text[basic_block->len_text].opcode = GTKML_I_CMP_IMM;
     basic_block->text[basic_block->len_text].data = data;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1312,6 +1555,10 @@ gboolean gtk_ml_build_bitand(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1329,6 +1576,10 @@ gboolean gtk_ml_build_bitor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBlo
     basic_block->text[basic_block->len_text].opcode = GTKML_I_BIT_AND;
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
+
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
 
     return 1;
 }
@@ -1348,6 +1599,10 @@ gboolean gtk_ml_build_bitxor(GtkMl_Context *ctx, GtkMl_Builder *b, GtkMl_BasicBl
     basic_block->text[basic_block->len_text].data = 0;
     ++basic_block->len_text;
 
+    if (basic_block->len_loc) {
+        ++basic_block->debug_loc[basic_block->len_loc - 1].length;
+    }
+
     return 1;
 }
 
@@ -1365,6 +1620,10 @@ GtkMl_BasicBlock *gtk_ml_append_basic_block(GtkMl_Builder *b, const char *name) 
     basic_block->text = malloc(sizeof(GtkMl_Instruction) * 256);
     basic_block->len_text = 0;
     basic_block->cap_text = 256;
+
+    basic_block->cap_loc = 64;
+    basic_block->len_loc = 0;
+    basic_block->debug_loc = malloc(sizeof(GtkMl_RleLoc) * basic_block->cap_loc);
 
     return basic_block;
 }
@@ -1410,6 +1669,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
     GtkMl_Program *out = ctx->gc->programs[ctx->gc->program_len++];
 
     size_t n = 0;
+    size_t n_loc = 0;
     size_t n_static = b->len_static + 1;
     size_t n_data = b->len_data + 1;
     size_t stage_offset_static;
@@ -1434,12 +1694,14 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
     for (size_t i = 0; i < n_programs; i++) {
         GtkMl_Program *program = additional_programs[i];
         n += program->n_text;
+        n_loc += program->n_loc;
         n_static += program->n_static - 1;
         n_data += program->n_data - 1;
     }
 
     for (size_t i = 0; i < b->len_bb; i++) {
         n += b->basic_blocks[i]->len_text;
+        n_loc += b->basic_blocks[i]->len_loc;
     }
 
     if (!complete) {
@@ -1448,18 +1710,22 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
 
     const char *start_name = b->basic_blocks[0]->name;
     GtkMl_Instruction *result = malloc(sizeof(GtkMl_Instruction) * n);
+    GtkMl_RleLoc *debug_data = malloc(sizeof(GtkMl_RleLoc) * n_loc);
     GtkMl_TaggedValue *data = malloc(sizeof(GtkMl_TaggedValue) * n_data);
     GtkMl_SObj *statics = malloc(sizeof(GtkMl_SObj) * n_static);
 
     size_t offset = 0;
+    size_t offset_loc = 0;
     size_t offset_static = 1;
     size_t offset_data = 1;
     for (size_t i = 0; i < n_programs; i++) {
         GtkMl_Program *program = additional_programs[i];
         memcpy(result + offset, program->text, sizeof(GtkMl_Instruction) * program->n_text);
+        memcpy(debug_data + offset_loc, program->debug_loc, sizeof(GtkMl_RleLoc) * program->n_loc);
         memcpy(statics + offset_static, program->statics + 1, sizeof(GtkMl_SObj) * (program->n_static - 1));
         memcpy(data + offset_data, program->data + 1, sizeof(GtkMl_TaggedValue) * (program->n_data - 1));
         offset += program->n_text;
+        offset_loc += program->n_loc;
         offset_static += program->n_static - 1;
         offset_data += program->n_data - 1;
     }
@@ -1473,8 +1739,11 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
 
     for (size_t i = 0; i < b->len_bb; i++) {
         size_t n = b->basic_blocks[i]->len_text;
+        size_t n_loc = b->basic_blocks[i]->len_loc;
         memcpy(result + pc, b->basic_blocks[i]->text, sizeof(GtkMl_Instruction) * n);
+        memcpy(debug_data + offset_loc, b->basic_blocks[i]->debug_loc, sizeof(GtkMl_RleLoc) * n_loc);
         pc += n;
+        offset_loc += n_loc;
 
         // add a halt instruction to the end of _start
         if (!complete && i == 0) {
@@ -1491,8 +1760,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
         if (instr.category & GTKML_I_EXPORT) {
             if (gtk_ml_is_primitive(data[result[i].data])) {
                 *err = gtk_ml_error(ctx, "export-error", GTKML_ERR_EXPORT_ERROR, 0, 0, 0, 2,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "pc", strlen("pc")), gtk_ml_new_int(ctx, NULL, 8 * i),
-                    gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), gtk_ml_to_sobj(ctx, NULL, data[result[i].data]).value.sobj);
+                    gtk_ml_new_keyword(ctx, 0, 0, "pc", strlen("pc")), gtk_ml_new_int(ctx, 0, 8 * i),
+                    gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")), gtk_ml_to_sobj(ctx, 0, data[result[i].data]).value.sobj);
                 return NULL;
             }
             GtkMl_SObj addr = statics[data[result[i].data].value.u64];
@@ -1502,8 +1771,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
                 addr->value.s_address.addr = 8 * i;
             } else {
                 *err = gtk_ml_error(ctx, "export-error", GTKML_ERR_EXPORT_ERROR, 0, 0, 0, 2,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "pc", strlen("pc")), gtk_ml_new_int(ctx, NULL, 8 * i),
-                    gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), addr);
+                    gtk_ml_new_keyword(ctx, 0, 0, "pc", strlen("pc")), gtk_ml_new_int(ctx, 0, 8 * i),
+                    gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")), addr);
                 return NULL;
             }
         }
@@ -1514,7 +1783,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
         if (instr.category & GTKML_I_EXTERN) {
             GtkMl_SObj ext = statics[data[instr.data].value.u64];
             if (ext->kind != GTKML_S_ARRAY || !gtk_ml_array_trie_is_string(&ext->value.s_array.array)) {
-                *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")), gtk_ml_new_keyword(ctx, NULL, 0, "string", strlen("string")), gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), ext);
+                *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 2, gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")), gtk_ml_new_keyword(ctx, 0, 0, "string", strlen("string")), gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")), ext);
                 return NULL;
             }
             gboolean found = 0;
@@ -1531,7 +1800,7 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
                     } else if (addr->kind == GTKML_S_ADDRESS) {
                         exp = addr->value.s_address.linkage_name;
                     } else {
-                        *err = gtk_ml_error(ctx, "export-error", GTKML_ERR_EXPORT_ERROR, 0, 0, 0, 1, gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")), addr);
+                        *err = gtk_ml_error(ctx, "export-error", GTKML_ERR_EXPORT_ERROR, 0, 0, 0, 1, gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")), addr);
                         return NULL;
                     }
                     GtkMl_Array new;
@@ -1555,11 +1824,11 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             if (found) {
                 gtk_ml_del_array_trie(ctx, &all_exports, gtk_ml_delete_value);
             } else {
-                GtkMl_SObj exports = gtk_ml_new_array(ctx, NULL);
+                GtkMl_SObj exports = gtk_ml_new_array(ctx, 0);
                 exports->value.s_array.array = all_exports;
                 GtkMl_SObj error = gtk_ml_error(ctx, "linkage-error", GTKML_ERR_LINKAGE_ERROR, 0, 0, 0, 2,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "linkage-name", strlen("linkage-name")), ext,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "all-exports", strlen("all-exports")), exports);
+                    gtk_ml_new_keyword(ctx, 0, 0, "linkage-name", strlen("linkage-name")), ext,
+                    gtk_ml_new_keyword(ctx, 0, 0, "all-exports", strlen("all-exports")), exports);
                 *err = error;
                 return NULL;
             }
@@ -1572,6 +1841,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
         out->start = start;
         out->text = result;
         out->n_text = n;
+        out->debug_loc = debug_data;
+        out->n_loc = n_loc;
         out->data = data;
         out->n_data = n_data;
         out->statics = statics;
@@ -1596,6 +1867,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             strcpy(start, start_name);
             out->start = start;
             out->text = result;
+            out->debug_loc = debug_data;
+            out->n_loc = n_loc;
             out->n_text = n;
             out->data = data;
             out->n_data = n_data;
@@ -1620,6 +1893,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             strcpy(start, start_name);
             out->start = start;
             out->text = result;
+            out->debug_loc = debug_data;
+            out->n_loc = n_loc;
             out->n_text = n;
             out->data = data;
             out->n_data = n_data;
@@ -1644,6 +1919,8 @@ GTKML_PRIVATE GtkMl_Program *build(GtkMl_Context *ctx, GtkMl_SObj *err, GtkMl_Bu
             strcpy(start, start_name);
             out->start = start;
             out->text = result;
+            out->debug_loc = debug_data;
+            out->n_loc = n_loc;
             out->n_text = n;
             out->data = data;
             out->n_data = n_data;

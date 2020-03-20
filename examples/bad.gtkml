@@ -1,0 +1,3 @@
+(define (foo n) (+ n 1))
+
+(foo "string")
