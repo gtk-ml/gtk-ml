@@ -28,7 +28,7 @@ CFLAGS:=-O2 -g -Wall -Wextra -Werror -pedantic -std=c11 -fPIC -pthread \
 EMFLAGS:=-O2 -Wall -Wextra -Werror -std=gnu11 \
 	-s ASSERTIONS=1 -s NO_EXIT_RUNTIME=1 \
 	-s MAX_WEBGL_VERSION=2 \
-	-s EXPORTED_FUNCTIONS='["_main", "_gtk_ml_web_init_gl", "_gtk_ml_web_init", "_gtk_ml_web_deinit", "_gtk_ml_web_version", "_gtk_ml_web_eval"]' \
+	-s EXPORTED_FUNCTIONS='["_main", "_gtk_ml_web_init_gl", "_gtk_ml_web_version", "_gtk_ml_web_eval"]' \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' \
 	-DGTKML_ENABLE_WEB=1 \
 	-DGTKML_STACK_SIZE=16*1024 \

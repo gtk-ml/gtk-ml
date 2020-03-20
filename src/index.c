@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #define GTKML_INCLUDE_INTERNAL
 #include "gtk-ml.h"
 #include "gtk-ml-internal.h"

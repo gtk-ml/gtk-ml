@@ -69,7 +69,7 @@ def gen_const_bindings(header, out, args):
                             break
                     if line[space + 1:-1].strip()[0].isdigit():
                         name = line[0:space]
-                        out.write(f'gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, NULL, 0, "{with_prefix(name, args.prefix)}", strlen("{with_prefix(name, args.prefix)}")), gtk_ml_value_int({name}));\n')
+                        out.write(f'gtk_ml_bind(ctx, gtk_ml_new_symbol(ctx, 0, 0, "{with_prefix(name, args.prefix)}", strlen("{with_prefix(name, args.prefix)}")), gtk_ml_value_int({name}));\n')
 
 def gen_core_libs_bind(header, out, tu, args):
     for c in tu.cursor.get_children():
@@ -93,7 +93,7 @@ def gen_core_libs_header(header, out, tu, args, core_number=0x500):
 def gen_code_gen_header(header, out, tu, args):
     for c in tu.cursor.get_children():
         if is_function_declaration(args, c):
-            out.write(f'GTKML_PUBLIC gboolean gtk_ml_builder_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Context *, GtkMl_Builder *, GtkMl_BasicBlock **, GtkMl_SObj *, GtkMl_SObj *, gboolean, gboolean, gboolean, gboolean);\n')
+            out.write(f'GTKML_PUBLIC gboolean gtk_ml_builder_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Index *index, GtkMl_Context *, GtkMl_Builder *, GtkMl_BasicBlock **, GtkMl_SObj *, GtkMl_SObj *, gboolean, gboolean, gboolean, gboolean);\n')
 
 def gen_core_libs_impl(header, out, tu, args):
     for c in tu.cursor.get_children():
@@ -122,12 +122,12 @@ GtkMl_TaggedValue vm_core_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Cont
     if (*err) {{ return result; }}
     if (tmp.tag != GTKML_TAG_FLOAT && (tmp.tag & GTKML_TAG_INT) != GTKML_TAG_INT) {{ 
         *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-            gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-            gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+            gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+            gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+            gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
             gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-            gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "int", strlen("int")));
+            gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+            gtk_ml_new_keyword(ctx, 0, 0, "int", strlen("int")));
         return result;
     }}
     int64_t arg{arg_num} = gtk_ml_prim_to_int(tmp);
@@ -138,12 +138,12 @@ GtkMl_TaggedValue vm_core_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Cont
     if (*err) {{ return result; }}
     if (tmp.tag != GTKML_TAG_FLOAT && (tmp.tag & GTKML_TAG_INT) != GTKML_TAG_INT) {{ 
         *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-            gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-            gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+            gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+            gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+            gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
             gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-            gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "float", strlen("float")));
+            gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+            gtk_ml_new_keyword(ctx, 0, 0, "float", strlen("float")));
         return result;
     }}
     double arg{arg_num} = gtk_ml_prim_to_float(tmp);
@@ -159,33 +159,33 @@ GtkMl_TaggedValue vm_core_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Cont
                 arg{arg_num} = gtk_ml_to_c_str(tmp.value.sobj);
             }} else {{
                 *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-                    gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-                    gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+                    gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+                    gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+                    gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
                     gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-                    gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-                    gtk_ml_new_keyword(ctx, NULL, 0, "string", strlen("string")));
+                    gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+                    gtk_ml_new_keyword(ctx, 0, 0, "string", strlen("string")));
                 return result;
             }}
             break;
         default:
             *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-                gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-                gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-                gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+                gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+                gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+                gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
                 gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-                gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-                gtk_ml_new_keyword(ctx, NULL, 0, "string", strlen("string")));
+                gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+                gtk_ml_new_keyword(ctx, 0, 0, "string", strlen("string")));
             return result;
         }}
     }} else {{
         *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-            gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-            gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+            gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+            gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+            gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
             gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-            gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "string", strlen("string")));
+            gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+            gtk_ml_new_keyword(ctx, 0, 0, "string", strlen("string")));
         return result;
     }}
 ''')
@@ -203,23 +203,23 @@ GtkMl_TaggedValue vm_core_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Cont
             break;
         default:
             *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-                gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-                gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-                gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+                gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+                gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+                gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
                 gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-                gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-                gtk_ml_new_keyword(ctx, NULL, 0, "userdata", strlen("userdata")));
+                gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+                gtk_ml_new_keyword(ctx, 0, 0, "userdata", strlen("userdata")));
             return result;
         }}
     }} else {{
         if (tmp.tag != GTKML_TAG_USERDATA) {{
             *err = gtk_ml_error(ctx, "type-error", GTKML_ERR_TYPE_ERROR, 0, 0, 0, 3,
-                gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-                gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-                gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
+                gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+                gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+                gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
                 gtk_ml_to_sobj(ctx, NULL, tmp).value.sobj,
-                gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-                gtk_ml_new_keyword(ctx, NULL, 0, "userdata", strlen("userdata")));
+                gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+                gtk_ml_new_keyword(ctx, 0, 0, "userdata", strlen("userdata")));
             return result;
         }}
         arg{arg_num} = tmp.value.userdata;
@@ -243,7 +243,7 @@ GtkMl_TaggedValue vm_core_{with_prefix(c.spelling, args.prefix, "_")}(GtkMl_Cont
             elif return_type.kind == TypeKind.POINTER and return_type.get_pointee().get_canonical().kind in TYPE_CHAR and c.spelling not in args.no_string:
                 out.write(f'\n')
                 out.write(f'    const char *c_str = (const char *) {c.spelling}({", ".join(reversed(c_args))});')
-                out.write(f'    result = gtk_ml_value_sobject(gtk_ml_new_string(ctx, NULL, c_str, strlen(c_str)));\n')
+                out.write(f'    result = gtk_ml_value_sobject(gtk_ml_new_string(ctx, 0, c_str, strlen(c_str)));\n')
             elif return_type.kind == TypeKind.POINTER:
                 out.write(f'\n')
                 out.write(f'    result = gtk_ml_value_userdata((void *) {c.spelling}({", ".join(reversed(c_args))}));\n')
@@ -261,6 +261,7 @@ def gen_code_gen_impl(header, out, tu, args):
             args_len = len([arg for arg in c.type.argument_types()])
             out.write(f'''
 gboolean gtk_ml_builder_{with_prefix(c.spelling, args.prefix, "_")}(
+    GtkMl_Index *index,
     GtkMl_Context *ctx,
     GtkMl_Builder *b,
     GtkMl_BasicBlock **basic_block,
@@ -272,26 +273,31 @@ gboolean gtk_ml_builder_{with_prefix(c.spelling, args.prefix, "_")}(
     gboolean allow_macro_expansion
 ) {{
     GtkMl_SObj args = gtk_ml_cdr(*stmt);
+    GtkMl_Span span = {{0}};
+    if ((*stmt)->loc != 0) {{
+        span = *gtk_ml_get_span(&index->debug_data, (*stmt)->loc);
+    }}
     if (gtk_ml_list_len(args) != {args_len}) {{
         *err = gtk_ml_error(
             ctx,
             "arity-error",
             GTKML_ERR_ARITY_ERROR,
-            (*stmt)->span.ptr != NULL,
-            (*stmt)->span.line,
-            (*stmt)->span.col,
+            (*stmt)->loc != 0,
+            span.line,
+            span.col,
             3,
-            gtk_ml_new_keyword(ctx, NULL, 0, "function", strlen("function")),
-            gtk_ml_new_string(ctx, NULL, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
-            gtk_ml_new_keyword(ctx, NULL, 0, "expected", strlen("expected")),
-            gtk_ml_new_int(ctx, NULL, {args_len}),
-            gtk_ml_new_keyword(ctx, NULL, 0, "got", strlen("got")),
-            gtk_ml_new_int(ctx, NULL, gtk_ml_list_len(args))
+            gtk_ml_new_keyword(ctx, 0, 0, "function", strlen("function")),
+            gtk_ml_new_string(ctx, 0, "{with_prefix(c.spelling, args.prefix, "/")}", strlen("{with_prefix(c.spelling, args.prefix, "/")}")),
+            gtk_ml_new_keyword(ctx, 0, 0, "expected", strlen("expected")),
+            gtk_ml_new_int(ctx, 0, {args_len}),
+            gtk_ml_new_keyword(ctx, 0, 0, "got", strlen("got")),
+            gtk_ml_new_int(ctx, 0, gtk_ml_list_len(args))
         );
         return 0;
     }}
 
     return compile_core_call(
+        index,
         ctx,
         b,
         basic_block,
